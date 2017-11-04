@@ -13,5 +13,7 @@ License: GPL-3 | file LICENSE
 Encoding: UTF-8
 LazyData: true
 Imports: Gmedian,
-    stats
+    stats,
+    mvtnorm
 RoxygenNote: 6.0.1
+Suggests: testthat

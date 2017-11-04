@@ -3,3 +3,5 @@
 ^R_private$
 ^README\.Rmd$
 ^README-.*\.png$
+^data-raw$
+^refs$

@@ -45,8 +45,8 @@ X <- mvtnorm::rmvt(n=T, delta=mu, sigma=(nv-2)/nv*R_cov, df=nv)
 
 #estimate mean and covariance matrix
 res <- momentsStudentt(X)
-print(res$mu)
-print(res$cov)
-print(res$nv)
+norm(res$mu - mu, "2")
+norm(colMeans(X) - mu, "2")
 norm(res$cov - R_cov, "F")
+norm(cov(X) - R_cov, "F")
 ```
