@@ -1,0 +1,5 @@
+^.*\.Rproj$
+^\.Rproj\.user$
+^R_private$
+^README\.Rmd$
+^README-.*\.png$

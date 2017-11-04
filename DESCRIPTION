@@ -1,0 +1,17 @@
+Package: covHeavyTail
+Title: Mean and Covariance Matrix Estimation under Heavy Tails
+Version: 1.0.0
+Author: Daniel P. Palomar <daniel.p.palomar@gmail.com> [aut, cre],
+    Junyan LIU <liubl@connect.ust.hk> [aut]
+Maintainer: Daniel P. Palomar <daniel.p.palomar@gmail.com>
+Description: This package provides several functions to estimate the mean 
+    and covariance matrix for multivariate iid time-series under heavy-tailed 
+    distributions commonly arising in financial data.
+URL: http://www.danielppalomar.com/
+Depends: R (>= 3.4.0)
+License: GPL-3 | file LICENSE
+Encoding: UTF-8
+LazyData: true
+Imports: Gmedian,
+    stats
+RoxygenNote: 6.0.1
