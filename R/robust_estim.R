@@ -33,7 +33,7 @@ Gmedian_of_means <- function(X, k = 10) {
 #'
 #' @param X Data matrix containing the multivariate time series (each column is one time series).
 #' @param verbose If \code{TRUE}, info about iterations for convergence will be output.
-#' @return A list with components
+#' @return A list with the following components:
 #' \item{\code{mu}}{mean estimate}
 #' \item{\code{cov}}{covariance matrix estimate}
 #' @author Daniel P. Palomar
@@ -52,8 +52,9 @@ Gmedian_of_means <- function(X, k = 10) {
 #'
 #' #estimate mean and covariance matrix
 #' res <- momentsTyler(X)
-#' print( res$mu )
-#' print( res$cov )
+#' print(res$mu)
+#' print(res$cov)
+#' norm(res$cov - R_cov, "F")
 #' @export
 #' @importFrom stats cov var
 #' @importFrom utils tail
@@ -121,7 +122,7 @@ momentsTyler <- function(X, verbose=FALSE) {
 #'
 #' @param X Data matrix containing the multivariate time series (each column is one time series).
 #' @param verbose If \code{TRUE}, info about iterations for convergence will be output.
-#' @return A list with components
+#' @return A list with the following components:
 #' \item{\code{mu}}{mean estimate}
 #' \item{\code{cov}}{covariance matrix estimate}
 #' @author Daniel P. Palomar
@@ -140,8 +141,9 @@ momentsTyler <- function(X, verbose=FALSE) {
 #'
 #' #estimate mean and covariance matrix
 #' res <- momentsCauchy(X)
-#' print( res$mu )
-#' print( res$cov )
+#' print(res$mu)
+#' print(res$cov)
+#' norm(res$cov - R_cov, "F")
 #' @export
 #' @importFrom stats cov var
 #' @importFrom utils tail
@@ -212,7 +214,7 @@ momentsCauchy <- function(X, verbose=FALSE) {
 #'
 #' @param X Data matrix containing the multivariate time series (each column is one time series).
 #' @param verbose If \code{TRUE}, info about iterations for convergence will be output.
-#' @return A list with components
+#' @return A list with the following components:
 #' \item{\code{mu}}{mean estimate}
 #' \item{\code{cov}}{covariance matrix estimate}
 #' \item{\code{nv}}{degrees of freedom}
@@ -232,9 +234,10 @@ momentsCauchy <- function(X, verbose=FALSE) {
 #'
 #' #estimate mean and covariance matrix
 #' res <- momentsStudentt(X)
-#' print( res$mu )
-#' print( res$cov )
-#' print( res$nv )
+#' print(res$mu)
+#' print(res$cov)
+#' print(res$nv)
+#' norm(res$cov - R_cov, "F")
 #' @export
 #' @importFrom stats cov var optimize
 #' @importFrom utils tail

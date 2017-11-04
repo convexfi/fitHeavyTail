@@ -12,6 +12,7 @@ help(package="covHeavyTail")
 ##
 ## Developer commands (http://r-pkgs.had.co.nz/)
 ##
+library(devtools)
 #devtools::create("covHeavyTail")
 devtools::load_all()  #or Ctrl-Shift-L
 #devtools::use_package("Gmedian")

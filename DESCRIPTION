@@ -1,6 +1,6 @@
 Package: covHeavyTail
 Title: Mean and Covariance Matrix Estimation under Heavy Tails
-Version: 1.0.0
+Version: 0.0.1
 Author: Daniel P. Palomar <daniel.p.palomar@gmail.com> [aut, cre],
     Junyan LIU <liubl@connect.ust.hk> [aut]
 Maintainer: Daniel P. Palomar <daniel.p.palomar@gmail.com>
