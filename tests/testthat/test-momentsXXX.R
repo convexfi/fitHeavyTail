@@ -53,3 +53,10 @@ test_that("mu and cov estimation check", {
   expect_lt(norm(res$mu - heavy_data$mu, "2"), 0.7242409 + 0.001)
   expect_lt(norm(res$cov - heavy_data$cov, "F"), 5.826894 + 0.001)
 })
+
+
+test_that("Gaussian mu and cov estimation check", {
+  res <- momentsStudentt(heavy_data$X, nv = 1e15)
+  expect_lt(norm(res$mu - colMeans(heavy_data$X), "2"), 1e-12)
+  expect_lt(norm(res$cov - ((heavy_data$T-1)/heavy_data$T)*cov(heavy_data$X), "F"), 1e-11)
+})

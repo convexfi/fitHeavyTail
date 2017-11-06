@@ -1,7 +1,7 @@
 ^.*\.Rproj$
 ^\.Rproj\.user$
-^R_private$
 ^README\.Rmd$
 ^README-.*\.png$
 ^data-raw$
+^R_private$
 ^refs$

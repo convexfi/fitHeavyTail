@@ -239,7 +239,7 @@ momentsCauchy <- function(X, verbose = FALSE) {
 #' norm(cov(heavy_data$X) - heavy_data$cov, "F")
 #' @export
 #' @importFrom stats cov var optimize
-#' @importFrom utils tail
+#' @importFrom mvtnorm dmvt
 momentsStudentt <- function(X, nv = NULL, method = "ECM", verbose = FALSE) {
   max_iter <- 100
   error_th_nv <- 0.1
@@ -253,15 +253,14 @@ momentsStudentt <- function(X, nv = NULL, method = "ECM", verbose = FALSE) {
   N <- ncol(X)
   if (T == 1) stop("Only T=1 sample!!")
   if (N == 1) stop("Data is univariate!")
-  if (nv == Inf)
-    nv <- 10000
+
+  optimize_nv <- ifelse(is.null(nv), TRUE, FALSE)
+  if (!optimize_nv && nv == Inf)
+    nv <- 1e15
 
   #initial point based on sample mean and SCM
-  if (is.null(nv)) {
+  if (optimize_nv)
     nv <- 10
-    optimize_nv <- TRUE
-  } else
-    optimize_nv <- FALSE
   mu <- colMeans(X)
   Sigma <- (nv-2)/nv*cov(X)  #Sigma is the scale matrix, not the covariance matrix
 
