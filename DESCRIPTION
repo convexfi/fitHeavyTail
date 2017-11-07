@@ -7,7 +7,8 @@ Maintainer: Daniel P. Palomar <daniel.p.palomar@gmail.com>
 Description: This package provides several functions to estimate the mean 
     and covariance matrix for multivariate iid time-series under heavy-tailed 
     distributions commonly arising in financial data.
-URL: http://www.danielppalomar.com/
+URL: https://github.com/dppalomar/covHeavyTail
+BugReports: https://github.com/dppalomar/covHeavyTail/issues
 Depends: R (>= 3.4.0)
 License: GPL-3 | file LICENSE
 Encoding: UTF-8
