@@ -4,10 +4,15 @@ This package provides several functions to estimate the mean and covariance matr
 Installation
 ------------
 
-Installation from local file:
-
 ``` r
+# Installation from local file
 install.packages(file.choose(), repos = NULL, type="source")
+
+# Or from GitHub
+# install.packages("devtools")
+devtools::install_github("dppalomar/covHeavyTail")
+
+# Get help
 library(covHeavyTail)
 help(package="covHeavyTail")
 ?momentsStudentt
