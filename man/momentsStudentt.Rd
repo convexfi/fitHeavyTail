@@ -4,7 +4,7 @@
 \alias{momentsStudentt}
 \title{Estimation of mean and covariance matrix based on fitting data to the Student-t distribution.}
 \usage{
-momentsStudentt(X, nv = NULL, method = "ECM", verbose = FALSE)
+momentsStudentt(X, nv = NA, method = "ECM", verbose = FALSE)
 }
 \arguments{
 \item{X}{Data matrix containing the multivariate time series (each column is one time series).}

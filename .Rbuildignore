@@ -3,5 +3,5 @@
 ^README\.Rmd$
 ^README-.*\.png$
 ^data-raw$
-^R_private$
-^refs$
+^R_buildignore$
+^papers$

@@ -1,5 +1,8 @@
 #
 # TO DO:
+# 00) Use sum(log(eigen(Sigma)$values)) instead of log(det(Sigma))
+# 000) Use obj_value_record <- obj_value_record[1:k]
+#      Sigma_diff_record <- Sigma_diff_record[1:k]
 # 0) compare with package TTmoment
 # 1) include shrinkage to target in most of the functions
 # 2) check the 1D case?
@@ -7,6 +10,8 @@
 # 4) Junyan: estend to NA with stochastic EM
 # 5) Junyan: include shrinkage
 #
+
+# Use nv/(nv-2) as variable for checking convergence
 
 
 inv <- function(...) solve(...)
@@ -240,7 +245,7 @@ momentsCauchy <- function(X, verbose = FALSE) {
 #' @export
 #' @importFrom stats cov var optimize
 #' @importFrom mvtnorm dmvt
-momentsStudentt <- function(X, nv = NULL, method = "ECM", verbose = FALSE) {
+momentsStudentt <- function(X, nv = NA, method = "ECM", verbose = FALSE) {
   max_iter <- 100
   error_th_nv <- 0.1
   error_th_Sigma <- 1e-3
@@ -254,7 +259,7 @@ momentsStudentt <- function(X, nv = NULL, method = "ECM", verbose = FALSE) {
   if (T == 1) stop("Only T=1 sample!!")
   if (N == 1) stop("Data is univariate!")
 
-  optimize_nv <- ifelse(is.null(nv), TRUE, FALSE)
+  optimize_nv <- ifelse(is.na(nv), TRUE, FALSE)
   if (!optimize_nv && nv == Inf)
     nv <- 1e15
 

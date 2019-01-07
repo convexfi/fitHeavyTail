@@ -36,7 +36,7 @@ help(package="covHeavyTail")
 ```
 
 
-## Example
+## Usage
 
 This is a simple illustrative example:
 
