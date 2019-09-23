@@ -9,12 +9,13 @@ Description: This package provides several functions to estimate the mean
     distributions commonly arising in financial data.
 URL: https://github.com/dppalomar/covHeavyTail
 BugReports: https://github.com/dppalomar/covHeavyTail/issues
-Depends: R (>= 3.4.0)
+Depends:
 License: GPL-3 | file LICENSE
 Encoding: UTF-8
 LazyData: true
-Imports: Gmedian,
-    stats,
-    mvtnorm
-RoxygenNote: 6.0.1
+Imports:
+    ICSNP,
+    mvtnorm,
+    stats
+RoxygenNote: 6.1.1
 Suggests: testthat

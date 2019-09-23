@@ -19,7 +19,7 @@ A list with the following components:
 }
 \description{
 The function \code{momentsCauchy} implements a maximum likelihood estimation (MLE) of the mean and covariance matrix
-to fit the data to a Cauchy distribution (Student-t with nv=1).
+to fit the data to a Cauchy distribution (Student-t with nu=1).
 }
 \examples{
 data(heavy_data)

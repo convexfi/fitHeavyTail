@@ -4,14 +4,14 @@
 \alias{momentsStudentt}
 \title{Estimation of mean and covariance matrix based on fitting data to the Student-t distribution.}
 \usage{
-momentsStudentt(X, nv = NA, method = "ECM", verbose = FALSE)
+momentsStudentt(X, nu = NULL, method = "ECM", verbose = FALSE)
 }
 \arguments{
 \item{X}{Data matrix containing the multivariate time series (each column is one time series).}
 
-\item{nv}{If passed, then \code{nv} will not be optimized and will be set to that value.}
+\item{nu}{If passed, then \code{nu} will not be optimized and will be set to that value.}
 
-\item{method}{Choice of method c("ECM", "ECME") for the maximization of \code{nv}.}
+\item{method}{Choice of method c("ECM", "ECME") for the maximization of \code{nu}.}
 
 \item{verbose}{If \code{TRUE}, info about iterations for convergence will be output.}
 }
@@ -19,12 +19,12 @@ momentsStudentt(X, nv = NA, method = "ECM", verbose = FALSE)
 A list with the following components:
 \item{\code{mu}}{mean estimate}
 \item{\code{cov}}{covariance matrix estimate}
-\item{\code{nv}}{degrees of freedom}
+\item{\code{nu}}{degrees of freedom}
 \item{\code{obj_value_record}}{convergence of objective value vs iterations}
 }
 \description{
 The function \code{momentsStudentt} implements a maximum likelihood estimation (MLE) of the mean, covariance matrix,
-and degrees of freedom nv to fit the data to a Student-t distribution (via the ECME algorithm).
+and degrees of freedom nu to fit the data to a Student-t distribution (via the ECME algorithm).
 }
 \examples{
 data(heavy_data)
