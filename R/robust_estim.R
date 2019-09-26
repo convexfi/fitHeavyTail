@@ -18,7 +18,7 @@ inv <- function(...) solve(...)
 
 
 #' @importFrom ICSNP spatial.median
-Gmedian_of_means <- function(X, k = 10) {
+Gmedian_of_means <- function(X, k = min(10, ceiling(T/2))) {
   T <- nrow(X)
   N <- ncol(X)
   i1 <- floor(seq(1, T, by = T/k))
@@ -89,9 +89,8 @@ momentsTyler <- function(X, verbose = FALSE) {
   if (T == 1) stop("Only T=1 sample!!")
   if (N == 1) stop("Data is univariate!")
 
-
   #first, compute and remove mean
-  mu <- gmean(X, "Gmedian of means", k = 10)
+  mu <- gmean(X, "Gmedian", k = 10)
   X_ <- X_ <- X - matrix(mu, T, N, byrow = TRUE)
 
   #second, compute covariance matrix up to a scaling factor with Tyler estimate
