@@ -4,7 +4,7 @@
 \alias{covTFA}
 \title{Robustly estimate parameters of the multivariate Students' t data with (optional) assumption of factor model structure}
 \usage{
-covTFA(X, r = ncol(X), max_iter = 100, ptol = 0.001, ftol = 0,
+covTFA(X, r = ncol(X), max_iter = 100, ptol = 0.001, ftol = Inf,
   initializer = NULL, procedure = FALSE)
 }
 \arguments{

@@ -1,17 +1,18 @@
 library(covHeavyTail)
+library(tictoc)
 
 set.seed(234)
 
-p <- 100
-n <- p * 4
+N <- 10
+T <- 4*N
 r <- 5
-beta <- matrix(rnorm(p*r, 10, 1), p, r)
-psi <- rexp(p, 1/10)
-sigma <- beta %*% t(beta) + diag(psi, p)
-mu <- rnorm(p, 0, 1)
+beta <- matrix(rnorm(N*r, 10, 1), N, r)
+psi <- rexp(N, 1/10)
+Sigma <- beta %*% t(beta) + diag(psi)  # scale matrix (not covariance)
+mu <- rnorm(N, 0, 1)
 nu <- 7
 
-X <- mvtnorm::rmvt(n = n, sigma = sigma, df = nu, delta = mu)
+X <- mvtnorm::rmvt(n = T, sigma = Sigma, df = nu, delta = mu)
 
 # a function for adding NAs
 addNA <- function(Y, missing_ratio) {
@@ -33,19 +34,33 @@ max_iter <- 100
 ptol <- Inf
 ftol <- 1e-6
 
+tic()
 fit_old <- momentsStudentt(X)
+toc()
 
-fit_nom <- covTFA(X, ptol = ptol, ftol = ftol, procedure = TRUE)
-fit_wFA <- covTFA(X, r = r, ptol = ptol, ftol = ftol, procedure = TRUE)
+# Naming:
+# fit_mvt <- momentsStudentt
+# fit_mvtFA <- covTFA
+# fit_mvskewt
+
+
+tic()
+fit_nom <- covTFA(X, ptol = ptol, ftol = ftol, procedure = TRUE)  # use return_convergence? return_iterations? Or debug?
+toc()
+
+
+fit_wFA <- covTFA(X, r = r, ptol = ptol, ftol = ftol, procedure = TRUE)  # check better name for r?
 fit_wFA_wNA <- covTFA(X_wNA, r = r, ptol = ptol, ftol = ftol, procedure = TRUE)
 
 fit_old$nu
 fit_nom$nu
 
+norm(fit_old$mu - mu, "2") / norm(mu, "2")
+norm(fit_nom$mu - mu, "2") / norm(mu, "2")
 norm(fit_old$mu - fit_nom$mu, "2") / norm(fit_nom$mu, "2")
 norm(fit_old$cov * (fit_old$nu - 2) / fit_old$nu - fit_nom$Sigma, "F") / norm(fit_nom$Sigma, "F")
 
 
-sapply(fit_nom$proc, function(x) x$nu)
+plot(sapply(fit_nom$proc, function(x) x$nu))
 sapply(fit_wFA$proc, function(x) x$nu)
 sapply(fit_wFA_wNA$proc, function(x) x$nu)

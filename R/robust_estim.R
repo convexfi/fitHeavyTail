@@ -294,13 +294,13 @@ momentsStudentt <- function(X, nu = NULL, method = "ECM", verbose = FALSE) {
                # based on minus the Q function of nu
                S <- T*(digamma((N+nu)/2) - log((N+nu)/2)) + sum(log(weights) - weights)  # S is E_log_tau-E_tau
                Q_nu <- function(nu) { - T*(nu/2)*log(nu/2) + T*lgamma(nu/2) - (nu/2)*sum(S) }
-               nu <- optimize(Q_nu, interval = c(1e-6, 1e6))$minimum
+               nu <- optimize(Q_nu, interval = c(2 + 1e-16, 100))$minimum
              },
              "ECME" = {
                # based on minus log-likelihood of nu with mu and sigma fixed to mu[k+1] and sigma[k+1]
                tmp <- rowSums(X_ * (X_ %*% inv(Sigma)))  # diag( X_ %*% inv(Sigma) %*% t(X_) )
                LL_nu <- function(nu) { - sum ( - ((nu+N)/2)*log(nu+tmp) + lgamma( (nu+N)/2 ) - lgamma(nu/2) + (nu/2)*log(nu) ) }
-               nu <- optimize(LL_nu, interval=c(1e-6, 1e6))$minimum
+               nu <- optimize(LL_nu, interval = c(2 + 1e-16, 100))$minimum
              },
              stop("Method unknown")
       )
