@@ -11,13 +11,13 @@
 #' @description Robust paramater estimation of the multivariate Students' t data with (optional) assumption of factor model structure
 #'
 #' @param X Data matrix
-#' @param r Interger indicating number of factor dimension (default is \code{ncol(X)}, so no factor model assumption).
+#' @param factors Interger indicating number of factor dimension (default is \code{ncol(X)}, so no factor model assumption).
 #' @param max_iter Interger indicating the maximum iterations of estimation method.
-#' @param ptol Number (>= 0) indicating the tolerance for parameter changing when judge convergence (default is 1e-3).
-#' @param ftol Number (>= 0) indicating the tolerance for objective changing when judge convergence (default is 0).
+#' @param ptol Number (>= 0) indicating the tolerance for parameter changing when judge convergence (default is Inf).
+#' @param ftol Number (>= 0) indicating the tolerance for objective changing when judge convergence (default is Inf).
 #'             Note: it might be time consuming when use objective changing as a convergence judging criterion, especially when X is high-dimensional.
 #' @param initializer A list of initial value of parameters for starting method.
-#' @param procedure A logical value indicating whether to recode the procedure by iterations.
+#' @param return_iterates A logical value indicating whether to recode the procedure by iterations.
 #'
 #' @return The estimated parameters as a list.
 #'
@@ -28,19 +28,19 @@
 #'
 #' @export
 
-covTFA <- function(X, r = ncol(X), max_iter = 100, ptol = 1e-3, ftol = Inf, initializer = NULL, procedure = FALSE) {
+covTFA <- function(X, factors = ncol(X), max_iter = 100, ptol = 1e-3, ftol = Inf, initializer = NULL, return_iterates = FALSE) {
   ####### error control ########
   X <- as.matrix(X)
-  r <- round(r)
+  factors <- round(factors)
   max_iter <- round(max_iter)
   if (!is.matrix(X)) stop("\"X\" must be a matrix or can be converted to a matrix.")
-  if (r < 1 || r > ncol(X)) stop("\"r\" must satisfy \"1 <= r <= ncol(X)\"")
+  if (factors < 1 || factors > ncol(X)) stop("\"factors\" must satisfy \"1 <= factors <= ncol(X)\"")
   if (max_iter < 1) stop("\"max_iter\" must be greater than 1.")
   ##############################
 
   T <- nrow(X)
   p <- ncol(X)
-  FA_struct <- ! r == p
+  FA_struct <- ! factors == p
 
   # init all parameters
   alpha <- 1  # an extra variable for PX-EM acceleration
@@ -50,7 +50,7 @@ covTFA <- function(X, r = ncol(X), max_iter = 100, ptol = 1e-3, ftol = Inf, init
   S <- cov(X[mask_valid, ])
   if (FA_struct) {
     tmp <- eigen(S, symmetric = TRUE)
-    ifelse(is.null(initializer$B), B <- tmp$vectors[, 1:r] %*% diag(sqrt(tmp$values[1:r]), r), B <- initializer$B)
+    ifelse(is.null(initializer$B), B <- tmp$vectors[, 1:factors] %*% diag(sqrt(tmp$values[1:factors]), factors), B <- initializer$B)
     ifelse(is.null(initializer$psi), psi <- diag(S) - diag(B %*% t(B)), psi <- initializer$psi)
     Sigma <- B %*% t(B) + diag(psi, p)
   } else {
@@ -104,7 +104,7 @@ covTFA <- function(X, r = ncol(X), max_iter = 100, ptol = 1e-3, ftol = Inf, init
     # update B & psi
     S <- E_tau_XX - cbind(mu) %*% rbind(E_tau_X) - cbind(E_tau_X) %*% rbind(mu) + E_tau * cbind(mu) %*% rbind(mu)
     if (FA_struct) {
-      B   <- optB(S = S, r = r, psi_vec = psi)
+      B   <- optB(S = S, factors = factors, psi_vec = psi)
       psi <- diag(S - B %*% t(B))
       Sigma <- B %*% t(B) + diag(psi, p)
     } else {
@@ -127,7 +127,7 @@ covTFA <- function(X, r = ncol(X), max_iter = 100, ptol = 1e-3, ftol = Inf, init
     }
 
     # record the current the variables if required
-    if (procedure) proc[[iter + 1]] <- snap()
+    if (return_iterates) proc[[iter + 1]] <- snap()
 
     if (p_convg && f_convg) break
 
@@ -143,7 +143,7 @@ covTFA <- function(X, r = ncol(X), max_iter = 100, ptol = 1e-3, ftol = Inf, init
   if (ftol < Inf) {
     vars_tb_returned$log_lik <- log_lik
   }
-  if (procedure) {
+  if (return_iterates) {
     vars_tb_returned$proc <- proc
   }
   return(vars_tb_returned)
@@ -239,15 +239,15 @@ optimize_nu <- function(y, tol = 1e-4) {
 
 # a function for computing the optimal B given the psi vector
 # see: Lemma 1. in LNCS paper
-optB <- function(S, r, psi_vec) {
+optB <- function(S, factors, psi_vec) {
   psi_sqrt <- sqrt(psi_vec)
   psi_inv_sqrt <- 1 / psi_sqrt
   tmp <- eigen(S * (psi_inv_sqrt%*%t(psi_inv_sqrt)))
-  U <- cbind(tmp$vectors[, 1:r])
-  D <- tmp$values[1:r]
-  Z <- matrix(0, nrow(S), r)
+  U <- cbind(tmp$vectors[, 1:factors])
+  D <- tmp$values[1:factors]
+  Z <- matrix(0, nrow(S), factors)
 
-  for (i in 1:r) {
+  for (i in 1:factors) {
     zi <- U[, i]
     Z[, i] <- zi * sqrt(max(1, D[i]) - 1) / norm(zi, "2")
   }

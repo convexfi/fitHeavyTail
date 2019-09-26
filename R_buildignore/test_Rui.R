@@ -5,8 +5,8 @@ set.seed(234)
 
 N <- 10
 T <- 4*N
-r <- 5
-beta <- matrix(rnorm(N*r, 10, 1), N, r)
+factors <- 5
+beta <- matrix(rnorm(N*factors, 10, 1), N, factors)
 psi <- rexp(N, 1/10)
 Sigma <- beta %*% t(beta) + diag(psi)  # scale matrix (not covariance)
 mu <- rnorm(N, 0, 1)
@@ -45,12 +45,12 @@ toc()
 
 
 tic()
-fit_nom <- covTFA(X, ptol = ptol, ftol = ftol, procedure = TRUE)  # use return_convergence? return_iterations? Or debug?
+fit_nom <- covTFA(X, ptol = ptol, ftol = ftol, return_iterates = TRUE)  # use return_convergence? return_iterations? Or debug?
 toc()
 
 
-fit_wFA <- covTFA(X, r = r, ptol = ptol, ftol = ftol, procedure = TRUE)  # check better name for r?
-fit_wFA_wNA <- covTFA(X_wNA, r = r, ptol = ptol, ftol = ftol, procedure = TRUE)
+fit_wFA <- covTFA(X, factors = factors, ptol = ptol, ftol = ftol, return_iterates = TRUE)  # check better name for factors?
+fit_wFA_wNA <- covTFA(X_wNA, factors = factors, ptol = ptol, ftol = ftol, return_iterates = TRUE)
 
 fit_old$nu
 fit_nom$nu
