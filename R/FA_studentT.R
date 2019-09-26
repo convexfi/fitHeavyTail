@@ -28,7 +28,7 @@
 #'
 #' @export
 
-covTFA <- function(X, r = ncol(X), max_iter = 100, ptol = 1e-3, ftol = 0, initializer = NULL, procedure = FALSE) {
+covTFA <- function(X, r = ncol(X), max_iter = 100, ptol = 1e-3, ftol = Inf, initializer = NULL, procedure = FALSE) {
   ####### error control ########
   X <- as.matrix(X)
   r <- round(r)
@@ -58,23 +58,28 @@ covTFA <- function(X, r = ncol(X), max_iter = 100, ptol = 1e-3, ftol = 0, initia
   }
 
 
-  if (ftol > 0) log_liks <- log_lik <- dmvtWithNA(X = X, delta = mu, sigma = Sigma / alpha, df = nu)
+  if (ftol < Inf) log_liks <- log_lik <- dmvtWithNA(X = X, delta = mu, sigma = Sigma / alpha, df = nu)
 
 
   # enter loop
   p_convg <- f_convg <- TRUE
-  snap <- function() list(mu = mu, Sigma = Sigma, nu = nu, log_lik = log_lik)
+  snap <- function() {
+    if (ftol < Inf)
+      list(mu = mu, Sigma = Sigma, nu = nu, log_lik = log_lik)
+    else
+      list(mu = mu, Sigma = Sigma, nu = nu)
+  }
   proc <- list(snap())
 
   for (iter in 1:max_iter) {
 
     # record the current status if necessary
-    if (ptol > 0) {
+    if (ptol < Inf) {
       Sigma_old <- Sigma
       mu_old <- mu
       nu_old <- nu
     }
-    if (ftol > 0)
+    if (ftol < Inf)
       log_lik_old <- log_lik
 
     ## ------------ E-step -------------------
@@ -106,23 +111,23 @@ covTFA <- function(X, r = ncol(X), max_iter = 100, ptol = 1e-3, ftol = 0, initia
       Sigma <- S
     }
 
-    # record the current the variables if required
-    if (procedure) proc[[iter]] <- snap()
-
     ## ------- check for convergence --------
-    if (ptol > 0) {
+    if (ptol < Inf) {
       delta_Sigma <- norm(Sigma - Sigma_old, "F") / norm(Sigma_old, "F")
       delta_mu    <- norm(mu - mu_old, "2") / norm(mu_old, "2")
       delta_nu    <- abs(fnu(nu) - fnu(nu_old)) / abs(fnu(nu_old))
       p_convg     <- delta_Sigma < ptol && delta_mu < ptol && delta_nu < ptol
     }
 
-    if (ftol > 0) {
+    if (ftol < Inf) {
       log_lik  <- dmvtWithNA(X = X, delta = mu, sigma = Sigma / alpha, df = nu)
       log_liks <- c(log_liks, log_lik)
       delta_loglik <- abs(log_lik_old - log_lik) / abs(log_lik_old)
       f_convg  <- delta_loglik < ftol
     }
+
+    # record the current the variables if required
+    if (procedure) proc[[iter + 1]] <- snap()
 
     if (p_convg && f_convg) break
 
@@ -135,7 +140,7 @@ covTFA <- function(X, r = ncol(X), max_iter = 100, ptol = 1e-3, ftol = 0, initia
     vars_tb_returned$B   <- B / sqrt(alpha)
     vars_tb_returned$psi <-  psi / alpha
   }
-  if (ftol > 0) {
+  if (ftol < Inf) {
     vars_tb_returned$log_lik <- log_lik
   }
   if (procedure) {

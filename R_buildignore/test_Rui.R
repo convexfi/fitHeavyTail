@@ -30,7 +30,7 @@ addNA <- function(Y, missing_ratio) {
 X_wNA <- addNA(X, 0.1)
 
 max_iter <- 100
-ptol <- 0
+ptol <- Inf
 ftol <- 1e-6
 
 fit_old <- momentsStudentt(X)
