@@ -3,16 +3,16 @@ library(tictoc)
 
 set.seed(234)
 
-N <- 10
+N <- 20
 T <- 4*N
 factors <- 5
 beta <- matrix(rnorm(N*factors, 10, 1), N, factors)
 psi <- rexp(N, 1/10)
-Sigma <- beta %*% t(beta) + diag(psi)  # scale matrix (not covariance)
+Sigma_scale <- beta %*% t(beta) + diag(psi)  # scale matrix (not covariance)
 mu <- rnorm(N, 0, 1)
 nu <- 7
 
-X <- mvtnorm::rmvt(n = T, sigma = Sigma, df = nu, delta = mu)
+X <- mvtnorm::rmvt(n = T, sigma = Sigma_scale, df = nu, delta = mu)
 
 # a function for adding NAs
 addNA <- function(Y, missing_ratio) {
@@ -30,9 +30,7 @@ addNA <- function(Y, missing_ratio) {
 }
 X_wNA <- addNA(X, 0.1)
 
-max_iter <- 100
-ptol <- Inf
-ftol <- 1e-6
+
 
 tic()
 fit_old <- momentsStudentt(X)
@@ -45,12 +43,12 @@ toc()
 
 
 tic()
-fit_nom <- covTFA(X, ptol = ptol, ftol = ftol, return_iterates = TRUE)  # use return_convergence? return_iterations? Or debug?
+fit_nom <- fit_mvt(X, ftol = 1e6, return_iterates = TRUE)  # use return_convergence? return_iterations? Or debug?
 toc()
 
 
-fit_wFA <- covTFA(X, factors = factors, ptol = ptol, ftol = ftol, return_iterates = TRUE)  # check better name for factors?
-fit_wFA_wNA <- covTFA(X_wNA, factors = factors, ptol = ptol, ftol = ftol, return_iterates = TRUE)
+# fit_wFA <- covTFA(X, factors = factors, ptol = ptol, ftol = ftol, return_iterates = TRUE)  # check better name for factors?
+# fit_wFA_wNA <- covTFA(X_wNA, factors = factors, ptol = ptol, ftol = ftol, return_iterates = TRUE)
 
 fit_old$nu
 fit_nom$nu
@@ -61,6 +59,6 @@ norm(fit_old$mu - fit_nom$mu, "2") / norm(fit_nom$mu, "2")
 norm(fit_old$cov * (fit_old$nu - 2) / fit_old$nu - fit_nom$Sigma, "F") / norm(fit_nom$Sigma, "F")
 
 
-plot(sapply(fit_nom$proc, function(x) x$nu))
-sapply(fit_wFA$proc, function(x) x$nu)
-sapply(fit_wFA_wNA$proc, function(x) x$nu)
+plot(sapply(fit_nom$iterations_record, function(x) x$nu))
+sapply(fit_wFA$iterations_record, function(x) x$nu)
+sapply(fit_wFA_wNA$iterations_record, function(x) x$nu)

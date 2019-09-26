@@ -27,8 +27,7 @@
 #' # examples are not yet ready!
 #'
 #' @export
-
-covTFA <- function(X, factors = ncol(X), max_iter = 100, ptol = 1e-3, ftol = Inf, initializer = NULL, return_iterates = FALSE) {
+fit_mvt <- function(X, factors = ncol(X), max_iter = 100, ptol = 1e-3, ftol = Inf, initializer = NULL, return_iterates = FALSE) {
   ####### error control ########
   X <- as.matrix(X)
   if (nrow(X) == 1) stop("Only T=1 sample!!")
@@ -45,89 +44,100 @@ covTFA <- function(X, factors = ncol(X), max_iter = 100, ptol = 1e-3, ftol = Inf
   X_has_NA <- anyNA(X)
   FA_struct <- factors != N
 
-
-  #initial point based on sample mean and SCM
-  mu <- colMeans(X)
-  Sigma <- (nu-2)/nu * cov(X)  # Sigma is the scale matrix, not the covariance matrix
-
-
-
-
   # initialize all parameters
   alpha <- 1  # an extra variable for PX-EM acceleration
   nu <- if (is.null(initializer$nu)) 10
         else initializer$nu
   mu <- if (is.null(initializer$mu)) colMeans(X, na.rm = TRUE)
         else initializer$mu
-  S <- cov(X, na.rm = TRUE)
-  if (FA_struct) {
+  S <- var(X, na.rm = TRUE)
+  if (FA_struct) {  # Sigma is the scale matrix, not the covariance matrix
     S_eigen <- eigen(S, symmetric = TRUE)
     B <- if (is.null(initializer$B)) S_eigen$vectors[, 1:factors] %*% diag(sqrt(S_eigen$values[1:factors]), factors)
          else initializer$B
     psi <- if (is.null(initializer$psi)) pmax(0, diag(S) - diag(B %*% t(B)))
            else initializer$psi
-    Sigma <- B %*% t(B) + diag(psi, N)
+    Sigma <- (nu-2)/nu * (B %*% t(B) + diag(psi, N))
   } else
-    Sigma <- S
+    Sigma <- (nu-2)/nu * S
+  #mask_notNA <- !is.na(rowSums(X))
+  if (ftol < Inf) log_liks <- log_lik <- ifelse(X_has_NA,
+                                                dmvt_withNA(X = X, delta = mu, sigma = Sigma / alpha, df = nu),
+                                                sum(mvtnorm::dmvt(X, delta = mu, sigma = Sigma, df = nu, log = TRUE, type = "shifted")))
 
-  mask_notNA <- !is.na(rowSums(X))
-  if (ftol < Inf) log_liks <- log_lik <- dmvt_withNA(X = X, delta = mu, sigma = Sigma / alpha, df = nu)
-
-
-
-
-  # enter loop
-  p_convg <- f_convg <- TRUE
-  snap <- function() {
+  snapshot <- function() {
     if (ftol < Inf)
-      list(mu = mu, Sigma = Sigma, nu = nu, log_lik = log_lik)
+      list(mu = mu, Sigma_scale = Sigma, nu = nu, log_lik = log_lik)
     else
-      list(mu = mu, Sigma = Sigma, nu = nu)
+      list(mu = mu, Sigma_scale = Sigma, nu = nu)
   }
-  proc <- list(snap())
 
+  # loop
+  if (return_iterates) iterations_record <- list(snapshot())
   for (iter in 1:max_iter) {
+    # record the current status
+    Sigma_old <- Sigma
+    mu_old <- mu
+    nu_old <- nu
+    if (ftol < Inf) log_lik_old <- log_lik
 
-    # record the current status if necessary
-    if (ptol < Inf) {
-      Sigma_old <- Sigma
-      mu_old <- mu
-      nu_old <- nu
+    browser()
+
+    ## -------------- E-step --------------
+    if (X_has_NA)
+      Q <- Estep(mu, Sigma, psi, nu, alpha, X)
+    else {
+      X_ <- X - matrix(mu, T, N, byrow = TRUE)
+      tmp <- rowSums(X_ * (X_ %*% inv(Sigma)))  # diag( X_ %*% inv(Sigma) %*% t(X_) )
+      E_tau <- (nu + N) / (nu + tmp)
+      ave_E_tau <- mean(E_tau)
+      ave_E_tau_X <- (1/T)*as.vector(E_tau %*% X)
     }
-    if (ftol < Inf)
-      log_lik_old <- log_lik
 
-    ## ------------ E-step -------------------
-    expectation <- Estep(mu, Sigma, psi, nu, alpha, X)
-    E_tau    <- expectation$E_tau
-    E_logtau <- expectation$E_logtau
-    E_tau_X  <- expectation$E_tau_X
-    E_tau_XX <- expectation$E_tau_XX
-
-
-    ## ------------ M-step -------------------
-    # update mu
-    mu <- E_tau_X / E_tau
-
-    # update alpha
-    alpha <- E_tau
-
-    # update nu
-    tmp <- E_logtau - log(alpha) - (E_tau/alpha)
-    nu  <- optimize_nu(-1-tmp)
+    ## -------------- M-step --------------
+    # update mu, alpha, nu
+    if (X_has_NA) {
+      mu <- Q$ave_E_tau_X / Q$ave_E_tau
+      alpha <- Q$ave_E_tau
+      #TODO{Rui}: the next line is a joke, very expensive; the problem is that you compute matrix Q$ave_E_tau_XX with the previous mu and here
+      #           you need to adjust, whereas in my implementation I compute directly the matrix with the newest mu. The conclusion is that
+      #           you should not compute matrix ave_E_tau_XX in the function Estep(), right?
+      #           The truth is that the Estep function should only return the vector E_tau and perhaps E_logtau. That's enough. I don't see the
+      #           point in returning ave_E_tau_X and ave_E_tau_XX. Think about this and we meet tomorrow to discuss.
+      Sigma <- Q$ave_E_tau_XX - cbind(mu) %*% rbind(Q$ave_E_tau_X) - cbind(Q$ave_E_tau_X) %*% rbind(mu) + Q$ave_E_tau * cbind(mu) %*% rbind(mu)
+      nu  <- optimize_nu(- 1 - Q$ave_E_logtau + log(alpha) + Q$ave_E_tau/alpha)
+    } else {
+      mu <- ave_E_tau_X / ave_E_tau
+      alpha <- ave_E_tau  # acceleration
+      X_ <- X - matrix(mu, T, N, byrow = TRUE)  # this is slower: sweep(X, 2, FUN = "-", STATS = mu)  #X_ <- X - rep(mu, each = TRUE)  # this is wrong?
+      ave_E_tau_XX <- (1/T) * crossprod(sqrt(E_tau) * X_)  # (1/T) * t(X_) %*% diag(E_tau) %*% X_
+      Sigma <- ave_E_tau_XX / alpha  #TODO{Rui}: this Sigma is divided by alpha, whereas your above on line 102 is not... We need to check
+      nu <- switch(method,
+                   "ECM" = {  # based on minus the Q function of nu
+                     S <- T*(digamma((N+nu)/2) - log((N+nu)/2)) + sum(log(E_tau) - E_tau)  # S is E_log_tau-E_tau
+                     Q_nu <- function(nu) { - T*(nu/2)*log(nu/2) + T*lgamma(nu/2) - (nu/2)*sum(S) }
+                     optimize(Q_nu, interval = c(2 + 1e-12, 100))$minimum
+                     },
+                   "ECME" = {  # based on minus log-likelihood of nu with mu and sigma fixed to mu[k+1] and sigma[k+1]
+                     tmp <- rowSums(X_ * (X_ %*% inv(Sigma)))  # diag( X_ %*% inv(Sigma) %*% t(X_) )
+                     LL_nu <- function(nu) { - sum ( - ((nu+N)/2)*log(nu+tmp) + lgamma( (nu+N)/2 ) - lgamma(nu/2) + (nu/2)*log(nu) ) }
+                     optimize(LL_nu, interval = c(2 + 1e-12, 100))$minimum
+                     },
+                   stop("Method unknown."))
+    }
 
     # update B & psi
-    S <- E_tau_XX - cbind(mu) %*% rbind(E_tau_X) - cbind(E_tau_X) %*% rbind(mu) + E_tau * cbind(mu) %*% rbind(mu)
+    S <- Q$ave_E_tau_XX - cbind(mu) %*% rbind(Q$ave_E_tau_X) - cbind(Q$ave_E_tau_X) %*% rbind(mu) + Q$ave_E_tau * cbind(mu) %*% rbind(mu)
     if (FA_struct) {
       B   <- optB(S = S, factors = factors, psi_vec = psi)
-      psi <- diag(S - B %*% t(B))
-      Sigma <- B %*% t(B) + diag(psi, p)
+      psi <- pmax(0, diag(S - B %*% t(B)))
+      Sigma <- B %*% t(B) + diag(psi, N)  #TODO{Rui}: check if the factor (nu-2)/nu is necessary like it was in like 60
     } else {
-      Sigma <- S
+      Sigma <- S  #TODO{Rui}: idem, see line 62
     }
 
     # record the current the variables if required
-    if (return_iterates) proc[[iter + 1]] <- snap()
+    if (return_iterates) iterations_record[[iter + 1]] <- snapshot()
 
 
     ## -------- stopping criterion --------
@@ -137,7 +147,7 @@ covTFA <- function(X, factors = ncol(X), max_iter = 100, ptol = 1e-3, ftol = Inf
       all(abs(Sigma - Sigma_old) <= .5 * ptol * (abs(Sigma_old) + abs(Sigma)))
 
     if (ftol < Inf) {
-      log_lik  <- dmvtWithNA(X = X, delta = mu, sigma = Sigma / alpha, df = nu)
+      log_lik  <- dmvt_withNA(X = X, delta = mu, sigma = Sigma / alpha, df = nu)
       log_liks <- c(log_liks, log_lik)
       has_fun_converged <- abs(log_lik - log_lik_old) <= .5 * ftol * (abs(log_lik) + abs(log_lik_old))
     } else has_fun_converged <- TRUE
@@ -146,10 +156,11 @@ covTFA <- function(X, factors = ncol(X), max_iter = 100, ptol = 1e-3, ftol = Inf
   }
 
   ## -------- return variables --------
-  vars_to_be_returned <- list("mu" = mu,
-                              "cov" = Sigma / alpha,
-                              "nu" = nu,
-                              "Sigma_scale" = Sigma)
+  #TODO: colnames, rownames, etc.
+  vars_to_be_returned <- list("mu"          = mu,
+                              "cov"         = nu/(nu-2) * Sigma / alpha,
+                              "nu"          = nu,
+                              "Sigma_scale" = Sigma / alpha)
   if (FA_struct) {
     vars_to_be_returned$B   <- B / sqrt(alpha)
     vars_to_be_returned$Psi <-  psi / alpha
@@ -157,7 +168,7 @@ covTFA <- function(X, factors = ncol(X), max_iter = 100, ptol = 1e-3, ftol = Inf
   if (ftol < Inf)
     vars_to_be_returned$log_lik <- log_lik
   if (return_iterates)
-    vars_to_be_returned$proc <- proc
+    vars_to_be_returned$iterations_record <- iterations_record
 
   return(vars_to_be_returned)
 }
@@ -218,10 +229,10 @@ Estep <- function(mu, full_Sigma, psi, nu, alpha, X) {
   diag(E_tau_XX) <- diag(E_tau_XX) - min(0, min_eigval)
 
   return(list(
-    "E_tau"    = E_tau,
-    "E_logtau" = E_logtau,
-    "E_tau_X"  = E_tau_X,
-    "E_tau_XX" = E_tau_XX
+    "ave_E_tau"    = E_tau,
+    "ave_E_logtau" = as.numeric(E_logtau),
+    "ave_E_tau_X"  = E_tau_X,
+    "ave_E_tau_XX" = E_tau_XX
   ))
 }
 
@@ -273,7 +284,7 @@ optB <- function(S, factors, psi_vec) {
 
 # calculate log-likelihood value with missing data
 #' @importFrom mvtnorm dmvt
-dmvtWithNA <- function(X, delta, sigma, df) {
+dmvt_withNA <- function(X, delta, sigma, df) {
   res <- 0
   for (i in 1:nrow(X)) {
     mask <- !is.na(X[i, ])
