@@ -31,6 +31,8 @@
 covTFA <- function(X, factors = ncol(X), max_iter = 100, ptol = 1e-3, ftol = Inf, initializer = NULL, return_iterates = FALSE) {
   ####### error control ########
   X <- as.matrix(X)
+  if (nrow(X) == 1) stop("Only T=1 sample!!")
+  if (ncol(X) == 1) stop("Data is univariate!")
   factors <- round(factors)
   max_iter <- round(max_iter)
   if (!is.matrix(X)) stop("\"X\" must be a matrix or can be converted to a matrix.")
@@ -39,26 +41,39 @@ covTFA <- function(X, factors = ncol(X), max_iter = 100, ptol = 1e-3, ftol = Inf
   ##############################
 
   T <- nrow(X)
-  p <- ncol(X)
-  FA_struct <- ! factors == p
+  N <- ncol(X)
+  X_has_NA <- anyNA(X)
+  FA_struct <- factors != N
 
-  # init all parameters
+
+  #initial point based on sample mean and SCM
+  mu <- colMeans(X)
+  Sigma <- (nu-2)/nu * cov(X)  # Sigma is the scale matrix, not the covariance matrix
+
+
+
+
+  # initialize all parameters
   alpha <- 1  # an extra variable for PX-EM acceleration
-  nu <- ifelse(is.null(initializer$nu), 10, initializer$nu)
-  mask_valid <- !is.na(rowSums(X))
-  ifelse(is.null(initializer$mu), mu <- colMeans(X[mask_valid, ]), mu <- initializer$mu)
-  S <- cov(X[mask_valid, ])
+  nu <- if (is.null(initializer$nu)) 10
+        else initializer$nu
+  mu <- if (is.null(initializer$mu)) colMeans(X, na.rm = TRUE)
+        else initializer$mu
+  S <- cov(X, na.rm = TRUE)
   if (FA_struct) {
-    tmp <- eigen(S, symmetric = TRUE)
-    ifelse(is.null(initializer$B), B <- tmp$vectors[, 1:factors] %*% diag(sqrt(tmp$values[1:factors]), factors), B <- initializer$B)
-    ifelse(is.null(initializer$psi), psi <- diag(S) - diag(B %*% t(B)), psi <- initializer$psi)
-    Sigma <- B %*% t(B) + diag(psi, p)
-  } else {
+    S_eigen <- eigen(S, symmetric = TRUE)
+    B <- if (is.null(initializer$B)) S_eigen$vectors[, 1:factors] %*% diag(sqrt(S_eigen$values[1:factors]), factors)
+         else initializer$B
+    psi <- if (is.null(initializer$psi)) pmax(0, diag(S) - diag(B %*% t(B)))
+           else initializer$psi
+    Sigma <- B %*% t(B) + diag(psi, N)
+  } else
     Sigma <- S
-  }
+
+  mask_notNA <- !is.na(rowSums(X))
+  if (ftol < Inf) log_liks <- log_lik <- dmvt_withNA(X = X, delta = mu, sigma = Sigma / alpha, df = nu)
 
 
-  if (ftol < Inf) log_liks <- log_lik <- dmvtWithNA(X = X, delta = mu, sigma = Sigma / alpha, df = nu)
 
 
   # enter loop
