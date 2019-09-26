@@ -111,43 +111,43 @@ covTFA <- function(X, factors = ncol(X), max_iter = 100, ptol = 1e-3, ftol = Inf
       Sigma <- S
     }
 
-    ## ------- check for convergence --------
-    if (ptol < Inf) {
-      delta_Sigma <- norm(Sigma - Sigma_old, "F") / norm(Sigma_old, "F")
-      delta_mu    <- norm(mu - mu_old, "2") / norm(mu_old, "2")
-      delta_nu    <- abs(fnu(nu) - fnu(nu_old)) / abs(fnu(nu_old))
-      p_convg     <- delta_Sigma < ptol && delta_mu < ptol && delta_nu < ptol
-    }
+    # record the current the variables if required
+    if (return_iterates) proc[[iter + 1]] <- snap()
+
+
+    ## -------- stopping criterion --------
+    have_param_converged <-
+      all(abs(mu - mu_old)       <= .5 * ptol * (abs(mu_old) + abs(mu))) &&
+      abs(fnu(nu) - fnu(nu_old)) <= .5 * ptol * (abs(fnu(nu_old)) + abs(fnu(nu))) &&
+      all(abs(Sigma - Sigma_old) <= .5 * ptol * (abs(Sigma_old) + abs(Sigma)))
 
     if (ftol < Inf) {
       log_lik  <- dmvtWithNA(X = X, delta = mu, sigma = Sigma / alpha, df = nu)
       log_liks <- c(log_liks, log_lik)
-      delta_loglik <- abs(log_lik_old - log_lik) / abs(log_lik_old)
-      f_convg  <- delta_loglik < ftol
-    }
+      has_fun_converged <- abs(log_lik - log_lik_old) <= .5 * ftol * (abs(log_lik) + abs(log_lik_old))
+    } else has_fun_converged <- TRUE
 
-    # record the current the variables if required
-    if (return_iterates) proc[[iter + 1]] <- snap()
-
-    if (p_convg && f_convg) break
-
+    if (have_param_converged && has_fun_converged) break
   }
 
-  vars_tb_returned <- list("mu" = mu,
-                           "nu" = nu,
-                           "Sigma" = Sigma / alpha)
+  ## -------- return variables --------
+  vars_to_be_returned <- list("mu" = mu,
+                              "cov" = Sigma / alpha,
+                              "nu" = nu,
+                              "Sigma_scale" = Sigma)
   if (FA_struct) {
-    vars_tb_returned$B   <- B / sqrt(alpha)
-    vars_tb_returned$psi <-  psi / alpha
+    vars_to_be_returned$B   <- B / sqrt(alpha)
+    vars_to_be_returned$Psi <-  psi / alpha
   }
-  if (ftol < Inf) {
-    vars_tb_returned$log_lik <- log_lik
-  }
-  if (return_iterates) {
-    vars_tb_returned$proc <- proc
-  }
-  return(vars_tb_returned)
+  if (ftol < Inf)
+    vars_to_be_returned$log_lik <- log_lik
+  if (return_iterates)
+    vars_to_be_returned$proc <- proc
+
+  return(vars_to_be_returned)
 }
+
+
 
 fnu <- function(nu) {nu/(nu-2)}
 
