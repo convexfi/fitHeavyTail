@@ -81,11 +81,11 @@ fit_mvt <- function(X, factors = ncol(X), max_iter = 100, ptol = 1e-3, ftol = In
     nu_old <- nu
     if (ftol < Inf) log_lik_old <- log_lik
 
-    browser()
+    # browser()
 
     ## -------------- E-step --------------
     if (X_has_NA)
-      Q <- Estep(mu, Sigma, psi, nu, alpha, X)
+      Q <- Estep(mu, Sigma, psi, nu, X)
     else {
       X_ <- X - matrix(mu, T, N, byrow = TRUE)
       tmp <- rowSums(X_ * (X_ %*% inv(Sigma)))  # diag( X_ %*% inv(Sigma) %*% t(X_) )
@@ -100,7 +100,7 @@ fit_mvt <- function(X, factors = ncol(X), max_iter = 100, ptol = 1e-3, ftol = In
       mu <- Q$ave_E_tau_X / Q$ave_E_tau
       alpha <- Q$ave_E_tau
       Sigma <- Q$ave_E_tau_XX - cbind(mu) %*% rbind(Q$ave_E_tau_X) - cbind(Q$ave_E_tau_X) %*% rbind(mu) + Q$ave_E_tau * cbind(mu) %*% rbind(mu)
-      nu  <- optimize_nu(- 1 - Q$ave_E_logtau + log(alpha) + Q$ave_E_tau/alpha)
+      nu  <- optimize_nu(- 1 - Q$ave_E_logtau + Q$ave_E_tau)
     } else {
       mu <- ave_E_tau_X / ave_E_tau
       alpha <- ave_E_tau  # acceleration
@@ -123,6 +123,7 @@ fit_mvt <- function(X, factors = ncol(X), max_iter = 100, ptol = 1e-3, ftol = In
 
     # update B & psi
     S <- Q$ave_E_tau_XX - cbind(mu) %*% rbind(Q$ave_E_tau_X) - cbind(Q$ave_E_tau_X) %*% rbind(mu) + Q$ave_E_tau * cbind(mu) %*% rbind(mu)
+    S <- S / alpha
     if (FA_struct) {
       B   <- optB(S = S, factors = factors, psi_vec = psi)
       psi <- pmax(0, diag(S - B %*% t(B)))
@@ -142,7 +143,7 @@ fit_mvt <- function(X, factors = ncol(X), max_iter = 100, ptol = 1e-3, ftol = In
       all(abs(Sigma - Sigma_old) <= .5 * ptol * (abs(Sigma_old) + abs(Sigma)))
 
     if (ftol < Inf) {
-      log_lik  <- dmvt_withNA(X = X, delta = mu, sigma = Sigma / alpha, df = nu)
+      log_lik  <- dmvt_withNA(X = X, delta = mu, sigma = Sigma, df = nu)
       log_liks <- c(log_liks, log_lik)
       has_fun_converged <- abs(log_lik - log_lik_old) <= .5 * ftol * (abs(log_lik) + abs(log_lik_old))
     } else has_fun_converged <- TRUE
@@ -153,12 +154,12 @@ fit_mvt <- function(X, factors = ncol(X), max_iter = 100, ptol = 1e-3, ftol = In
   ## -------- return variables --------
   #TODO: colnames, rownames, etc.
   vars_to_be_returned <- list("mu"          = mu,
-                              "cov"         = nu/(nu-2) * Sigma / alpha,
+                              "cov"         = nu/(nu-2) * Sigma / alpha, #TODO{Daniel}: if Sigma is scale matrix, then it should not be devided by alpha
                               "nu"          = nu,
-                              "Sigma_scale" = Sigma / alpha)
+                              "Sigma_scale" = Sigma / alpha) #idem, line 156
   if (FA_struct) {
-    vars_to_be_returned$B   <- B / sqrt(alpha)
-    vars_to_be_returned$Psi <-  psi / alpha
+    vars_to_be_returned$B   <- B
+    vars_to_be_returned$Psi <-  psi
   }
   if (ftol < Inf)
     vars_to_be_returned$log_lik <- log_lik
@@ -174,7 +175,7 @@ fnu <- function(nu) {nu/(nu-2)}
 
 
 # Expectation step
-Estep <- function(mu, full_Sigma, psi, nu, alpha, X) {
+Estep <- function(mu, full_Sigma, psi, nu, X) {
   T <- nrow(X)
   N <- ncol(X)
 
@@ -201,11 +202,11 @@ Estep <- function(mu, full_Sigma, psi, nu, alpha, X) {
     Index <- indexRowOfMatrix(target_vector = mask, mat = missing_pattern)
 
     # calculate expectation
-    tmp <- nu + alpha * rbind(X_demean[i, mask]) %*% Sigma_inv_obs[[Index]] %*% cbind(X_demean[i, mask])
-    E_tau_i <- as.numeric(alpha * (nu + sum(mask)) / tmp)
+    tmp <- nu + rbind(X_demean[i, mask]) %*% Sigma_inv_obs[[Index]] %*% cbind(X_demean[i, mask])
+    E_tau_i <- as.numeric( (nu + sum(mask)) / tmp)
     E_tau <- E_tau + E_tau_i / T
 
-    E_logtau_i <- log(alpha) + digamma( (nu+sum(mask))/2 ) - log(tmp/2)
+    E_logtau_i <- digamma( (nu+sum(mask))/2 ) - log(tmp/2)
     E_logtau <- E_logtau + E_logtau_i / T
 
     tmp <- X[i, ]

@@ -3,7 +3,7 @@ library(tictoc)
 
 set.seed(234)
 
-N <- 20
+N <- 100
 T <- 4*N
 factors <- 5
 beta <- matrix(rnorm(N*factors, 10, 1), N, factors)
@@ -46,7 +46,12 @@ tic()
 fit_nom <- fit_mvt(X, ftol = 1e6, return_iterates = TRUE)  # use return_convergence? return_iterations? Or debug?
 toc()
 
+method <- "ECM"
+fit_old <- fit_mvt(X, ptol = 0, ftol = 0, return_iterates = TRUE)
+fit_nom <- fit_mvt(X, ptol = 0, ftol = 0, return_iterates = TRUE)
 
+fit_wFA <- fit_mvt(X, factors = factors, ftol = 1e6, return_iterates = TRUE)
+fit_wFA_wNA <- fit_mvt(X_wNA, factors = factors, ftol = 1e6, return_iterates = TRUE)
 # fit_wFA <- covTFA(X, factors = factors, ptol = ptol, ftol = ftol, return_iterates = TRUE)  # check better name for factors?
 # fit_wFA_wNA <- covTFA(X_wNA, factors = factors, ptol = ptol, ftol = ftol, return_iterates = TRUE)
 
