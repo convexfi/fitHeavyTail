@@ -5,7 +5,8 @@
 \title{Robustly estimate parameters of the multivariate Students' t data with (optional) assumption of factor model structure}
 \usage{
 fit_mvt(X, factors = ncol(X), max_iter = 100, ptol = 0.001,
-  ftol = Inf, initializer = NULL, return_iterates = FALSE)
+  ftol = Inf, method = "ECM", nu = NULL, initializer = NULL,
+  return_iterates = FALSE)
 }
 \arguments{
 \item{X}{Data matrix}
@@ -32,6 +33,10 @@ Robust paramater estimation of the multivariate Students' t data with (optional)
 \examples{
 # examples are not yet ready!
 
+}
+\references{
+Rui ZHOU, Junyan Liu, Sandeep Kumar, and Daniel P. Palomar, "Robust factor analysis parameter estimation,"
+Lecture Notes in Computer Science, 2020. <doi:10.1109/TSP.2015.2452219>
 }
 \author{
 Rui ZHOU and Daniel P. Palomar
