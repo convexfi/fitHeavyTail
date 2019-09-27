@@ -50,16 +50,16 @@ fit_mvt <- function(X, factors = ncol(X), max_iter = 100, ptol = 1e-3, ftol = In
         else initializer$nu
   mu <- if (is.null(initializer$mu)) colMeans(X, na.rm = TRUE)
         else initializer$mu
-  S <- var(X, na.rm = TRUE)
+  SCM <- var(X, na.rm = TRUE)
   if (FA_struct) {  # Sigma is the scale matrix, not the covariance matrix
-    S_eigen <- eigen(S, symmetric = TRUE)
-    B <- if (is.null(initializer$B)) S_eigen$vectors[, 1:factors] %*% diag(sqrt(S_eigen$values[1:factors]), factors)
+    SCM_eigen <- eigen(SCM, symmetric = TRUE)
+    B <- if (is.null(initializer$B)) SCM_eigen$vectors[, 1:factors] %*% diag(sqrt(SCM_eigen$values[1:factors]), factors)
          else initializer$B
-    psi <- if (is.null(initializer$psi)) pmax(0, diag(S) - diag(B %*% t(B)))
+    psi <- if (is.null(initializer$psi)) pmax(0, diag(SCM) - diag(B %*% t(B)))
            else initializer$psi
     Sigma <- (nu-2)/nu * (B %*% t(B) + diag(psi, N))
   } else
-    Sigma <- (nu-2)/nu * S
+    Sigma <- (nu-2)/nu * SCM
   #mask_notNA <- !is.na(rowSums(X))
   if (ftol < Inf) log_liks <- log_lik <- ifelse(X_has_NA,
                                                 dmvt_withNA(X = X, delta = mu, sigma = Sigma / alpha, df = nu),
@@ -99,11 +99,6 @@ fit_mvt <- function(X, factors = ncol(X), max_iter = 100, ptol = 1e-3, ftol = In
     if (X_has_NA) {
       mu <- Q$ave_E_tau_X / Q$ave_E_tau
       alpha <- Q$ave_E_tau
-      #TODO{Rui}: the next line is a joke, very expensive; the problem is that you compute matrix Q$ave_E_tau_XX with the previous mu and here
-      #           you need to adjust, whereas in my implementation I compute directly the matrix with the newest mu. The conclusion is that
-      #           you should not compute matrix ave_E_tau_XX in the function Estep(), right?
-      #           The truth is that the Estep function should only return the vector E_tau and perhaps E_logtau. That's enough. I don't see the
-      #           point in returning ave_E_tau_X and ave_E_tau_XX. Think about this and we meet tomorrow to discuss.
       Sigma <- Q$ave_E_tau_XX - cbind(mu) %*% rbind(Q$ave_E_tau_X) - cbind(Q$ave_E_tau_X) %*% rbind(mu) + Q$ave_E_tau * cbind(mu) %*% rbind(mu)
       nu  <- optimize_nu(- 1 - Q$ave_E_logtau + log(alpha) + Q$ave_E_tau/alpha)
     } else {
@@ -131,9 +126,9 @@ fit_mvt <- function(X, factors = ncol(X), max_iter = 100, ptol = 1e-3, ftol = In
     if (FA_struct) {
       B   <- optB(S = S, factors = factors, psi_vec = psi)
       psi <- pmax(0, diag(S - B %*% t(B)))
-      Sigma <- B %*% t(B) + diag(psi, N)  #TODO{Rui}: check if the factor (nu-2)/nu is necessary like it was in like 60
+      Sigma <- B %*% t(B) + diag(psi, N)
     } else {
-      Sigma <- S  #TODO{Rui}: idem, see line 62
+      Sigma <- S
     }
 
     # record the current the variables if required
