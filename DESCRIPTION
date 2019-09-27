@@ -4,7 +4,8 @@ Version: 0.1.0.9000
 Date: 2019-09-23
 Description: Estimation of mean vector and covariance matrix for heavy-tailed 
     distributions. In particular, a multivariate Student t distribution is 
-    fitted to the data. Special emphasis is placed on a fast implementation.
+    fitted to the data (possibly containing NAs). 
+    Special emphasis is placed on a fast implementation.
     The package is based on the paper:
     Rui ZHOU, Junyan Liu, Sandeep Kumar, and Daniel P. Palomar, "Robust factor 
     analysis parameter estimation," Lecture Notes in Computer Science, 2020. 
