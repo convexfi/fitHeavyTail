@@ -154,9 +154,9 @@ fit_mvt <- function(X, factors = ncol(X), max_iter = 100, ptol = 1e-3, ftol = In
   ## -------- return variables --------
   #TODO: colnames, rownames, etc.
   vars_to_be_returned <- list("mu"          = mu,
-                              "cov"         = nu/(nu-2) * Sigma / alpha, #TODO{Daniel}: if Sigma is scale matrix, then it should not be devided by alpha
+                              "cov"         = nu/(nu-2) * Sigma,
                               "nu"          = nu,
-                              "Sigma_scale" = Sigma / alpha) #idem, line 156
+                              "Sigma_scale" = Sigma)
   if (FA_struct) {
     vars_to_be_returned$B   <- B
     vars_to_be_returned$Psi <-  psi
