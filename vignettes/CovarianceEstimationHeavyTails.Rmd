@@ -40,9 +40,8 @@ knit_hooks$set(pngquant = hook_pngquant)
 ```
 
 -----------
-> This vignette illustrates the usage of the package 
-[`covHeavyTail`](TBD) (or perhaps [`fitHeavyTail`](TBD)) to estimate covariance matrices for heavy-tailed distributions and compares with existing
-benchmark functions from different packages.
+> This vignette illustrates the usage of the package [`fitHeavyTail`](https://github.com/dppalomar/fitHeavyTail) 
+to estimate covariance matrices for heavy-tailed distributions and compares with existing benchmark functions from different packages.
 
 
 # Comparison with existing benchmark functions
@@ -193,8 +192,8 @@ ggplot(melt(time_all_T), aes(x = Var1, y = value, col = Var2, shape = Var2)) +
 
 ```
 
-Comments:
+Observations:
 
-- `QRM::fit.mst()` has similar performance to our `fit_mvt()` but the computational complexity is unnacceptably high. It's not an option in practice.
-- `MASS::cov.trov()` has the same speed as our `fit_mvt()`, while its performance depends on the number of observations (note that it requires `nu` as a parameter).
+- `QRM::fit.mst()` has similar performance to our `fit_mvt()` (except that it fails with few observations), but the computational complexity is unnacceptably high. It's not an option in practice.
+- `MASS::cov.trov(nu=6)` has similar or slighlty worse performance than our `fit_mvt(nu=6)`, with similar compulational complexity.
 
