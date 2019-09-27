@@ -2,10 +2,6 @@
 # when the data is assumed to follow the multivariate Students' t (heavy-tailed) distribution and
 # admits a factor model structure
 
-# this method should is available in:
-# Rui ZHOU, Junyan Liu, Sandeep Kumar, and Daniel P. Palomar, "Robust factor analysis parameter estimation",
-# Lecture Notes in Computer Science, 2020
-
 #' @title Robustly estimate parameters of the multivariate Students' t data with (optional) assumption of factor model structure
 #'
 #' @description Robust paramater estimation of the multivariate Students' t data with (optional) assumption of factor model structure
@@ -22,6 +18,10 @@
 #' @return The estimated parameters as a list.
 #'
 #' @author Rui ZHOU and Daniel P. Palomar
+#'
+#' @references
+#' Rui ZHOU, Junyan Liu, Sandeep Kumar, and Daniel P. Palomar, "Robust factor analysis parameter estimation,"
+#' Lecture Notes in Computer Science, 2020. <doi:10.1109/TSP.2015.2452219>
 #'
 #' @examples
 #' # examples are not yet ready!
@@ -136,7 +136,7 @@ fit_mvt <- function(X, factors = ncol(X), max_iter = 100, ptol = 1e-3, ftol = In
 
 
     ## -------- stopping criterion --------
-    have_param_converged <-
+    have_params_converged <-
       all(abs(mu - mu_old)       <= .5 * ptol * (abs(mu_old) + abs(mu))) &&
       abs(fnu(nu) - fnu(nu_old)) <= .5 * ptol * (abs(fnu(nu_old)) + abs(fnu(nu))) &&
       all(abs(Sigma - Sigma_old) <= .5 * ptol * (abs(Sigma_old) + abs(Sigma)))
@@ -147,7 +147,7 @@ fit_mvt <- function(X, factors = ncol(X), max_iter = 100, ptol = 1e-3, ftol = In
       has_fun_converged <- abs(log_lik - log_lik_old) <= .5 * ftol * (abs(log_lik) + abs(log_lik_old))
     } else has_fun_converged <- TRUE
 
-    if (have_param_converged && has_fun_converged) break
+    if (have_params_converged && has_fun_converged) break
   }
 
   ## -------- return variables --------
