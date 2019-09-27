@@ -244,8 +244,7 @@ momentsCauchy <- function(X, verbose = FALSE) {
 #' @export
 #' @importFrom stats cov var optimize
 #' @importFrom mvtnorm dmvt
-momentsStudentt <- function(X, nu = NULL, method = "ECM", verbose = FALSE) {
-  max_iter <- 100
+momentsStudentt <- function(X, nu = NULL, max_iter = 100, method = "ECM", verbose = FALSE) {
   error_th_nu <- 0.1
   error_th_Sigma <- 1e-3
   error_th_mu <- 1e-3
