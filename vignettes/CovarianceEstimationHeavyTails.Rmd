@@ -35,6 +35,7 @@ opts_chunk$set(
   dpi = 96,
   pngquant = "--speed=1"
 )
+knitr_in_progress <- isTRUE(getOption('knitr.in.progress'))
 knit_hooks$set(pngquant = hook_pngquant)
 # rmarkdown::render("vignettes/CovarianceEstimationHeavyTails.Rmd", "prettydoc::html_pretty")
 ```
@@ -44,25 +45,37 @@ knit_hooks$set(pngquant = hook_pngquant)
 to estimate covariance matrices for heavy-tailed distributions and compares with existing benchmark functions from different packages.
 
 
-# Comparison with existing benchmark functions
+# Installation
+The package can be installed from [CRAN](https://CRAN.R-project.org/package=fitHeavyTail) or [GitHub](https://github.com/dppalomar/fitHeavyTail):
+```{r, eval=FALSE}
+# install stable version from CRAN
+install.packages("fitHeavyTail")
+
+# install development version from GitHub
+devtools::install_github("dppalomar/fitHeavyTail")
+
+# Getting help
+library(fitHeavyTail)
+help(package = "fitHeavyTail")
+?fit_mvt
+```
+
+
+# Usage
+
+
+# Numerical Comparison with Existing Benchmarks
 
 ```{r}
 library(mvtnorm)
-library(covHeavyTail)
+library(fitHeavyTail)
 library(ggplot2)
 library(reshape2)
 
-#
-# Test of different packages for estimation of mu and R under heavy tails
-#
 # Comparison with other packages:
-#   MASS::cov.rob(X, method="mcd" or "mve")$cov: it's very slow and the performance not good
-#   robustbase::covMcd(X)$cov is slow and not good performance
-#   robust::covRob(X)$cov does not perform well
 #   covRobust::cov.nnve(X)[c("mu","cov")] does not perform well and it's kind of slow
 #   EstimateMoments_MinskerWei(X) is not good...
-#   [covHeavyTail or FinCovMat]
-#
+#   rrcov::
 
 N <- 20
 nu <- 4
@@ -77,15 +90,20 @@ qplot(eigen(Sigma)$values, geom = "histogram", xlab = "eigenvalues", fill = I("c
 ```
 
 ```{r, fig.width = 9, fig.height = 5, out.width = "100%"}
-N_realiz <- 10  # multiple realizations for averaging
+N_realiz <- 20  # multiple realizations for averaging
 T_sweep <- round(seq(from = ceiling(1.5*N), to = 5*N, length.out = 12))
-MSE_MASS_cov.trov_T <- MSE_QRM_T <- MSE_Studentt_T <- MSE_Studentt_nu_T <- MSE_Cauchy_T <- MSE_Tyler_T <- MSE_SCM_T <- NULL
-time_MASS_cov.trov_T <- time_QRM_T <- time_Studentt_T <- time_Studentt_nu_T <- time_Cauchy_T <- time_Tyler_T <- time_SCM_T <- NULL
-if (interactive()) pbar <- txtProgressBar(min = it<-0, max = length(T_sweep), style=3)
+MSE_robust_covRob_T <- MSE_robustbase_covMcd_T <- MSE_MASS_cov.mve_T <- MSE_MASS_cov.trov_T <- MSE_QRM_T <- 
+  MSE_Studentt_T <- MSE_Studentt_nu_T <- MSE_Cauchy_T <- MSE_Tyler_T <- MSE_SCM_T <- NULL
+time_robust_covRob_T <- time_robustbase_covMcd_T <- time_MASS_cov.mve_T <- time_MASS_cov.trov_T <- time_QRM_T <- 
+  time_Studentt_T <- time_Studentt_nu_T <- time_Cauchy_T <- time_Tyler_T <- time_SCM_T <- NULL
+
+if (!knitr_in_progress) pbar <- txtProgressBar(min = it<-0, max = length(T_sweep), style=3)
 for(T in T_sweep) {
-  if (interactive()) setTxtProgressBar(pbar, it<-it+1)
-  MSE_MASS_cov.trov <- MSE_QRM <- MSE_Studentt <- MSE_Studentt_nu <- MSE_Cauchy <- MSE_Tyler <- MSE_SCM <- 0
-  time_MASS_cov.trov <- time_QRM <- time_Studentt <- time_Studentt_nu <- time_Cauchy <- time_Tyler <- time_SCM <- 0
+  if (!knitr_in_progress) setTxtProgressBar(pbar, it<-it+1)
+  MSE_robust_covRob <- MSE_robustbase_covMcd <- MSE_MASS_cov.mve <- MSE_MASS_cov.trov <- MSE_QRM <- 
+    MSE_Studentt <- MSE_Studentt_nu <- MSE_Cauchy <- MSE_Tyler <- MSE_SCM <- 0
+  time_robust_covRob <- time_robustbase_covMcd <- time_MASS_cov.mve <- time_MASS_cov.trov <- time_QRM <- 
+    time_Studentt <- time_Studentt_nu <- time_Cauchy <- time_Tyler <- time_SCM <- 0
   for (ii in 1:N_realiz) {
     # generate data
     X <- rmvt(n = T, delta = mu, sigma = Sigma_scale, df = nu)  # heavy-tailed data
@@ -123,10 +141,24 @@ for(T in T_sweep) {
     time_MASS_cov.trov <- time_MASS_cov.trov + system.time({
       Sigma_MASS_cov.trov <- MASS::cov.trob(X, nu = 6)$cov
     })["elapsed"]
+    
+    time_MASS_cov.mve <- time_MASS_cov.mve + system.time({
+      Sigma_MASS_cov.mve <- MASS::cov.mve(X)$cov
+    })["elapsed"]
 
-
-
-
+    time_robustbase_covMcd <- time_robustbase_covMcd + system.time({
+      Sigma_robustbase_covMcd <- suppressWarnings(robustbase::covMcd(X)$cov)
+    })["elapsed"]
+    
+    time_robust_covRob<- time_robust_covRob + system.time({
+      Sigma_robust_covRob <- tryCatch(
+        robust::covRob(X, estim = "pairwiseQC")$cov,  # "pairwiseQC", also: "weighted", "M", "pairwiseGK"
+        warning = function(w) return(NA),
+        error   = function(e) return(NA))
+    })["elapsed"]
+    
+    
+    
 
     # compute MSEs
     MSE_SCM <- MSE_SCM + norm(Sigma_SCM - Sigma, "F")^2
@@ -136,6 +168,10 @@ for(T in T_sweep) {
     MSE_Studentt <- MSE_Studentt + norm(Sigma_Studentt - Sigma, "F")^2
     MSE_QRM  <- MSE_QRM  + norm(Sigma_QRM - Sigma, "F")^2
     MSE_MASS_cov.trov  <- MSE_MASS_cov.trov  + norm(Sigma_MASS_cov.trov - Sigma, "F")^2
+    MSE_MASS_cov.mve  <- MSE_MASS_cov.mve  + norm(Sigma_MASS_cov.mve - Sigma, "F")^2
+    #MSE_MASS_cov.mcd  <- MSE_MASS_cov.mcd  + norm(Sigma_MASS_cov.mcd - Sigma, "F")^2
+    MSE_robustbase_covMcd  <- MSE_robustbase_covMcd  + norm(Sigma_robustbase_covMcd - Sigma, "F")^2
+    MSE_robust_covRob  <- MSE_robust_covRob  + norm(Sigma_robust_covRob - Sigma, "F")^2
   }
   # keep track of MSEs
   MSE_SCM_T  <- c(MSE_SCM_T, MSE_SCM / N_realiz)
@@ -145,6 +181,11 @@ for(T in T_sweep) {
   MSE_Studentt_T <- c(MSE_Studentt_T, MSE_Studentt / N_realiz)
   MSE_QRM_T <- c(MSE_QRM_T, MSE_QRM / N_realiz)
   MSE_MASS_cov.trov_T <- c(MSE_MASS_cov.trov_T, MSE_MASS_cov.trov / N_realiz)
+  MSE_MASS_cov.mve_T <- c(MSE_MASS_cov.mve_T, MSE_MASS_cov.mve / N_realiz)
+  #MSE_MASS_cov.mcd_T <- c(MSE_MASS_cov.mcd_T, MSE_MASS_cov.mcd / N_realiz)
+  MSE_robustbase_covMcd_T <- c(MSE_robustbase_covMcd_T, MSE_robustbase_covMcd / N_realiz)
+  MSE_robust_covRob_T <- c(MSE_robust_covRob_T, MSE_robust_covRob / N_realiz)
+  
   # keep track of MSEs
   time_SCM_T <- c(time_SCM_T, time_SCM / N_realiz)
   time_Tyler_T <- c(time_Tyler_T, time_Tyler / N_realiz)
@@ -153,6 +194,10 @@ for(T in T_sweep) {
   time_Studentt_T <- c(time_Studentt_T, time_Studentt / N_realiz)
   time_QRM_T <- c(time_QRM_T, time_QRM / N_realiz)
   time_MASS_cov.trov_T <- c(time_MASS_cov.trov_T, time_MASS_cov.trov / N_realiz)
+  time_MASS_cov.mve_T <- c(time_MASS_cov.mve_T, time_MASS_cov.mve / N_realiz)
+  #time_MASS_cov.mcd_T <- c(time_MASS_cov.mcd_T, time_MASS_cov.mcd / N_realiz)
+  time_robustbase_covMcd_T <- c(time_robustbase_covMcd_T, time_robustbase_covMcd / N_realiz)
+  time_robust_covRob_T <- c(time_robust_covRob_T, time_robust_covRob / N_realiz)
 }
 
 
@@ -163,7 +208,10 @@ MSE_all_T <- cbind("SCM"                   = MSE_SCM_T,
                    "Student-t (nu=6)"      = MSE_Studentt_nu_T,
                    "Student-t"             = MSE_Studentt_T,
                    "QRM::fit.mst"          = MSE_QRM_T,
-                   "MASS::cov.trov (nu=6)" = MSE_MASS_cov.trov_T)
+                   "MASS::cov.trov (nu=6)" = MSE_MASS_cov.trov_T,
+                   "MASS::cov.mve"         = MSE_MASS_cov.mve_T,
+                   "robustbase::covMcd"    = MSE_robustbase_covMcd_T,
+                   "robust::covRob"        = MSE_robust_covRob_T)
 rownames(MSE_all_T) <- T_sweep
 ggplot(melt(MSE_all_T), aes(x = Var1, y = value, col = Var2, shape = Var2)) +
   geom_line() + geom_point() + coord_cartesian(ylim = c(0, 500)) +
@@ -181,7 +229,10 @@ time_all_T <- cbind("SCM"                   = time_SCM_T,
                     "Student-t (nu=6)"      = time_Studentt_nu_T,
                     "Student-t"             = time_Studentt_T,
                     "QRM::fit.mst"          = time_QRM_T,
-                    "MASS::cov.trov (nu=6)" = time_MASS_cov.trov_T)
+                    "MASS::cov.trov (nu=6)" = time_MASS_cov.trov_T,
+                    "MASS::cov.mve"         = time_MASS_cov.mve_T,
+                    "robustbase::covMcd"    = time_robustbase_covMcd_T,
+                    "robust::covRob"        = time_robust_covRob_T)
 rownames(time_all_T) <- T_sweep
 time_all_T[is.na(MSE_all_T)] <- NA
 ggplot(melt(time_all_T), aes(x = Var1, y = value, col = Var2, shape = Var2)) +
@@ -194,6 +245,27 @@ ggplot(melt(time_all_T), aes(x = Var1, y = value, col = Var2, shape = Var2)) +
 
 Observations:
 
-- `QRM::fit.mst()` has similar performance to our `fit_mvt()` (except that it fails with few observations), but the computational complexity is unnacceptably high. It's not an option in practice.
-- `MASS::cov.trov(nu=6)` has similar or slighlty worse performance than our `fit_mvt(nu=6)`, with similar compulational complexity.
+- our `fit_mvt()` seems to be the best; however, occasionally has some outlier of bad performance (to be explored)
+- our `fit_mvt(nu = 6)` works much better than `fit_mvt()` (even is the passed `nu` is not correct) and the computational cost is half!
 
+- `QRM::fit.mst()` has similar performance to our `fit_mvt()` (except that it fails with few observations), but the computational cost is unnacceptably high. It's not an option in practice.
+- `MASS::cov.trov(nu = 6)` has slighlty worse performance than our `fit_mvt(nu = 6)`, with similar compulational cost.
+- `MASS::cov.mve()` has a poor performance and unnacceptable computational cost.
+- `MASS::cov.mcd()` has an acceptable performance but the computational cost is ridiculous (so not included anymore in the numerical comparisons).
+- `robustbase::covMcd()` is better in performance and definitely in speed compared to its counterpart `MASS::cov.mcd()`.
+- `robust::covRob()` has a reasonable performance with a low computational cost, but still our `fit_mvt(nu = 6)` is much better.
+
+
+
+# Algorithm Description
+The algorithms used in the package are based on the paper [@ZhouLiuKumarPalomar2019].
+
+TBD
+
+
+
+# References {-}
+\setlength{\parindent}{-0.2in}
+\setlength{\leftskip}{0.2in}
+\setlength{\parskip}{8pt}
+\noindent
