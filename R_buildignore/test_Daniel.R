@@ -3,7 +3,6 @@ library(fitHeavyTail)
 library(ggplot2)
 library(reshape2)
 
-
 N <- 5
 T <- 1.5*N
 nu <- 4
@@ -38,3 +37,27 @@ max(abs(res_Daniel$cov - res_Rui$cov) / abs(res_Daniel$cov))
 
 plot(res_Daniel$obj_value_record, type = "b", col = "blue")
 lines(sapply(res_Rui$iterations_record, function(x) x$log_likelihood), col = "red")
+
+
+
+
+
+#
+# cpu time comparison: the old function is slower because it always computes the log-likelihood and returns its iterations
+#
+library(microbenchmark)
+
+op <- microbenchmark(
+  old = res_Daniel <- momentsStudentt(X, max_iter = 50),
+  new = res_Rui <- fit_mvt(X, max_iter = 50),
+  times = 100L)
+print(op)
+autoplot(op)
+
+
+
+
+
+
+
+
