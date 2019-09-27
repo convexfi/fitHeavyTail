@@ -27,7 +27,7 @@
 #' # examples are not yet ready!
 #'
 #' @export
-fit_mvt <- function(X, factors = ncol(X), max_iter = 100, ptol = 1e-3, ftol = Inf, initializer = NULL, return_iterates = FALSE) {
+fit_mvt <- function(X, factors = ncol(X), max_iter = 100, ptol = 1e-3, ftol = Inf, method = "ECM", nu = NULL, initializer = NULL, return_iterates = FALSE) {
   ####### error control ########
   X <- as.matrix(X)
   if (nrow(X) == 1) stop("Only T=1 sample!!")
@@ -43,11 +43,14 @@ fit_mvt <- function(X, factors = ncol(X), max_iter = 100, ptol = 1e-3, ftol = In
   N <- ncol(X)
   X_has_NA <- anyNA(X)
   FA_struct <- factors != N
+  optimize_nu <- ifelse(is.null(nu), TRUE, FALSE)
+  if (!optimize_nu && nu == Inf) nu <- 1e15  # for numerical stability (for the Gaussian case)
 
   # initialize all parameters
   alpha <- 1  # an extra variable for PX-EM acceleration
-  nu <- if (is.null(initializer$nu)) 10
-        else initializer$nu
+  if (optimize_nu)
+    nu <- if (is.null(initializer$nu)) 10
+          else initializer$nu
   mu <- if (is.null(initializer$mu)) colMeans(X, na.rm = TRUE)
         else initializer$mu
   SCM <- var(X, na.rm = TRUE)
@@ -61,15 +64,14 @@ fit_mvt <- function(X, factors = ncol(X), max_iter = 100, ptol = 1e-3, ftol = In
   } else
     Sigma <- (nu-2)/nu * SCM
   #mask_notNA <- !is.na(rowSums(X))
-  if (ftol < Inf) log_liks <- log_lik <- ifelse(X_has_NA,
-                                                dmvt_withNA(X = X, delta = mu, sigma = Sigma / alpha, df = nu),
-                                                sum(mvtnorm::dmvt(X, delta = mu, sigma = Sigma, df = nu, log = TRUE, type = "shifted")))
-
+  if (ftol < Inf) log_likelihood <- ifelse(X_has_NA,
+                                           dmvt_withNA(X = X, delta = mu, sigma = Sigma / alpha, df = nu),
+                                           sum(mvtnorm::dmvt(X, delta = mu, sigma = Sigma, df = nu, log = TRUE, type = "shifted")))
   snapshot <- function() {
     if (ftol < Inf)
-      list(mu = mu, Sigma_scale = Sigma, nu = nu, log_lik = log_lik)
+      list(mu = mu, scale = Sigma, nu = nu, log_likelihood = log_likelihood)
     else
-      list(mu = mu, Sigma_scale = Sigma, nu = nu)
+      list(mu = mu, scale = Sigma, nu = nu)
   }
 
   # loop
@@ -79,9 +81,7 @@ fit_mvt <- function(X, factors = ncol(X), max_iter = 100, ptol = 1e-3, ftol = In
     Sigma_old <- Sigma
     mu_old <- mu
     nu_old <- nu
-    if (ftol < Inf) log_lik_old <- log_lik
-
-    # browser()
+    if (ftol < Inf) log_likelihood_old <- log_likelihood
 
     ## -------------- E-step --------------
     if (X_has_NA)
@@ -107,33 +107,33 @@ fit_mvt <- function(X, factors = ncol(X), max_iter = 100, ptol = 1e-3, ftol = In
       X_ <- X - matrix(mu, T, N, byrow = TRUE)  # this is slower: sweep(X, 2, FUN = "-", STATS = mu)  #X_ <- X - rep(mu, each = TRUE)  # this is wrong?
       ave_E_tau_XX <- (1/T) * crossprod(sqrt(E_tau) * X_)  # (1/T) * t(X_) %*% diag(E_tau) %*% X_
       Sigma <- ave_E_tau_XX / alpha  #TODO{Rui}: this Sigma is divided by alpha, whereas your above on line 102 is not... We need to check
-      nu <- switch(method,
-                   "ECM" = {  # based on minus the Q function of nu
-                     S <- T*(digamma((N+nu)/2) - log((N+nu)/2)) + sum(log(E_tau) - E_tau)  # S is E_log_tau-E_tau
-                     Q_nu <- function(nu) { - T*(nu/2)*log(nu/2) + T*lgamma(nu/2) - (nu/2)*sum(S) }
-                     optimize(Q_nu, interval = c(2 + 1e-12, 100))$minimum
-                     },
-                   "ECME" = {  # based on minus log-likelihood of nu with mu and sigma fixed to mu[k+1] and sigma[k+1]
-                     tmp <- rowSums(X_ * (X_ %*% inv(Sigma)))  # diag( X_ %*% inv(Sigma) %*% t(X_) )
-                     LL_nu <- function(nu) { - sum ( - ((nu+N)/2)*log(nu+tmp) + lgamma( (nu+N)/2 ) - lgamma(nu/2) + (nu/2)*log(nu) ) }
-                     optimize(LL_nu, interval = c(2 + 1e-12, 100))$minimum
-                     },
-                   stop("Method unknown."))
+      if (optimize_nu)
+        nu <- switch(method,
+                     "ECM" = {  # based on minus the Q function of nu
+                       S <- T*(digamma((N+nu)/2) - log((N+nu)/2)) + sum(log(E_tau) - E_tau)  # S is E_log_tau-E_tau
+                       Q_nu <- function(nu) { - T*(nu/2)*log(nu/2) + T*lgamma(nu/2) - (nu/2)*sum(S) }
+                       optimize(Q_nu, interval = c(2 + 1e-12, 100))$minimum
+                       },
+                     "ECME" = {  # based on minus log-likelihood of nu with mu and sigma fixed to mu[k+1] and sigma[k+1]
+                       tmp <- rowSums(X_ * (X_ %*% inv(Sigma)))  # diag( X_ %*% inv(Sigma) %*% t(X_) )
+                       LL_nu <- function(nu) { - sum ( - ((nu+N)/2)*log(nu+tmp) + lgamma( (nu+N)/2 ) - lgamma(nu/2) + (nu/2)*log(nu) ) }
+                       optimize(LL_nu, interval = c(2 + 1e-12, 100))$minimum
+                       },
+                     stop("Method unknown."))
     }
 
-    # update B & psi
-    S <- Q$ave_E_tau_XX - cbind(mu) %*% rbind(Q$ave_E_tau_X) - cbind(Q$ave_E_tau_X) %*% rbind(mu) + Q$ave_E_tau * cbind(mu) %*% rbind(mu)
-    S <- S / alpha
-    if (FA_struct) {
-      B   <- optB(S = S, factors = factors, psi_vec = psi)
-      psi <- pmax(0, diag(S - B %*% t(B)))
-      Sigma <- B %*% t(B) + diag(psi, N)
-    } else {
-      Sigma <- S
+    if (X_has_NA) {
+      # update B & psi
+      S <- Q$ave_E_tau_XX - cbind(mu) %*% rbind(Q$ave_E_tau_X) - cbind(Q$ave_E_tau_X) %*% rbind(mu) + Q$ave_E_tau * cbind(mu) %*% rbind(mu)
+      S <- S / alpha
+      if (FA_struct) {
+        B   <- optB(S = S, factors = factors, psi_vec = psi)
+        psi <- pmax(0, diag(S - B %*% t(B)))
+        Sigma <- B %*% t(B) + diag(psi, N)
+      } else {
+        Sigma <- S
+      }
     }
-
-    # record the current the variables if required
-    if (return_iterates) iterations_record[[iter + 1]] <- snapshot()
 
 
     ## -------- stopping criterion --------
@@ -143,11 +143,11 @@ fit_mvt <- function(X, factors = ncol(X), max_iter = 100, ptol = 1e-3, ftol = In
       all(abs(Sigma - Sigma_old) <= .5 * ptol * (abs(Sigma_old) + abs(Sigma)))
 
     if (ftol < Inf) {
-      log_lik  <- dmvt_withNA(X = X, delta = mu, sigma = Sigma, df = nu)
-      log_liks <- c(log_liks, log_lik)
-      has_fun_converged <- abs(log_lik - log_lik_old) <= .5 * ftol * (abs(log_lik) + abs(log_lik_old))
+      log_likelihood  <- dmvt_withNA(X = X, delta = mu, sigma = Sigma, df = nu)
+      has_fun_converged <- abs(log_likelihood - log_likelihood_old) <= .5 * ftol * (abs(log_likelihood) + abs(log_likelihood_old))
     } else has_fun_converged <- TRUE
-
+    # record the current the variables/loglikelihood if required
+    if (return_iterates) iterations_record[[iter + 1]] <- snapshot()
     if (have_params_converged && has_fun_converged) break
   }
 
@@ -156,16 +156,17 @@ fit_mvt <- function(X, factors = ncol(X), max_iter = 100, ptol = 1e-3, ftol = In
   vars_to_be_returned <- list("mu"          = mu,
                               "cov"         = nu/(nu-2) * Sigma,
                               "nu"          = nu,
-                              "Sigma_scale" = Sigma)
+                              "scale"       = Sigma)
   if (FA_struct) {
     vars_to_be_returned$B   <- B
     vars_to_be_returned$Psi <-  psi
   }
   if (ftol < Inf)
-    vars_to_be_returned$log_lik <- log_lik
-  if (return_iterates)
+    vars_to_be_returned$log_likelihood <- log_likelihood
+  if (return_iterates) {
+    names(iterations_record) <- paste("iter", 0:(length(iterations_record)-1))
     vars_to_be_returned$iterations_record <- iterations_record
-
+  }
   return(vars_to_be_returned)
 }
 
