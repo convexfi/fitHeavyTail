@@ -45,11 +45,13 @@ fit_mvt <- function(X, factors = ncol(X), max_iter = 100, ptol = 1e-3, ftol = In
   FA_struct <- factors != N
   optimize_nu <- ifelse(is.null(nu), TRUE, FALSE)
   if (!optimize_nu && nu == Inf) nu <- 1e15  # for numerical stability (for the Gaussian case)
+  gamma <- .99
+  zeta <- 2e-2
 
   # initialize all parameters
   alpha <- 1  # an extra variable for PX-EM acceleration
   if (optimize_nu)
-    nu <- if (is.null(initializer$nu)) 10
+    nu <- if (is.null(initializer$nu)) 4
           else initializer$nu
   mu <- if (is.null(initializer$mu)) colMeans(X, na.rm = TRUE)
         else initializer$mu
@@ -107,8 +109,18 @@ fit_mvt <- function(X, factors = ncol(X), max_iter = 100, ptol = 1e-3, ftol = In
       X_ <- X - matrix(mu, T, N, byrow = TRUE)  # this is slower: sweep(X, 2, FUN = "-", STATS = mu)  #X_ <- X - rep(mu, each = TRUE)  # this is wrong?
       ave_E_tau_XX <- (1/T) * crossprod(sqrt(E_tau) * X_)  # (1/T) * t(X_) %*% diag(E_tau) %*% X_
       Sigma <- ave_E_tau_XX / alpha  #TODO{Rui}: this Sigma is divided by alpha, whereas your above on line 102 is not... We need to check
+
+      #TODO{Daniel}: trying to fix the oscillations in the convergence of nu
+      # gamma <- .99
+      # zeta <- 2e-2
+      # gammak <- rep(NA, 100)
+      # gammak[1] <- gamma
+      # for(k in 2:100)
+      #   gammak[k] <- gammak[k-1] * (1 - zeta * gammak[k-1])
+      # plot(gammak)
+      gamma <- gamma * (1 - zeta * gamma)
       if (optimize_nu)
-        nu <- switch(method,
+        nu <- gamma*nu + (1-gamma)*switch(method,
                      "ECM" = {  # based on minus the Q function of nu
                        S <- T*(digamma((N+nu)/2) - log((N+nu)/2)) + sum(log(E_tau) - E_tau)  # S is E_log_tau-E_tau
                        Q_nu <- function(nu) { - T*(nu/2)*log(nu/2) + T*lgamma(nu/2) - (nu/2)*sum(S) }
@@ -137,9 +149,10 @@ fit_mvt <- function(X, factors = ncol(X), max_iter = 100, ptol = 1e-3, ftol = In
 
 
     ## -------- stopping criterion --------
+    ptol_nu <- 1e-1  #TODO{Daniel}: don't forget to remove this
     have_params_converged <-
       all(abs(mu - mu_old)       <= .5 * ptol * (abs(mu_old) + abs(mu))) &&
-      abs(fnu(nu) - fnu(nu_old)) <= .5 * ptol * (abs(fnu(nu_old)) + abs(fnu(nu))) &&
+      abs(fnu(nu) - fnu(nu_old)) <= .5 * ptol_nu * (abs(fnu(nu_old)) + abs(fnu(nu))) &&
       all(abs(Sigma - Sigma_old) <= .5 * ptol * (abs(Sigma_old) + abs(Sigma)))
 
     if (ftol < Inf) {
