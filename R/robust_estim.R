@@ -263,7 +263,7 @@ momentsStudentt <- function(X, nu = NULL, max_iter = 100, method = "ECM", verbos
 
   #initial point based on sample mean and SCM
   if (optimize_nu)
-    nu <- 10
+    nu <- 4
   mu <- colMeans(X)
   Sigma <- (nu-2)/nu*cov(X)  #Sigma is the scale matrix, not the covariance matrix
 
