@@ -3,7 +3,7 @@ library(fitHeavyTail)
 library(ggplot2)
 library(reshape2)
 
-N <- 5
+N <- 20
 T <- 1.5*N
 nu <- 4
 mu <- rep(0, N)
@@ -29,6 +29,9 @@ res_Rui <- fit_mvt(X, max_iter = 50, ftol = 1e6, return_iterates = TRUE)
 # res_Daniel <- momentsStudentt(X, nu = 4, max_iter = 20, verbose = TRUE)
 # res_Rui <- fit_mvt(X, nu = 4, max_iter = 20, ftol = 1e6, return_iterates = TRUE)
 
+
+#plot(sapply(res_Rui$iterations_record, function(x) x$nu))
+plot(sapply(res$iterations_record, `[[`, "nu"))
 
 res_Daniel$nu
 res_Rui$nu
