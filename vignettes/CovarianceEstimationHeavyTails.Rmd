@@ -124,12 +124,17 @@ for(T in T_sweep) {
     })["elapsed"]
 
     time_Studentt_nu <- time_Studentt_nu + system.time({
-      Sigma_Studentt_nu <- momentsStudentt(X, nu = 6)$cov
+      Sigma_Studentt_nu <- fit_mvt(X, nu = 6)$cov
+      # res <- fit_mvt(X, nu = 6, ftol = 1e6, return_iterates = TRUE)
+      # plot(sapply(res$iterations_record, `[[`, "nu"))
+      # plot(sapply(res$iterations_record, `[[`, "log_likelihood"))
     })["elapsed"]
 
     time_Studentt <- time_Studentt + system.time({
-      #Sigma_Studentt <- momentsStudentt(X)$cov
       Sigma_Studentt <- fit_mvt(X)$cov
+      # res <- fit_mvt(X, ftol = 1e6, return_iterates = TRUE)
+      # plot(sapply(res$iterations_record, `[[`, "nu"))
+      # plot(sapply(res$iterations_record, `[[`, "log_likelihood"))
     })["elapsed"]
 
     time_QRM <- time_QRM + system.time({
