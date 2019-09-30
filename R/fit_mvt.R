@@ -21,7 +21,7 @@
 #'
 #' @references
 #' Rui ZHOU, Junyan Liu, Sandeep Kumar, and Daniel P. Palomar, "Robust factor analysis parameter estimation,"
-#' Lecture Notes in Computer Science, 2020. <doi:10.1109/TSP.2015.2452219>
+#' Lecture Notes in Computer Science, 2020. <https://arxiv.org/abs/1909.12530>
 #'
 #' @examples
 #' # examples are not yet ready!
