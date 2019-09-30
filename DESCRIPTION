@@ -9,7 +9,7 @@ Description: Estimation of mean vector and covariance matrix for heavy-tailed
     The package is based on the paper:
     Rui ZHOU, Junyan Liu, Sandeep Kumar, and Daniel P. Palomar, "Robust factor 
     analysis parameter estimation," Lecture Notes in Computer Science, 2020. 
-    <doi:10.1109/TSP.2015.2452219>
+    <https://arxiv.org/abs/1909.12530>
 Authors@R: c(
   person(c("Daniel", "P."), "Palomar", role = c("cre", "aut"), email = "daniel.p.palomar@gmail.com"),
   person("Rui", "Zhou", role =  "aut", email = "rzhouae@connect.ust.hk")
