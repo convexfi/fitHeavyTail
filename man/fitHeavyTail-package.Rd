@@ -12,7 +12,7 @@ Special emphasis is placed on a fast implementation.
 The package is based on the paper:
 Rui ZHOU, Junyan Liu, Sandeep Kumar, and Daniel P. Palomar, "Robust factor
 analysis parameter estimation," Lecture Notes in Computer Science, 2020.
-<doi:10.1109/TSP.2015.2452219>
+<https://arxiv.org/abs/1909.12530>
 }
 \section{Functions}{
 
