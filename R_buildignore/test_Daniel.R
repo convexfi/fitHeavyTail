@@ -1,7 +1,6 @@
 library(mvtnorm)
 library(fitHeavyTail)
 library(ggplot2)
-library(reshape2)
 
 N <- 20
 T <- 1.5*N
@@ -20,31 +19,33 @@ X <- rmvt(n = T, delta = mu, sigma = Sigma_scale, df = nu)  # heavy-tailed data
 #X <- rmvnorm(n = T, mean = mu, sigma = Sigma)  # Gaussian data
 
 
-res_Daniel <- momentsStudentt(X, max_iter = 50, verbose = TRUE)
-res_Rui <- fit_mvt(X, max_iter = 50, ftol = 1e6, return_iterates = TRUE)
+res_old <- momentsStudentt(X, max_iter = 50, verbose = TRUE)
+res_new <- fit_mvt(X, max_iter = 50, ftol = 1e6, return_iterates = TRUE)
 
-# res_Daniel <- momentsStudentt(X, method = "ECME", max_iter = 40, verbose = TRUE)
-# res_Rui <- fit_mvt(X, method = "ECME", max_iter = 40, ftol = 1e6, return_iterates = TRUE)
+# res_old <- momentsStudentt(X, method = "ECME", max_iter = 40, verbose = TRUE)
+# res_new <- fit_mvt(X, method = "ECME", max_iter = 40, ftol = 1e6, return_iterates = TRUE)
 
-# res_Daniel <- momentsStudentt(X, nu = 4, max_iter = 20, verbose = TRUE)
-# res_Rui <- fit_mvt(X, nu = 4, max_iter = 20, ftol = 1e6, return_iterates = TRUE)
-
-
-#plot(sapply(res_Rui$iterations_record, function(x) x$nu))
-plot(sapply(res_Rui$iterations_record, `[[`, "nu"))
-
-fitHeavyTail:::plotConvergence(res_Rui)
+# res_old <- momentsStudentt(X, nu = 4, max_iter = 20, verbose = TRUE)
+# res_new <- fit_mvt(X, nu = 4, max_iter = 20, ftol = 1e6, return_iterates = TRUE)
 
 
+#plot(sapply(res_new$iterations_record, function(x) x$nu))
+#plot(sapply(res_new$iterations_record, `[[`, "nu"))
+p <- fitHeavyTail:::plotConvergence(res_new)
+
+# print everything in one single plot
+do.call(gridExtra::grid.arrange, c(p, ncol = 1))
 
 
-res_Daniel$nu
-res_Rui$nu
-max(abs(res_Daniel$mu - res_Rui$mu) / abs(res_Daniel$mu))
-max(abs(res_Daniel$cov - res_Rui$cov) / abs(res_Daniel$cov))
 
-plot(res_Daniel$obj_value_record, type = "b", col = "blue")
-lines(sapply(res_Rui$iterations_record, function(x) x$log_likelihood), col = "red")
+
+res_old$nu
+res_new$nu
+max(abs(res_old$mu - res_new$mu) / abs(res_old$mu))
+max(abs(res_old$cov - res_new$cov) / abs(res_old$cov))
+
+plot(res_old$obj_value_record, type = "b", col = "blue")
+lines(sapply(res_new$iterations_record, function(x) x$log_likelihood), col = "red")
 
 
 
@@ -56,8 +57,8 @@ lines(sapply(res_Rui$iterations_record, function(x) x$log_likelihood), col = "re
 library(microbenchmark)
 
 op <- microbenchmark(
-  old = res_Daniel <- momentsStudentt(X, max_iter = 50),
-  new = res_Rui <- fit_mvt(X, max_iter = 50),
+  old = res_old <- momentsStudentt(X, max_iter = 50),
+  new = res_new <- fit_mvt(X, max_iter = 50),
   times = 100L)
 print(op)
 autoplot(op)
