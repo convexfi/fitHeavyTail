@@ -31,7 +31,12 @@ res_Rui <- fit_mvt(X, max_iter = 50, ftol = 1e6, return_iterates = TRUE)
 
 
 #plot(sapply(res_Rui$iterations_record, function(x) x$nu))
-plot(sapply(res$iterations_record, `[[`, "nu"))
+plot(sapply(res_Rui$iterations_record, `[[`, "nu"))
+
+fitHeavyTail:::plotConvergence(res_Rui)
+
+
+
 
 res_Daniel$nu
 res_Rui$nu
