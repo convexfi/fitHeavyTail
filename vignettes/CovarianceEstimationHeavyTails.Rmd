@@ -66,6 +66,7 @@ help(package = "fitHeavyTail")
 
 # Numerical Comparison with Existing Benchmarks
 
+
 ```{r}
 library(mvtnorm)
 library(fitHeavyTail)
