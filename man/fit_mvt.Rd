@@ -5,8 +5,8 @@
 \title{Robustly estimate parameters of the multivariate Students' t data with (optional) assumption of factor model structure}
 \usage{
 fit_mvt(X, factors = ncol(X), max_iter = 100, ptol = 0.001,
-  ftol = Inf, method = "ECM", nu = NULL, initializer = NULL,
-  return_iterates = FALSE)
+  ftol = Inf, method = "ECM", nu = NULL, nu_target = NULL,
+  nu_regcoef = 0, initializer = NULL, return_iterates = FALSE)
 }
 \arguments{
 \item{X}{Data matrix}
@@ -20,6 +20,14 @@ fit_mvt(X, factors = ncol(X), max_iter = 100, ptol = 0.001,
 \item{ftol}{Number (>= 0) indicating the tolerance for objective changing when judge convergence (default is Inf).
 Note: it might be time consuming when use objective changing as a convergence judging criterion, especially when X is high-dimensional.}
 
+\item{method}{String indicating the method of estimating nu: "ECM" - by maximizing the Q function w.r.t. nu; "ECME" - by maximizing the L function w.r.t. nu.}
+
+\item{nu}{Number (>= 0), if passed, the estimated nu is fixed to this number.}
+
+\item{nu_target}{Number (>= 2), the regularized target of nu.}
+
+\item{nu_regcoef}{Number (>= 0), the coefficience of nu regularized term.}
+
 \item{initializer}{A list of initial value of parameters for starting method.}
 
 \item{return_iterates}{A logical value indicating whether to recode the procedure by iterations.}
@@ -29,6 +37,9 @@ The estimated parameters as a list.
 }
 \description{
 Robust paramater estimation of the multivariate Students' t data with (optional) assumption of factor model structure
+}
+\details{
+The nu regularized term is added to the nu sub-problem as \code{nu_regcoef * abs(nu - nu_target)}
 }
 \examples{
 # examples are not yet ready!
