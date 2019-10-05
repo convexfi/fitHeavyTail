@@ -19,8 +19,8 @@ X <- rmvt(n = T, delta = mu, sigma = Sigma_scale, df = nu)  # heavy-tailed data
 #X <- rmvnorm(n = T, mean = mu, sigma = Sigma)  # Gaussian data
 
 
-res_Studentt_nu6 <- fit_mvt(X, nu = 6, ftol = 1e6, return_iterates = TRUE)
-res_Studentt <- fit_mvt(X, ftol = 1e6, return_iterates = TRUE)
+res_Studentt_nu6 <- fit_mvt(X, nu = 6, method = "ECME", ftol = 1e6, return_iterates = TRUE)
+res_Studentt <- fit_mvt(X, method = "ECME", ftol = 1e6, return_iterates = TRUE)
 
 p_Studentt_nu6 <- fitHeavyTail:::plotConvergence(res_Studentt_nu6)
 p_Studentt <- fitHeavyTail:::plotConvergence(res_Studentt)

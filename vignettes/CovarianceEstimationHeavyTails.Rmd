@@ -73,7 +73,6 @@ library(ggplot2)
 library(reshape2)
 
 # Comparison with other packages:
-#   covRobust::cov.nnve(X)[c("mu","cov")] does not perform well and it's kind of slow
 #   EstimateMoments_MinskerWei(X) is not good...
 #   rrcov::
 
@@ -92,17 +91,17 @@ qplot(eigen(Sigma)$values, geom = "histogram", xlab = "eigenvalues", fill = I("c
 ```{r, fig.width = 9, fig.height = 5, out.width = "100%"}
 N_realiz <- 20  # multiple realizations for averaging
 T_sweep <- round(seq(from = ceiling(1.5*N), to = 5*N, length.out = 12))
-MSE_robust_covRob_T <- MSE_robustbase_covMcd_T <- MSE_MASS_cov.mve_T <- MSE_MASS_cov.trov_T <- MSE_QRM_T <- 
+MSE_covRobust_cov.nnve_T <- MSE_robust_covRob_T <- MSE_robustbase_covMcd_T <- MSE_MASS_cov.mve_T <- MSE_MASS_cov.trov_T <- MSE_QRM_T <- 
   MSE_Studentt_T <- MSE_Studentt_nu_T <- MSE_Cauchy_T <- MSE_Tyler_T <- MSE_SCM_T <- NULL
-time_robust_covRob_T <- time_robustbase_covMcd_T <- time_MASS_cov.mve_T <- time_MASS_cov.trov_T <- time_QRM_T <- 
+time_covRobust_cov.nnve_T <- time_robust_covRob_T <- time_robustbase_covMcd_T <- time_MASS_cov.mve_T <- time_MASS_cov.trov_T <- time_QRM_T <- 
   time_Studentt_T <- time_Studentt_nu_T <- time_Cauchy_T <- time_Tyler_T <- time_SCM_T <- NULL
 
 if (!knitr_in_progress) pbar <- txtProgressBar(min = it<-0, max = length(T_sweep), style=3)
 for(T in T_sweep) {
   if (!knitr_in_progress) setTxtProgressBar(pbar, it<-it+1)
-  MSE_robust_covRob <- MSE_robustbase_covMcd <- MSE_MASS_cov.mve <- MSE_MASS_cov.trov <- MSE_QRM <- 
+  MSE_covRobust_cov.nnve <- MSE_robust_covRob <- MSE_robustbase_covMcd <- MSE_MASS_cov.mve <- MSE_MASS_cov.trov <- MSE_QRM <- 
     MSE_Studentt <- MSE_Studentt_nu <- MSE_Cauchy <- MSE_Tyler <- MSE_SCM <- 0
-  time_robust_covRob <- time_robustbase_covMcd <- time_MASS_cov.mve <- time_MASS_cov.trov <- time_QRM <- 
+  time_covRobust_cov.nnve <- time_robust_covRob <- time_robustbase_covMcd <- time_MASS_cov.mve <- time_MASS_cov.trov <- time_QRM <- 
     time_Studentt <- time_Studentt_nu <- time_Cauchy <- time_Tyler <- time_SCM <- 0
   for (ii in 1:N_realiz) {
     # generate data
@@ -163,8 +162,10 @@ for(T in T_sweep) {
         error   = function(e) return(NA))
     })["elapsed"]
     
-    
-    
+    time_covRobust_cov.nnve <- time_covRobust_cov.nnve + system.time({
+      Sigma_covRobust_cov.nnve <- covRobust::cov.nnve(X)$cov
+    })["elapsed"]
+
 
     # compute MSEs
     MSE_SCM <- MSE_SCM + norm(Sigma_SCM - Sigma, "F")^2
@@ -178,6 +179,7 @@ for(T in T_sweep) {
     #MSE_MASS_cov.mcd  <- MSE_MASS_cov.mcd  + norm(Sigma_MASS_cov.mcd - Sigma, "F")^2
     MSE_robustbase_covMcd  <- MSE_robustbase_covMcd  + norm(Sigma_robustbase_covMcd - Sigma, "F")^2
     MSE_robust_covRob  <- MSE_robust_covRob  + norm(Sigma_robust_covRob - Sigma, "F")^2
+    MSE_covRobust_cov.nnve   <- MSE_covRobust_cov.nnve   + norm(Sigma_covRobust_cov.nnve  - Sigma, "F")^2
   }
   # keep track of MSEs
   MSE_SCM_T  <- c(MSE_SCM_T, MSE_SCM / N_realiz)
@@ -191,6 +193,7 @@ for(T in T_sweep) {
   #MSE_MASS_cov.mcd_T <- c(MSE_MASS_cov.mcd_T, MSE_MASS_cov.mcd / N_realiz)
   MSE_robustbase_covMcd_T <- c(MSE_robustbase_covMcd_T, MSE_robustbase_covMcd / N_realiz)
   MSE_robust_covRob_T <- c(MSE_robust_covRob_T, MSE_robust_covRob / N_realiz)
+  MSE_covRobust_cov.nnve_T <- c(MSE_covRobust_cov.nnve_T, MSE_covRobust_cov.nnve / N_realiz)
   
   # keep track of MSEs
   time_SCM_T <- c(time_SCM_T, time_SCM / N_realiz)
@@ -204,6 +207,7 @@ for(T in T_sweep) {
   #time_MASS_cov.mcd_T <- c(time_MASS_cov.mcd_T, time_MASS_cov.mcd / N_realiz)
   time_robustbase_covMcd_T <- c(time_robustbase_covMcd_T, time_robustbase_covMcd / N_realiz)
   time_robust_covRob_T <- c(time_robust_covRob_T, time_robust_covRob / N_realiz)
+  time_covRobust_cov.nnve_T <- c(time_covRobust_cov.nnve_T, time_covRobust_cov.nnve / N_realiz)
 }
 
 
@@ -217,7 +221,8 @@ MSE_all_T <- cbind("SCM"                   = MSE_SCM_T,
                    "MASS::cov.trov (nu=6)" = MSE_MASS_cov.trov_T,
                    "MASS::cov.mve"         = MSE_MASS_cov.mve_T,
                    "robustbase::covMcd"    = MSE_robustbase_covMcd_T,
-                   "robust::covRob"        = MSE_robust_covRob_T)
+                   "robust::covRob"        = MSE_robust_covRob_T,
+                   "covRobust::cov.nnve"   = MSE_covRobust_cov.nnve_T)
 rownames(MSE_all_T) <- T_sweep
 ggplot(melt(MSE_all_T), aes(x = Var1, y = value, col = Var2, shape = Var2)) +
   geom_line() + geom_point() + coord_cartesian(ylim = c(0, 500)) +
@@ -238,7 +243,8 @@ time_all_T <- cbind("SCM"                   = time_SCM_T,
                     "MASS::cov.trov (nu=6)" = time_MASS_cov.trov_T,
                     "MASS::cov.mve"         = time_MASS_cov.mve_T,
                     "robustbase::covMcd"    = time_robustbase_covMcd_T,
-                    "robust::covRob"        = time_robust_covRob_T)
+                    "robust::covRob"        = time_robust_covRob_T,
+                    "covRobust::cov.nnve"   = time_covRobust_cov.nnve_T)
 rownames(time_all_T) <- T_sweep
 time_all_T[is.na(MSE_all_T)] <- NA
 ggplot(melt(time_all_T), aes(x = Var1, y = value, col = Var2, shape = Var2)) +

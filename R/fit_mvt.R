@@ -119,6 +119,7 @@ fit_mvt <- function(X, factors = ncol(X), max_iter = 100, ptol = 1e-3, ftol = In
       #   gammak[k] <- gammak[k-1] * (1 - zeta * gammak[k-1])
       # plot(gammak)
       gamma <- gamma * (1 - zeta * gamma)
+      gamma <- 0  # remove smoothing
       if (optimize_nu)
         nu <- gamma*nu + (1-gamma)*switch(method,
                      "ECM" = {  # based on minus the Q function of nu
