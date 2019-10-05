@@ -12,10 +12,16 @@
 #' @param ptol Number (>= 0) indicating the tolerance for parameter changing when judge convergence (default is Inf).
 #' @param ftol Number (>= 0) indicating the tolerance for objective changing when judge convergence (default is Inf).
 #'             Note: it might be time consuming when use objective changing as a convergence judging criterion, especially when X is high-dimensional.
+#' @param method String indicating the method of estimating nu: "ECM" - by maximizing the Q function w.r.t. nu; "ECME" - by maximizing the L function w.r.t. nu.
+#' @param nu Number (>= 0), if passed, the estimated nu is fixed to this number.
+#' @param nu_target Number (>= 2), the regularized target of nu.
+#' @param nu_regcoef Number (>= 0), the coefficience of nu regularized term.
 #' @param initializer A list of initial value of parameters for starting method.
 #' @param return_iterates A logical value indicating whether to recode the procedure by iterations.
 #'
 #' @return The estimated parameters as a list.
+#'
+#' @details The nu regularized term is added to the nu sub-problem as \code{nu_regcoef * abs(nu - nu_target)}
 #'
 #' @author Rui ZHOU and Daniel P. Palomar
 #'
@@ -27,7 +33,8 @@
 #' # examples are not yet ready!
 #'
 #' @export
-fit_mvt <- function(X, factors = ncol(X), max_iter = 100, ptol = 1e-3, ftol = Inf, method = "ECM", nu = NULL, initializer = NULL, return_iterates = FALSE) {
+fit_mvt <- function(X, factors = ncol(X), max_iter = 100, ptol = 1e-3, ftol = Inf, method = "ECM", nu = NULL,
+                    nu_target = NULL, nu_regcoef = 0, initializer = NULL, return_iterates = FALSE) {
   ####### error control ########
   X <- as.matrix(X)
   if (nrow(X) == 1) stop("Only T=1 sample!!")
@@ -37,7 +44,9 @@ fit_mvt <- function(X, factors = ncol(X), max_iter = 100, ptol = 1e-3, ftol = In
   if (!is.matrix(X)) stop("\"X\" must be a matrix or can be converted to a matrix.")
   if (factors < 1 || factors > ncol(X)) stop("\"factors\" must satisfy \"1 <= factors <= ncol(X)\"")
   if (max_iter < 1) stop("\"max_iter\" must be greater than 1.")
+  if (nrow(X) <= 2*ncol(X) && nu_regcoef <= 0) warning("Small sample size! Estimation results might be inaccurate, please try regularized mode (set \"nu_regcoef\" > 0).")
   ##############################
+
 
   T <- nrow(X)
   N <- ncol(X)
@@ -47,6 +56,13 @@ fit_mvt <- function(X, factors = ncol(X), max_iter = 100, ptol = 1e-3, ftol = In
   if (!optimize_nu && nu == Inf) nu <- 1e15  # for numerical stability (for the Gaussian case)
   gamma <- .99
   zeta <- 2e-2
+
+  # find a nu_target if undefined, using the sub-set (10%) of X
+  if (nu_regcoef > 0 && is.null(nu_target)) {
+    sample_size <- max(ceiling(N * 0.1), 2)
+    nu_target <- min(sapply(as.list(1:10), function(x) fit_mvt(X[, sample(N, sample_size)], ptol = ptol)$nu))
+    message(sprintf("Automatically choose a target nu = %.2f", nu_target))
+  }
 
   # initialize all parameters
   alpha <- 1  # an extra variable for PX-EM acceleration
@@ -124,12 +140,19 @@ fit_mvt <- function(X, factors = ncol(X), max_iter = 100, ptol = 1e-3, ftol = In
         nu <- gamma*nu + (1-gamma)*switch(method,
                      "ECM" = {  # based on minus the Q function of nu
                        S <- T*(digamma((N+nu)/2) - log((N+nu)/2)) + sum(log(E_tau) - E_tau)  # S is E_log_tau-E_tau
-                       Q_nu <- function(nu) { - T*(nu/2)*log(nu/2) + T*lgamma(nu/2) - (nu/2)*sum(S) }
+                       if (is.null(nu_target) || is.null(nu_regcoef))  # introduce regularization term if is required
+                         Q_nu <- function(nu) { - T*(nu/2)*log(nu/2) + T*lgamma(nu/2) - (nu/2)*sum(S) }
+                       else
+                         Q_nu <- function(nu) { - T*(nu/2)*log(nu/2) + T*lgamma(nu/2) - (nu/2)*sum(S) + T * nu_regcoef * abs(nu - nu_target)}
                        optimize(Q_nu, interval = c(2 + 1e-12, 100))$minimum
                        },
                      "ECME" = {  # based on minus log-likelihood of nu with mu and sigma fixed to mu[k+1] and sigma[k+1]
                        tmp <- rowSums(X_ * (X_ %*% inv(Sigma)))  # diag( X_ %*% inv(Sigma) %*% t(X_) )
-                       LL_nu <- function(nu) { - sum ( - ((nu+N)/2)*log(nu+tmp) + lgamma( (nu+N)/2 ) - lgamma(nu/2) + (nu/2)*log(nu) ) }
+                       if (is.null(nu_target) || is.null(nu_regcoef))  # introduce regularization term if is required
+                         LL_nu <- function(nu) { - sum ( - ((nu+N)/2)*log(nu+tmp) + lgamma( (nu+N)/2 ) - lgamma(nu/2) + (nu/2)*log(nu) ) }
+                       else
+                         LL_nu <- function(nu) { - sum ( - ((nu+N)/2)*log(nu+tmp) + lgamma( (nu+N)/2 ) - lgamma(nu/2) + (nu/2)*log(nu) ) + T * nu_regcoef * abs(nu - nu_target) }
+
                        optimize(LL_nu, interval = c(2 + 1e-12, 100))$minimum
                        },
                      stop("Method unknown."))

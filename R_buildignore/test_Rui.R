@@ -1,4 +1,4 @@
-library(covHeavyTail)
+library(fitHeavyTail)
 library(tictoc)
 
 set.seed(234)
@@ -67,3 +67,33 @@ norm(fit_old$cov * (fit_old$nu - 2) / fit_old$nu - fit_nom$Sigma, "F") / norm(fi
 plot(sapply(fit_nom$iterations_record, function(x) x$nu))
 sapply(fit_wFA$iterations_record, function(x) x$nu)
 sapply(fit_wFA_wNA$iterations_record, function(x) x$nu)
+
+
+# estimate nu from subspace of X ---------------------------
+library(mvtnorm)
+library(fitHeavyTail)
+library(ggplot2)
+
+N <- 50
+T <- 1.1*N
+nu <- 5
+mu <- rep(0, N)
+
+# generate data
+set.seed(357)
+U <- t(rmvnorm(n = round(1.1*N), sigma = 0.1*diag(N)))
+Sigma <- U %*% t(U) + diag(N)
+Sigma_scale <- (nu-2)/nu * Sigma
+qplot(eigen(Sigma)$values, geom = "histogram", xlab = "eigenvalues", fill = I("cyan"), col = I("black"),
+      main = "Histogram of eigenvalues of true covariance matrix")
+
+X <- rmvt(n = T, delta = mu, sigma = Sigma_scale, df = nu)  # heavy-tailed data
+
+res_mvt_noreg <- fit_mvt(X, return_iterates = TRUE)
+res_mvt_wreg  <- fit_mvt(X, nu_regcoef = 2e-2, return_iterates = TRUE)
+
+p_mvt_noreg <- fitHeavyTail:::plotConvergence(res_mvt_noreg)
+do.call(gridExtra::grid.arrange, c(p_mvt_noreg, ncol = 1))
+
+p_mvt_wreg <- fitHeavyTail:::plotConvergence(res_mvt_wreg)
+do.call(gridExtra::grid.arrange, c(p_mvt_wreg, ncol = 1))
