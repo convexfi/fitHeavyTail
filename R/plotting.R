@@ -25,15 +25,15 @@ plotConvergence <- function(res_fit) {
     p_all <- c(p_all, list(p_mu))
   }
 
-  if (!is.null(res_fit$iterations_record[[1]]$scale)) {
-    diag_scale_matrix <- sapply(res_fit$iterations_record, function(x) diag(x$scale))
-    rownames(diag_scale_matrix) <- paste0("diag_scale", 1:nrow(diag_scale_matrix))
-    data <- cbind(data, as.data.frame(t(diag_scale_matrix)))
-    p_scale <- ggplot(reshape2::melt(data, measure.vars = rownames(diag_scale_matrix)), aes(x = iteration, y = value, col = variable)) +
+  if (!is.null(res_fit$iterations_record[[1]]$scatter)) {
+    diag_scatter_matrix <- sapply(res_fit$iterations_record, function(x) diag(x$scatter))
+    rownames(diag_scatter_matrix) <- paste0("diag_scatter", 1:nrow(diag_scatter_matrix))
+    data <- cbind(data, as.data.frame(t(diag_scatter_matrix)))
+    p_scatter <- ggplot(reshape2::melt(data, measure.vars = rownames(diag_scatter_matrix)), aes(x = iteration, y = value, col = variable)) +
       geom_line() + geom_point() +
-      ggtitle("Convergence of scale matrix")
-    print(p_scale)
-    p_all <- c(p_all, list(p_scale))
+      ggtitle("Convergence of scatter matrix")
+    print(p_scatter)
+    p_all <- c(p_all, list(p_scatter))
   }
   return(p_all)
 }

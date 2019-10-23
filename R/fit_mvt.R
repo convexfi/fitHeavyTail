@@ -71,7 +71,7 @@ fit_mvt <- function(X, factors = ncol(X), max_iter = 100, ptol = 1e-3, ftol = In
   mu <- if (is.null(initializer$mu)) colMeans(X, na.rm = TRUE)
         else initializer$mu
   SCM <- var(X, na.rm = TRUE)
-  if (FA_struct) {  # Sigma is the scale matrix, not the covariance matrix
+  if (FA_struct) {  # Sigma is the scatter matrix, not the covariance matrix
     SCM_eigen <- eigen(SCM, symmetric = TRUE)
     B <- if (is.null(initializer$B)) SCM_eigen$vectors[, 1:factors] %*% diag(sqrt(SCM_eigen$values[1:factors]), factors)
          else initializer$B
@@ -86,9 +86,9 @@ fit_mvt <- function(X, factors = ncol(X), max_iter = 100, ptol = 1e-3, ftol = In
                                            sum(mvtnorm::dmvt(X, delta = mu, sigma = Sigma, df = nu, log = TRUE, type = "shifted")))
   snapshot <- function() {
     if (ftol < Inf)
-      list(mu = mu, scale = Sigma, nu = nu, log_likelihood = log_likelihood)
+      list(mu = mu, scatter = Sigma, nu = nu, log_likelihood = log_likelihood)
     else
-      list(mu = mu, scale = Sigma, nu = nu)
+      list(mu = mu, scatter = Sigma, nu = nu)
   }
 
   # loop
@@ -197,7 +197,7 @@ fit_mvt <- function(X, factors = ncol(X), max_iter = 100, ptol = 1e-3, ftol = In
   vars_to_be_returned <- list("mu"          = mu,
                               "cov"         = nu/(nu-2) * Sigma,
                               "nu"          = nu,
-                              "scale"       = Sigma)
+                              "scatter"       = Sigma)
   if (FA_struct) {
     vars_to_be_returned$B   <- B
     vars_to_be_returned$Psi <-  psi

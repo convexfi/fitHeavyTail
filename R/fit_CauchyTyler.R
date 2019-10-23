@@ -265,7 +265,7 @@ momentsStudentt <- function(X, nu = NULL, max_iter = 100, method = "ECM", verbos
   if (optimize_nu)
     nu <- 4
   mu <- colMeans(X)
-  Sigma <- (nu-2)/nu*cov(X)  #Sigma is the scale matrix, not the covariance matrix
+  Sigma <- (nu-2)/nu*cov(X)  #Sigma is the scatter matrix, not the covariance matrix
 
   #loop
   nu_record <- obj_value_record <- mu_diff_record <- Sigma_diff_record <- nu_diff_record <- rep(NA, max_iter)
@@ -326,7 +326,7 @@ momentsStudentt <- function(X, nu = NULL, max_iter = 100, method = "ECM", verbos
 
   names(mu) <- colnames(X)
 
-  return(list(mu = mu, cov = nu/(nu-2)*Sigma, scale = Sigma, nu = nu,
+  return(list(mu = mu, cov = nu/(nu-2)*Sigma, scatter = Sigma, nu = nu,
               obj_value_record = na.omit(obj_value_record),
               Xcg = X_demeaned_gaussianized))
 }
