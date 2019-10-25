@@ -28,7 +28,7 @@ genX <- function(N = 10, T = round(N*1.1), nu = 5, mu = rep(0, N)) {
 }
 ```
 
-Then define functions for estimate $\nu$ via kurtosis
+Then define functions for estimate $\nu$ via kurtosis, note the $X$ will be melt into a vector inside the function.
 ```{r, cache=TRUE}
 excess_kurtosis_unbias <- function(x) {
   x <- as.vector(x)
@@ -54,6 +54,7 @@ excess_kurtosis_unbias(tmp)
 excess_kurtosis_unbias_daniel(tmp)
 
 est_nu_kurtosis <- function(X, comb_fun = mean) {
+  X <- cbind(as.vector(scale(X, center = TRUE, scale = TRUE)))
   kurt <- apply(X, 2, excess_kurtosis_unbias)
   kappa <- max(-2/(ncol(X)+2), comb_fun(kurt)/3)
   nu <- 2 / kappa + 4
