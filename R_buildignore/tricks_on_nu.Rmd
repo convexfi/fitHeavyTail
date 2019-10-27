@@ -1,0 +1,102 @@
+---
+title: "Comparison of Covariance Matrix Estimation with different treatment on nu"
+author: Rui ZHOU
+date: "`r Sys.Date()`"
+---
+
+```{r, echo = FALSE}
+library(knitr)
+opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>",
+  fig.align = "center",
+  fig.retina = 2,
+  out.width = "85%",
+  dpi = 96,
+  pngquant = "--speed=1"
+)
+knitr_in_progress <- isTRUE(getOption('knitr.in.progress'))
+knit_hooks$set(pngquant = hook_pngquant)
+# rmarkdown::render("R_buildignore/tricks_on_nu.Rmd", "prettydoc::html_pretty")
+```
+
+-----------
+
+
+# Numerical Comparison with Existing Benchmarks
+
+
+```{r}
+library(mvtnorm)
+library(fitHeavyTail)
+library(ggplot2)
+library(reshape2)
+
+# Comparison with other packages:
+#   EstimateMoments_MinskerWei(X) is not good...
+#   rrcov::
+
+N <- 20
+nu <- 5
+mu <- rep(0, N)
+
+set.seed(123)
+U <- t(rmvnorm(n = round(1.1*N), sigma = 0.1*diag(N)))
+Sigma <- U %*% t(U) + diag(N)
+Sigma_scale <- (nu-2)/nu * Sigma
+qplot(eigen(Sigma)$values, geom = "histogram", xlab = "eigenvalues", fill = I("cyan"), col = I("black"),
+      main = "Histogram of eigenvalues of true covariance matrix")
+```
+
+```{r, fig.width = 9, fig.height = 5, out.width = "100%", message = FALSE, cache = TRUE}
+# compute the MSE of estimated result with the reference one
+MSE <- function(est_cov) norm(est_cov - Sigma, "F")^2
+eval_single_res <- function(X) {
+  c("MLE" = MSE(fit_mvt(X)$cov),
+    "MLE (nu = 6)" = MSE(fit_mvt(X, nu = 6)$cov),
+    "MLE (nu from kurtosis)" = MSE(fit_mvt(X, nu_regcoef = 1e10)$cov),
+    "MLE (nu_target = 6)" = MSE(fit_mvt(X, nu_target = 6, nu_regcoef = 5e-2)$cov),
+    "MLE (nu_target from kurtosis)" = MSE(fit_mvt(X, nu_regcoef = 5e-2)$cov),
+    "MLE + correct" = MSE(fit_mvt(X, scale_correct = TRUE)$cov),
+    "MLE (nu = 6) + correct" = MSE(fit_mvt(X, nu = 6, scale_correct = TRUE)$cov),
+    "MLE (nu from kurtosis) + correct" = MSE(fit_mvt(X, nu_regcoef = 1e10, scale_correct = TRUE)$cov),
+    "MLE (nu_target = 6) + correct" = MSE(fit_mvt(X, nu_target = 6, nu_regcoef = 5e-2, scale_correct = TRUE)$cov),
+    "MLE (nu_target from kurtosis) + correct" = MSE(fit_mvt(X, nu_regcoef = 5e-2, scale_correct = TRUE)$cov))
+}
+N_realiz <- 200  # multiple realizations for averaging
+T_sweep <- round(seq(from = ceiling(1.5*N), to = 5*N, length.out = 12))
+
+if (!knitr_in_progress) pbar <- txtProgressBar(min = it<-0, max = length(T_sweep), style=3)
+MSE_all_T <- NULL
+for(T in T_sweep) {
+  if (!knitr_in_progress) setTxtProgressBar(pbar, it<-it+1)
+  res <- sapply(1:N_realiz, function(idx) {
+    X <- rmvt(n = T, delta = mu, sigma = Sigma_scale, df = nu)
+    eval_single_res(X)
+  })
+  MSE_all_T <- rbind(MSE_all_T, apply(res, 1, mean))
+}
+
+
+# MSE plots
+rownames(MSE_all_T) <- T_sweep
+ggplot(melt(MSE_all_T), aes(x = Var1, y = value, col = Var2, shape = Var2)) +
+  geom_line() + geom_point() + coord_cartesian(ylim = c(0, 250)) +
+  theme(legend.title = element_blank()) +
+  ggtitle(bquote("MSE of covariance matrix estimation for heavy-tailed data (" * N == .(N) * "," ~ nu == .(nu)* ")")) +
+  xlab("T") + ylab("MSE")
+
+```
+
+Observations:
+
+- Set the $\nu$ to be the estimator from kurtosis method seems to give the best estimation performance for covariance matrix.
+- Set the $\nu$ to be fixed $6$ provides also very good estimation performance, while alittle worse than the kurtosis estimator.
+- If the implementation for re-scaling is correct, then it seems that the correct operating does not work, except the first stage estimation is really terriable.
+
+
+
+\setlength{\parindent}{-0.2in}
+\setlength{\leftskip}{0.2in}
+\setlength{\parskip}{8pt}
+\noindent

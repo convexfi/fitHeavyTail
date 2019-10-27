@@ -16,6 +16,7 @@
 #' @param nu Number (>= 0), if passed, the estimated nu is fixed to this number.
 #' @param nu_target Number (>= 2), the regularized target of nu.
 #' @param nu_regcoef Number (>= 0), the coefficience of nu regularized term.
+#' @param scale_correct A logical value indicating whether to correct the nu, so that the scale of covariance matrix.
 #' @param initializer A list of initial value of parameters for starting method.
 #' @param return_iterates A logical value indicating whether to recode the procedure by iterations.
 #'
@@ -34,7 +35,7 @@
 #'
 #' @export
 fit_mvt <- function(X, factors = ncol(X), max_iter = 100, ptol = 1e-3, ftol = Inf, method = "ECM", nu = NULL,
-                    nu_target = 6, nu_regcoef = 0, initializer = NULL, return_iterates = FALSE) {
+                    nu_target = NULL, nu_regcoef = 0, scale_correct = FALSE, initializer = NULL, return_iterates = FALSE) {
   ####### error control ########
   X <- as.matrix(X)
   if (nrow(X) == 1) stop("Only T=1 sample!!")
@@ -43,7 +44,7 @@ fit_mvt <- function(X, factors = ncol(X), max_iter = 100, ptol = 1e-3, ftol = In
   if (!is.matrix(X)) stop("\"X\" must be a matrix or can be converted to a matrix.")
   if (factors < 1 || factors > ncol(X)) stop("\"factors\" must satisfy \"1 <= factors <= ncol(X)\"")
   if (max_iter < 1) stop("\"max_iter\" must be greater than 1.")
-  if (nrow(X) <= 2*ncol(X) && nu_regcoef <= 0 && is.null(nu)) warning("Small sample size! Estimation results might be inaccurate, please try regularized mode (set \"nu_regcoef\" > 0).")
+  # if (nrow(X) <= 2*ncol(X) && nu_regcoef <= 0 && is.null(nu)) warning("Small sample size! Estimation results might be inaccurate, please try regularized mode (set \"nu_regcoef\" > 0).")
   ##############################
 
   T <- nrow(X)
@@ -62,6 +63,10 @@ fit_mvt <- function(X, factors = ncol(X), max_iter = 100, ptol = 1e-3, ftol = In
   #   nu_target <- min(sapply(as.list(1:10), function(x) fit_mvt(X[, sample(N, sample_size)], ptol = ptol)$nu))
   #   message(sprintf("Automatically choose a target nu = %.2f", nu_target))
   # }
+  if (nu_regcoef > 0 && is.null(nu_target)) {
+    nu_target <- est_nu_kurtosis(X)
+    message(sprintf("Automatically choose a target nu = %.2f", nu_target))
+  }
 
   # initialize all parameters
   alpha <- 1  # an extra variable for PX-EM acceleration
@@ -194,10 +199,19 @@ fit_mvt <- function(X, factors = ncol(X), max_iter = 100, ptol = 1e-3, ftol = In
 
   ## -------- return variables --------
   #TODO: colnames, rownames, etc.
+
+  # correct the nu
+  if (scale_correct) {
+    etaS <- sum(diag(SCM))
+    etaM <- sum(diag(Sigma))
+    eta_ratio <- etaS / etaM
+    nu = 2 * eta_ratio / (eta_ratio - 1);
+  }
+
   vars_to_be_returned <- list("mu"          = mu,
                               "cov"         = nu/(nu-2) * Sigma,
                               "nu"          = nu,
-                              "scatter"       = Sigma)
+                              "scatter"     = Sigma)
   if (FA_struct) {
     vars_to_be_returned$B   <- B
     vars_to_be_returned$Psi <-  psi
@@ -330,4 +344,25 @@ dmvt_withNA <- function(X, delta, sigma, df) {
     res <- res + tmp
   }
   return(res)
+}
+
+
+# estimate nu via the kurtosis of each variable
+excess_kurtosis_unbias <- function(x) {
+  x <- as.vector(x)
+  T <- length(x)
+  excess_kurt <- PerformanceAnalytics::kurtosis(x, method = "excess", na.rm = TRUE) # mean(x_demean^4) / (mean(x_demean^2))^2 - 3
+  excess_kurt_unbias <- (T-1) / (T-2) / (T-3) * ((T+1)*excess_kurt + 6)
+  return(excess_kurt_unbias)
+}
+
+est_nu_kurtosis <- function(X) {
+  kurt <- apply(X, 2, excess_kurtosis_unbias)
+  kappa <- max(0, mean(kurt)/3)
+  nu <- 2 / kappa + 4
+  # in case of some funny results
+  if (nu < 2) nu <- 2
+  if (nu > 100) nu <- 100
+
+  return(nu)
 }
