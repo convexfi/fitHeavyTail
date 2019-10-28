@@ -26,6 +26,9 @@
 #' @author Rui ZHOU and Daniel P. Palomar
 #'
 #' @references
+#' Chuanhai Liu and Donald B. Rubin, “ML estimation of the t-distribution using EM and its extensions, ECM and ECME,”
+#' Statistica Sinica (5), pp. 19-39, 1995.
+#'
 #' Rui ZHOU, Junyan Liu, Sandeep Kumar, and Daniel P. Palomar, "Robust factor analysis parameter estimation,"
 #' Lecture Notes in Computer Science, 2020. <https://arxiv.org/abs/1909.12530>
 #'
