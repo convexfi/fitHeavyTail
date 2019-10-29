@@ -38,7 +38,8 @@
 #'
 #' @export
 fit_mvt <- function(X, factors = ncol(X), max_iter = 100, ptol = 1e-3, ftol = Inf, method = "ECM", nu = NULL,
-                    nu_target = NULL, nu_regcoef = 0, scale_correct = FALSE, initializer = NULL, return_iterates = FALSE) {
+                    nu_target = NULL, nu_regcoef = 0, nu_regfun = abs, nu_shell = function(x) x, initializer = NULL, return_iterates = FALSE,
+                    nu_target_first_iter = FALSE) {
   ####### error control ########
   X <- as.matrix(X)
   if (nrow(X) == 1) stop("Only T=1 sample!!")
@@ -138,6 +139,14 @@ fit_mvt <- function(X, factors = ncol(X), max_iter = 100, ptol = 1e-3, ftol = In
       ave_E_tau_XX <- (1/T) * crossprod(sqrt(E_tau) * X_)  # (1/T) * t(X_) %*% diag(E_tau) %*% X_
       Sigma <- ave_E_tau_XX / alpha  #TODO{Rui}: this Sigma is divided by alpha, whereas your above on line 102 is not... We need to check
 
+      if (nu_target_first_iter & iter == 1) {
+        etaS <- sum(diag(SCM))
+        etaM <- sum(diag(Sigma))
+        eta_ratio <- etaS / etaM
+        nu_target = 2 * eta_ratio / (eta_ratio - 1)
+        message(sprintf("During first iteration, automatically re-choose a target nu = %.2f", nu_target))
+      }
+
       #TODO{Daniel}: trying to fix the oscillations in the convergence of nu
       # gamma <- .99
       # zeta <- 2e-2
@@ -155,7 +164,7 @@ fit_mvt <- function(X, factors = ncol(X), max_iter = 100, ptol = 1e-3, ftol = In
                        if (is.null(nu_target) || is.null(nu_regcoef))  # introduce regularization term if is required
                          Q_nu <- function(nu) { - T*(nu/2)*log(nu/2) + T*lgamma(nu/2) - (nu/2)*sum(S) }
                        else
-                         Q_nu <- function(nu) { - T*(nu/2)*log(nu/2) + T*lgamma(nu/2) - (nu/2)*sum(S) + (N/T)^2 * T * nu_regcoef * abs(nu - nu_target)}
+                         Q_nu <- function(nu) { - T*(nu/2)*log(nu/2) + T*lgamma(nu/2) - (nu/2)*sum(S) + (N/T)^2 * T * nu_regcoef * nu_regfun(nu_shell(nu) - nu_shell(nu_target))}
                        optimize(Q_nu, interval = c(2 + 1e-12, 100))$minimum
                        },
                      "ECME" = {  # based on minus log-likelihood of nu with mu and sigma fixed to mu[k+1] and sigma[k+1]
@@ -163,7 +172,7 @@ fit_mvt <- function(X, factors = ncol(X), max_iter = 100, ptol = 1e-3, ftol = In
                        if (is.null(nu_target) || is.null(nu_regcoef))  # introduce regularization term if is required
                          LL_nu <- function(nu) { - sum ( - ((nu+N)/2)*log(nu+tmp) + lgamma( (nu+N)/2 ) - lgamma(nu/2) + (nu/2)*log(nu) ) }
                        else
-                         LL_nu <- function(nu) { - sum ( - ((nu+N)/2)*log(nu+tmp) + lgamma( (nu+N)/2 ) - lgamma(nu/2) + (nu/2)*log(nu) ) +  (N/T)^2 * T * nu_regcoef * abs(nu - nu_target) }
+                         LL_nu <- function(nu) { - sum ( - ((nu+N)/2)*log(nu+tmp) + lgamma( (nu+N)/2 ) - lgamma(nu/2) + (nu/2)*log(nu) ) +  (N/T)^2 * T * nu_regcoef * nu_regfun(nu_shell(nu) - nu_shell(nu_target)) }
 
                        optimize(LL_nu, interval = c(2 + 1e-12, 100))$minimum
                        },
@@ -202,14 +211,6 @@ fit_mvt <- function(X, factors = ncol(X), max_iter = 100, ptol = 1e-3, ftol = In
 
   ## -------- return variables --------
   #TODO: colnames, rownames, etc.
-
-  # correct the nu
-  if (scale_correct) {
-    etaS <- sum(diag(SCM))
-    etaM <- sum(diag(Sigma))
-    eta_ratio <- etaS / etaM
-    nu = 2 * eta_ratio / (eta_ratio - 1);
-  }
 
   vars_to_be_returned <- list("mu"          = mu,
                               "cov"         = nu/(nu-2) * Sigma,
