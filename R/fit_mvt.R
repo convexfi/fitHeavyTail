@@ -16,7 +16,6 @@
 #' @param nu Number (>= 0), if passed, the estimated nu is fixed to this number.
 #' @param nu_target Number (>= 2), the regularized target of nu.
 #' @param nu_regcoef Number (>= 0), the coefficience of nu regularized term.
-#' @param scale_correct A logical value indicating whether to correct the nu, so that the scale of covariance matrix.
 #' @param initializer A list of initial value of parameters for starting method.
 #' @param return_iterates A logical value indicating whether to recode the procedure by iterations.
 #'
@@ -34,9 +33,8 @@
 #' # examples are not yet ready!
 #'
 #' @export
-fit_mvt <- function(X, factors = ncol(X), max_iter = 100, ptol = 1e-3, ftol = Inf, method = "ECM", nu = NULL,
-                    nu_target = NULL, nu_regcoef = 0, nu_regfun = abs, nu_shell = function(x) x, initializer = NULL, return_iterates = FALSE,
-                    nu_target_first_iter = FALSE) {
+fit_mvt <- function(X, factors = ncol(X), max_iter = 100, ptol = 1e-3, ftol = Inf, method = "ECM",
+                    nu = NULL, nu_target = NULL, nu_regcoef = 0, initializer = NULL, return_iterates = FALSE) {
   ####### error control ########
   X <- as.matrix(X)
   if (nrow(X) == 1) stop("Only T=1 sample!!")
@@ -53,29 +51,29 @@ fit_mvt <- function(X, factors = ncol(X), max_iter = 100, ptol = 1e-3, ftol = In
   X_has_NA <- anyNA(X)
   FA_struct <- factors != N
   optimize_nu <- ifelse(is.null(nu), TRUE, FALSE)
-  if (!optimize_nu && nu == Inf) nu <- 1e15  # for numerical stability (for the Gaussian case)
+  if (!is.null(nu) && nu == Inf) nu <- 1e15  # for numerical stability (for the Gaussian case)
+  if (!is.null(nu) && nu == "kurtosis") {  # estimate nu if argument nu = "kurtosis"
+    nu <- est_nu_kurtosis(X)
+    message(sprintf("Automatically set nu = %.2f", nu))
+  }
+
   gamma <- .99
   zeta <- 2e-2
 
-  # TODO{Rui:} Delete this code segment, nu = 6 seems to be a good choice
-  # find a nu_target if undefined, using the sub-set (10%) of X
-  # if (nu_regcoef > 0 && is.null(nu_target)) {
-  #   sample_size <- max(ceiling(N * 0.1), 2)
-  #   nu_target <- min(sapply(as.list(1:10), function(x) fit_mvt(X[, sample(N, sample_size)], ptol = ptol)$nu))
-  #   message(sprintf("Automatically choose a target nu = %.2f", nu_target))
-  # }
-  if (nu_regcoef > 0 && is.null(nu_target)) {
-    nu_target <- est_nu_kurtosis(X)
-    message(sprintf("Automatically choose a target nu = %.2f", nu_target))
+  # choose nu_target if necessary
+  if (is.null(nu_target)) {
+    if (is.null(nu) && nu_regcoef > 0) {  # need nu_target
+      nu_target <- est_nu_kurtosis(X)
+      message(sprintf("Automatically choose a target nu = %.2f", nu_target))
+    } else {  # no need to have nu_target, but assign a value to simplify following codes
+      nu_target <- 0
+    }
   }
 
   # initialize all parameters
   alpha <- 1  # an extra variable for PX-EM acceleration
-  if (optimize_nu)
-    nu <- if (is.null(initializer$nu)) 4
-          else initializer$nu
-  mu <- if (is.null(initializer$mu)) colMeans(X, na.rm = TRUE)
-        else initializer$mu
+  if (optimize_nu) nu <- if (is.null(initializer$nu)) 4 else initializer$nu
+  mu <- if (is.null(initializer$mu)) colMeans(X, na.rm = TRUE) else initializer$mu
   SCM <- var(X, na.rm = TRUE)
   if (FA_struct) {  # Sigma is the scatter matrix, not the covariance matrix
     SCM_eigen <- eigen(SCM, symmetric = TRUE)
@@ -84,8 +82,10 @@ fit_mvt <- function(X, factors = ncol(X), max_iter = 100, ptol = 1e-3, ftol = In
     psi <- if (is.null(initializer$psi)) pmax(0, diag(SCM) - diag(B %*% t(B)))
            else initializer$psi
     Sigma <- (nu-2)/nu * (B %*% t(B) + diag(psi, N))
-  } else
+  } else {
     Sigma <- (nu-2)/nu * SCM
+  }
+
   #mask_notNA <- !is.na(rowSums(X))
   if (ftol < Inf) log_likelihood <- ifelse(X_has_NA,
                                            dmvt_withNA(X = X, delta = mu, sigma = Sigma / alpha, df = nu),
@@ -119,30 +119,19 @@ fit_mvt <- function(X, factors = ncol(X), max_iter = 100, ptol = 1e-3, ftol = In
 
     ## -------------- M-step --------------
     # update mu, alpha, nu
-    if (X_has_NA) {
+    if (X_has_NA || FA_struct) {
       mu <- Q$ave_E_tau_X / Q$ave_E_tau
       alpha <- Q$ave_E_tau
       Sigma <- Q$ave_E_tau_XX - cbind(mu) %*% rbind(Q$ave_E_tau_X) - cbind(Q$ave_E_tau_X) %*% rbind(mu) + Q$ave_E_tau * cbind(mu) %*% rbind(mu)
       # nu  <- optimize_nu(- 1 - Q$ave_E_logtau + Q$ave_E_tau)
-      if (is.null(nu_target) || is.null(nu_regcoef))  # introduce regularization term if is required
-        Q_nu <- function(nu) { - (nu/2)*log(nu/2) + lgamma(nu/2) - (nu/2)*(Q$ave_E_logtau - Q$ave_E_tau) }
-      else
-        Q_nu <- function(nu) { - (nu/2)*log(nu/2) + lgamma(nu/2) - (nu/2)*(Q$ave_E_logtau - Q$ave_E_tau) + (N/T)^2 * nu_regcoef * abs(nu - nu_target)}
-      nu <- optimize(Q_nu, interval = c(2 + 1e-12, 100))$minimum
+      Q_nu <- function(nu) { - (nu/2)*log(nu/2) + lgamma(nu/2) - (nu/2)*(Q$ave_E_logtau - Q$ave_E_tau) + nu_regcoef * (nu/(nu-2) - nu_target/(nu_target-2))^2 }
+      if (optimize_nu) nu <- optimize(Q_nu, interval = c(2 + 1e-12, 100))$minimum
     } else {
       mu <- ave_E_tau_X / ave_E_tau
       alpha <- ave_E_tau  # acceleration
       X_ <- X - matrix(mu, T, N, byrow = TRUE)  # this is slower: sweep(X, 2, FUN = "-", STATS = mu)  #X_ <- X - rep(mu, each = TRUE)  # this is wrong?
       ave_E_tau_XX <- (1/T) * crossprod(sqrt(E_tau) * X_)  # (1/T) * t(X_) %*% diag(E_tau) %*% X_
       Sigma <- ave_E_tau_XX / alpha  #TODO{Rui}: this Sigma is divided by alpha, whereas your above on line 102 is not... We need to check
-
-      if (nu_target_first_iter & iter == 1) {
-        etaS <- sum(diag(SCM))
-        etaM <- sum(diag(Sigma))
-        eta_ratio <- etaS / etaM
-        nu_target = 2 * eta_ratio / (eta_ratio - 1)
-        message(sprintf("During first iteration, automatically re-choose a target nu = %.2f", nu_target))
-      }
 
       #TODO{Daniel}: trying to fix the oscillations in the convergence of nu
       # gamma <- .99
@@ -158,25 +147,18 @@ fit_mvt <- function(X, factors = ncol(X), max_iter = 100, ptol = 1e-3, ftol = In
         nu <- gamma*nu + (1-gamma)*switch(method,
                      "ECM" = {  # based on minus the Q function of nu
                        S <- T*(digamma((N+nu)/2) - log((N+nu)/2)) + sum(log(E_tau) - E_tau)  # S is E_log_tau-E_tau
-                       if (is.null(nu_target) || is.null(nu_regcoef))  # introduce regularization term if is required
-                         Q_nu <- function(nu) { - T*(nu/2)*log(nu/2) + T*lgamma(nu/2) - (nu/2)*sum(S) }
-                       else
-                         Q_nu <- function(nu) { - T*(nu/2)*log(nu/2) + T*lgamma(nu/2) - (nu/2)*sum(S) + (N/T)^2 * T * nu_regcoef * nu_regfun(nu_shell(nu) - nu_shell(nu_target))}
+                       Q_nu <- function(nu) { - T*(nu/2)*log(nu/2) + T*lgamma(nu/2) - (nu/2)*sum(S) + nu_regcoef * (nu/(nu-2) - nu_target/(nu_target-2))^2 }
                        optimize(Q_nu, interval = c(2 + 1e-12, 100))$minimum
                        },
                      "ECME" = {  # based on minus log-likelihood of nu with mu and sigma fixed to mu[k+1] and sigma[k+1]
                        tmp <- rowSums(X_ * (X_ %*% inv(Sigma)))  # diag( X_ %*% inv(Sigma) %*% t(X_) )
-                       if (is.null(nu_target) || is.null(nu_regcoef))  # introduce regularization term if is required
-                         LL_nu <- function(nu) { - sum ( - ((nu+N)/2)*log(nu+tmp) + lgamma( (nu+N)/2 ) - lgamma(nu/2) + (nu/2)*log(nu) ) }
-                       else
-                         LL_nu <- function(nu) { - sum ( - ((nu+N)/2)*log(nu+tmp) + lgamma( (nu+N)/2 ) - lgamma(nu/2) + (nu/2)*log(nu) ) +  (N/T)^2 * T * nu_regcoef * nu_regfun(nu_shell(nu) - nu_shell(nu_target)) }
-
+                       LL_nu <- function(nu) { - sum ( - ((nu+N)/2)*log(nu+tmp) + lgamma( (nu+N)/2 ) - lgamma(nu/2) + (nu/2)*log(nu) ) + nu_regcoef * (nu/(nu-2) - nu_target/(nu_target-2))^2 }
                        optimize(LL_nu, interval = c(2 + 1e-12, 100))$minimum
                        },
                      stop("Method unknown."))
     }
 
-    if (X_has_NA) {
+    if (X_has_NA || FA_struct) {
       # update B & psi
       S <- Q$ave_E_tau_XX - cbind(mu) %*% rbind(Q$ave_E_tau_X) - cbind(Q$ave_E_tau_X) %*% rbind(mu) + Q$ave_E_tau * cbind(mu) %*% rbind(mu)
       S <- S / alpha
@@ -296,24 +278,24 @@ indexRowOfMatrix <- function(target_vector, mat) {
 
 # solve optimal nu via bisection method:
 # log(nu/2) - digamma(nu/2) = y
-optimize_nu <- function(y, tol = 1e-4) {
-  if (y < 0) stop("y must be positive!")
-  L <- 1e-5
-  U <- 1000
-
-  while ((log(U)-digamma(U)) > y) U <- U*2
-  while ((log(L)-digamma(L)) < y) L <- L*2
-
-  while (1) {
-    mid <- (L + U) / 2
-    tmp <- log(mid)-digamma(mid) - y
-
-    if (abs(tmp) < tol) break
-    if (tmp > 0) L <- mid else U <- mid
-  }
-
-  return(2*mid)
-}
+# optimize_nu <- function(y, tol = 1e-4) {
+#   if (y < 0) stop("y must be positive!")
+#   L <- 1e-5
+#   U <- 1000
+#
+#   while ((log(U)-digamma(U)) > y) U <- U*2
+#   while ((log(L)-digamma(L)) < y) L <- L*2
+#
+#   while (1) {
+#     mid <- (L + U) / 2
+#     tmp <- log(mid)-digamma(mid) - y
+#
+#     if (abs(tmp) < tol) break
+#     if (tmp > 0) L <- mid else U <- mid
+#   }
+#
+#   return(2*mid)
+# }
 
 
 # a function for computing the optimal B given the psi vector
@@ -352,8 +334,8 @@ dmvt_withNA <- function(X, delta, sigma, df) {
 excess_kurtosis_unbias <- function(x) {
   x <- as.vector(x)
   T <- length(x)
-  excess_kurt <- PerformanceAnalytics::kurtosis(x, method = "excess", na.rm = TRUE) # mean(x_demean^4) / (mean(x_demean^2))^2 - 3
-  excess_kurt_unbias <- (T-1) / (T-2) / (T-3) * ((T+1)*excess_kurt + 6)
+  excess_kurt <- PerformanceAnalytics::kurtosis(x, method = "fisher", na.rm = TRUE) # mean(x_demean^4) / (mean(x_demean^2))^2 - 3
+  excess_kurt_unbias <- (T-1) / (T-2) / (T-3) * ((T+1)*excess_kurt + 6)  # TODO check if such bias correction is still necessary
   return(excess_kurt_unbias)
 }
 
