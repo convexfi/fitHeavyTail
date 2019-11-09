@@ -27,7 +27,7 @@
 #' Statistica Sinica (5), pp. 19-39, 1995.
 #'
 #' Rui ZHOU, Junyan Liu, Sandeep Kumar, and Daniel P. Palomar, "Robust factor analysis parameter estimation,"
-#' Lecture Notes in Computer Science, 2019 <https://arxiv.org/abs/1909.12530>
+#' Lecture Notes in Computer Science (LNCS), 2019 <https://arxiv.org/abs/1909.12530>
 #'
 #' @examples
 #' # examples are not yet ready!

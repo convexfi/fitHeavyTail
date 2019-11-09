@@ -2,13 +2,13 @@ Package: fitHeavyTail
 Title: Mean and Covariance Matrix Estimation under Heavy Tails
 Version: 0.1.0.9000
 Date: 2019-11-15
-Description: Estimation of mean vector and covariance matrix for a multivariate 
-    heavy-tailed Student's t distribution from data (possibly containing NAs).
-    Additionally, a factor model structure can be specified for the covariance 
-    matrix.
+Description: Robust estimation of mean vector and covariance matrix from data 
+    (possibly containing NAs) under a multivariate heavy-tailed Student's t 
+    distribution. Additionally, a factor model structure can be specified for 
+    the covariance matrix.
     The package is based on the paper:
-    Rui ZHOU, Junyan Liu, Sandeep Kumar, and Daniel P. Palomar, "Robust factor 
-    analysis parameter estimation," Lecture Notes in Computer Science, 2019. 
+    Rui Zhou, Junyan Liu, Sandeep Kumar, and Daniel P. Palomar, "Robust factor 
+    analysis parameter estimation," Lecture Notes in Computer Science (LNCS), 2019. 
     <https://arxiv.org/abs/1909.12530>
 Authors@R: c(
   person(c("Daniel", "P."), "Palomar", role = c("cre", "aut"), email = "daniel.p.palomar@gmail.com"),
