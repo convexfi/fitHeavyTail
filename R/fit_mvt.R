@@ -38,6 +38,7 @@ fit_mvt <- function(X, factors = ncol(X), max_iter = 100, ptol = 1e-3, ftol = In
                     return_iterates = FALSE, verbose = FALSE) {
   ####### error control ########
   X <- as.matrix(X)
+  if (ncol(X) == 1) X <- X[!is.na(X), , drop = FALSE]
   if (nrow(X) == 1) stop("Only T=1 sample!!")
   factors <- round(factors)
   max_iter <- round(max_iter)
@@ -104,7 +105,7 @@ fit_mvt <- function(X, factors = ncol(X), max_iter = 100, ptol = 1e-3, ftol = In
     if (ftol < Inf) log_likelihood_old <- log_likelihood
 
     ## -------------- E-step --------------
-    if (X_has_NA)
+    if (X_has_NA || FA_struct)
       Q <- Estep(mu, Sigma, psi, nu, X)
     else {
       X_ <- X - matrix(mu, T, N, byrow = TRUE)
@@ -159,10 +160,9 @@ fit_mvt <- function(X, factors = ncol(X), max_iter = 100, ptol = 1e-3, ftol = In
     }
 
     ## -------- stopping criterion --------
-    ptol_nu <- 1e-1  #TODO{Rui}: don't forget to remove this
     have_params_converged <-
       all(abs(mu - mu_old)       <= .5 * ptol * (abs(mu_old) + abs(mu))) &&
-      abs(fnu(nu) - fnu(nu_old)) <= .5 * ptol_nu * (abs(fnu(nu_old)) + abs(fnu(nu))) &&
+      abs(fnu(nu) - fnu(nu_old)) <= .5 * ptol * (abs(fnu(nu_old)) + abs(fnu(nu))) &&
       all(abs(Sigma - Sigma_old) <= .5 * ptol * (abs(Sigma_old) + abs(Sigma)))
 
     if (ftol < Inf) {
@@ -170,18 +170,19 @@ fit_mvt <- function(X, factors = ncol(X), max_iter = 100, ptol = 1e-3, ftol = In
       has_fun_converged <- abs(log_likelihood - log_likelihood_old) <= .5 * ftol * (abs(log_likelihood) + abs(log_likelihood_old))
     } else has_fun_converged <- TRUE
     # record the current the variables/loglikelihood if required
+    names(mu) <- colnames(Sigma) <- rownames(Sigma) <- colnames(X)  # add names first
     if (return_iterates) iterations_record[[iter + 1]] <- snapshot()
     if (have_params_converged && has_fun_converged) break
   }
 
   ## -------- return variables --------
-  #TODO: colnames, rownames, etc.
 
   vars_to_be_returned <- list("mu"          = mu,
                               "cov"         = nu/(nu-2) * Sigma,
                               "nu"          = nu,
                               "scatter"     = Sigma)
   if (FA_struct) {
+    rownames(B) <- names(psi) <- colnames(X)  # add name first
     vars_to_be_returned$B   <- B
     vars_to_be_returned$Psi <-  psi
   }
