@@ -208,3 +208,44 @@ ggplot(melt(MSE_all_T), aes(x = Var1, y = value, col = Var2, shape = Var2)) +
   theme(legend.title = element_blank()) +
   ggtitle(bquote("MSE of covariance matrix estimation for heavy-tailed data (" * N == .(N) * "," ~ nu == .(nu)* ")")) +
   xlab("T") + ylab("MSE")
+
+
+# check the logic for treating nu ----------------------------------------
+rm(list = ls())
+library(mvtnorm)
+library(fitHeavyTail)
+library(ggplot2)
+library(reshape2)
+
+N <- 20
+T <- 40
+nu <- 5
+mu <- rep(0, N)
+
+set.seed(123)
+U <- t(rmvnorm(n = round(1.1*N), sigma = 0.1*diag(N)))
+Sigma <- U %*% t(U) + diag(N)
+Sigma_scale <- (nu-2)/nu * Sigma
+
+X <- rmvt(n = T, delta = mu, sigma = Sigma_scale, df = nu)
+
+# original MLE without any tricks on nu
+fit_mvt(X)$nu
+
+# fix nu to a give vlaue, say 6
+fit_mvt(X, nu = 6)$nu
+
+# fix nu to a give vlaue, but decided via kurtosis
+fit_mvt(X, nu = "kurtosis")$nu
+
+# regularize nu to a given target
+fit_mvt(X, nu_target = 6, nu_regcoef = 1)$nu
+fit_mvt(X, nu_target = 6, nu_regcoef = 1e10)$nu
+
+fit_mvt(X, nu_regcoef = 1)$nu
+fit_mvt(X, nu_regcoef = 1e10)$nu
+
+# sanity check for simultaneously passing nu and nu_target
+fit_mvt(X, nu = 3, nu_target = 6, nu_regcoef = 1)$nu
+fit_mvt(X, nu = 3, nu_target = 6, nu_regcoef = 1e10)$nu
+
