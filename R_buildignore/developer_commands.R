@@ -11,7 +11,7 @@ install.packages("fitHeavyTail")
 library(fitHeavyTail)
 help(package = "fitHeavyTail")
 package?fitHeavyTail
-?momentsStudentt
+?fit_mvt
 citation("fitHeavyTail")
 vignette(package = "fitHeavyTail")
 
@@ -20,12 +20,9 @@ vignette(package = "fitHeavyTail")
 ## Developer commands (https://r-pkgs.org/)
 ##
 devtools::load_all()  #or Ctrl-Shift-L
+devtools::document()  #to generate all documentation via roxygen
 devtools::install()
 library(fitHeavyTail)
-
-# Documentation
-devtools::document()  #to generate all documentation via roxygen
-?fitHeavyTail
 
 
 # Code tests
