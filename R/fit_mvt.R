@@ -57,8 +57,6 @@ fit_mvt <- function(X, factors = ncol(X), max_iter = 100, ptol = 1e-3, ftol = In
   FA_struct <- factors != N
   optimize_nu <- ifelse(is.null(nu), TRUE, FALSE)
   if (!optimize_nu && nu == Inf) nu <- 1e15  # for numerical stability (for the Gaussian case)
-  gamma <- .99
-  zeta <- 2e-2
 
   # TODO{Rui:} Delete this code segment, nu = 6 seems to be a good choice
   # find a nu_target if undefined, using the sub-set (10%) of X
@@ -147,16 +145,6 @@ fit_mvt <- function(X, factors = ncol(X), max_iter = 100, ptol = 1e-3, ftol = In
         message(sprintf("During first iteration, automatically re-choose a target nu = %.2f", nu_target))
       }
 
-      #TODO{Daniel}: trying to fix the oscillations in the convergence of nu
-      # gamma <- .99
-      # zeta <- 2e-2
-      # gammak <- rep(NA, 100)
-      # gammak[1] <- gamma
-      # for(k in 2:100)
-      #   gammak[k] <- gammak[k-1] * (1 - zeta * gammak[k-1])
-      # plot(gammak)
-      gamma <- gamma * (1 - zeta * gamma)
-      gamma <- 0  # remove smoothing
       if (optimize_nu)
         nu <- gamma*nu + (1-gamma)*switch(method,
                      "ECM" = {  # based on minus the Q function of nu
