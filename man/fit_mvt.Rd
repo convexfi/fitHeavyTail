@@ -6,9 +6,8 @@
 \usage{
 fit_mvt(X, factors = ncol(X), max_iter = 100, ptol = 0.001,
   ftol = Inf, method = "ECM", nu = NULL, nu_target = NULL,
-  nu_regcoef = 0, nu_regfun = abs, nu_shell = function(x) x,
-  initializer = NULL, return_iterates = FALSE,
-  nu_target_first_iter = FALSE)
+  nu_regcoef = 0, initializer = NULL, return_iterates = FALSE,
+  verbose = FALSE)
 }
 \arguments{
 \item{X}{Data matrix}
@@ -33,8 +32,6 @@ Note: it might be time consuming when use objective changing as a convergence ju
 \item{initializer}{A list of initial value of parameters for starting method.}
 
 \item{return_iterates}{A logical value indicating whether to recode the procedure by iterations.}
-
-\item{scale_correct}{A logical value indicating whether to correct the nu, so that the scale of covariance matrix.}
 }
 \value{
 The estimated parameters as a list.

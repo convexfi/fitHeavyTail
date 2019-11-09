@@ -37,7 +37,8 @@
 #'
 #' @export
 fit_mvt <- function(X, factors = ncol(X), max_iter = 100, ptol = 1e-3, ftol = Inf, method = "ECM",
-                    nu = NULL, nu_target = NULL, nu_regcoef = 0, initializer = NULL, return_iterates = FALSE) {
+                    nu = NULL, nu_target = NULL, nu_regcoef = 0, initializer = NULL,
+                    return_iterates = FALSE, verbose = FALSE) {
   ####### error control ########
   X <- as.matrix(X)
   if (nrow(X) == 1) stop("Only T=1 sample!!")
@@ -53,22 +54,21 @@ fit_mvt <- function(X, factors = ncol(X), max_iter = 100, ptol = 1e-3, ftol = In
   N <- ncol(X)
   X_has_NA <- anyNA(X)
   FA_struct <- factors != N
-  optimize_nu <- ifelse(is.null(nu), TRUE, FALSE)
-  if (!is.null(nu) && nu == Inf) nu <- 1e15  # for numerical stability (for the Gaussian case)
-  if (!is.null(nu) && nu == "kurtosis") {  # estimate nu if argument nu = "kurtosis"
-    nu <- est_nu_kurtosis(X)
-    message(sprintf("Automatically set nu = %.2f", nu))
-  }
-
-  # choose nu_target if necessary
-  if (is.null(nu_target)) {
-    if (is.null(nu) && nu_regcoef > 0) {  # need nu_target
-      nu_target <- est_nu_kurtosis(X)
-      message(sprintf("Automatically choose a target nu = %.2f", nu_target))
-    } else {  # no need to have nu_target, but assign a value to simplify following codes
-      nu_target <- 0
+  optimize_nu <- is.null(nu)
+  if (!optimize_nu) {
+    if (nu == Inf) nu <- 1e15  # for numerical stability (for the Gaussian case)
+    if (nu == "kurtosis") {  # estimate nu if argument nu = "kurtosis"
+      nu <- est_nu_kurtosis(X)
+      if (verbose) message(sprintf("Automatically set nu = %.2f", nu))
     }
-  }
+  } else  # choose nu_target if necessary
+    if (is.null(nu_target)) {
+      if (nu_regcoef > 0) {  # really need nu_target
+        nu_target <- est_nu_kurtosis(X)
+        if (verbose) message(sprintf("Automatically choose a target nu = %.2f", nu_target))
+      } else  # no need to have nu_target, but assign a value to simplify following codes
+        nu_target <- 0
+    }
 
   # initialize all parameters
   alpha <- 1  # an extra variable for PX-EM acceleration
@@ -134,7 +134,7 @@ fit_mvt <- function(X, factors = ncol(X), max_iter = 100, ptol = 1e-3, ftol = In
       Sigma <- ave_E_tau_XX / alpha  #TODO{Rui}: this Sigma is divided by alpha, whereas your above on line 102 is not... We need to check
 
       if (optimize_nu)
-        nu <- gamma*nu + (1-gamma)*switch(method,
+        nu <- switch(method,
                      "ECM" = {  # based on minus the Q function of nu
                        S <- T*(digamma((N+nu)/2) - log((N+nu)/2)) + sum(log(E_tau) - E_tau)  # S is E_log_tau-E_tau
                        Q_nu <- function(nu) { - T*(nu/2)*log(nu/2) + T*lgamma(nu/2) - (nu/2)*sum(S) + nu_regcoef * (nu/(nu-2) - nu_target/(nu_target-2))^2 }
