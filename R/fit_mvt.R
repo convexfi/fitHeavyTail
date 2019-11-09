@@ -1,10 +1,7 @@
-# This file is a initial version for functions on estimating the parameters
-# when the data is assumed to follow the multivariate Students' t (heavy-tailed) distribution and
-# admits a factor model structure
-
-#' @title Robustly estimate parameters of the multivariate Students' t data with (optional) assumption of factor model structure
+#' @title Estimate parameters of a multivariate Student's t distribution to fit data (optionally with a factor model structure)
 #'
-#' @description Robust paramater estimation of the multivariate Students' t data with (optional) assumption of factor model structure
+#' @description Estimate parameters of a multivariate Student's t distribution to fit data.
+#' It can also consider a factor model structure on the covariance matrix.
 #'
 #' @param X Data matrix
 #' @param factors Interger indicating number of factor dimension (default is \code{ncol(X)}, so no factor model assumption).
@@ -131,7 +128,7 @@ fit_mvt <- function(X, factors = ncol(X), max_iter = 100, ptol = 1e-3, ftol = In
       alpha <- ave_E_tau  # acceleration
       X_ <- X - matrix(mu, T, N, byrow = TRUE)  # this is slower: sweep(X, 2, FUN = "-", STATS = mu)  #X_ <- X - rep(mu, each = TRUE)  # this is wrong?
       ave_E_tau_XX <- (1/T) * crossprod(sqrt(E_tau) * X_)  # (1/T) * t(X_) %*% diag(E_tau) %*% X_
-      Sigma <- ave_E_tau_XX / alpha  #TODO{Rui}: this Sigma is divided by alpha, whereas your above on line 102 is not... We need to check
+      Sigma <- ave_E_tau_XX / alpha
 
       if (optimize_nu)
         nu <- switch(method,
@@ -161,9 +158,8 @@ fit_mvt <- function(X, factors = ncol(X), max_iter = 100, ptol = 1e-3, ftol = In
       }
     }
 
-
     ## -------- stopping criterion --------
-    ptol_nu <- 1e-1  #TODO{Daniel}: don't forget to remove this
+    ptol_nu <- 1e-1  #TODO{Rui}: don't forget to remove this
     have_params_converged <-
       all(abs(mu - mu_old)       <= .5 * ptol * (abs(mu_old) + abs(mu))) &&
       abs(fnu(nu) - fnu(nu_old)) <= .5 * ptol_nu * (abs(fnu(nu_old)) + abs(fnu(nu))) &&
