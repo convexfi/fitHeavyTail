@@ -42,9 +42,8 @@ knit_hooks$set(pngquant = hook_pngquant)
 
 -----------
 > This vignette illustrates the usage of the package [`portfolioBacktest`](https://CRAN.R-project.org/package=fitHeavyTail) 
-to estimate the mean vector and covariance matrix of a multivariate heavy-tailed Student's $t$ distribution, and compares it
-with existing benchmark functions from different packages.
-    
+to estimate the mean vector and covariance matrix of heavy-tailed multivariate distributions such as the angular Gaussian, Cauchy, or Student's $t$ distribution. The results are compared against existing benchmark functions from different packages.
+
 
 # Installation
 The package can be installed from [CRAN](https://CRAN.R-project.org/package=fitHeavyTail) or [GitHub](https://github.com/dppalomar/fitHeavyTail):
@@ -66,17 +65,17 @@ help(package = "fitHeavyTail")
 # Quick Start
 To illustrate the simple usage of the package `fitHeavyTail`, let's start by generating some multivariate data under a Student's $t$ distribution with significant heavy tails ($\nu=4$):
 ```{r}
-library(mvtnorm)
-N <- 10
-T <- 80
-nu <- 4
+library(mvtnorm)  # package for multivariate t distribution
+N <- 10   # number of variables
+T <- 80   # number of observations
+nu <- 4   # degrees of freedom for tail heavyness
 
 set.seed(42)
 mu <- rep(0, N)
 U <- t(rmvnorm(n = round(0.3*N), sigma = 0.1*diag(N)))
-Sigma <- U %*% t(U) + diag(N)
+Sigma <- U %*% t(U) + diag(N)  # covariance matrix with factor model structure
 Sigma_scatter <- (nu-2)/nu * Sigma
-X <- rmvt(n = T, delta = mu, sigma = Sigma_scatter, df = nu)  # heavy-tailed data
+X <- rmvt(n = T, delta = mu, sigma = Sigma_scatter, df = nu)  # generate data
 ```
 
 We can first estimate the mean vector and covariance matrix via the traditional sample estimates (i.e., sample mean and sample covariance matrix):
@@ -91,7 +90,7 @@ library(fitHeavyTail)
 fitted <- fit_mvt(X)
 ```
 
-We can now compute the estimation errors:
+We can now compute the estimation errors and see the big improvement:
 ```{r}
 sum((mu_sm - mu)^2)
 sum((fitted$mu - mu)^2)
@@ -100,8 +99,8 @@ sum((Sigma_scm - Sigma)^2)
 sum((fitted$cov - Sigma)^2)
 ```
 
-To get a visual idea of the robustness, we can plot the shapes of the covariance matrices (true and estimated) projected on two dimensions:
-```{r, eval=FALSE}
+To get a visual idea of the robustness, we can plot the shapes of the covariance matrices (true and estimated ones) projected on two dimensions. Observe how the heavy-tailed estimation follows the true one more closely than the sample covariance matrix:
+```{r, eval=FALSE, echo=FALSE}
 library(ellipse)
 
 i1 <- 7  #7-4, 7-5
@@ -120,32 +119,23 @@ lines(ellipse(fitted$cov[c(i1, i2), c(i1, i2)], centre = fitted$mu[c(i1, i2)]), 
 ```
 
 
-```{r}
+```{r, echo=FALSE, fig.width = 9, fig.height = 5, out.width = "100%"}
 library(ggplot2)
 library(ellipse)
 
 i1 <- 7; i2 <- 5
 ggplot(data.frame(x = X[, i1], y = X[, i2]), aes(x, y)) +
   geom_point(alpha = 0.7, size = 3) +
-  geom_path(data = data.frame(ellipse(Sigma[c(i1, i2), c(i1, i2)])), aes(x, y), col = "black", lwd = 1) +
-  geom_path(data = data.frame(ellipse(Sigma_scm[c(i1, i2), c(i1, i2)], centre = mu_sm[c(i1, i2)])), aes(x, y), col = "red", lwd = 1) +
-  geom_path(data = data.frame(ellipse(fitted$cov[c(i1, i2), c(i1, i2)], centre = fitted$mu[c(i1, i2)])), aes(x, y), col = "blue", lwd = 1) +
-  ggtitle("Data points and shapes of covariance matrices")
-
-
-# ggplot(data.frame(x = X[, i1], y = X[, i2]), aes(x, y)) +
-#   geom_point(alpha = 0.7, size = 3) +
-#   geom_path(data = data.frame(ellipse(Sigma[c(i1, i2), c(i1, i2)])), aes(x, y, col = "black"), lwd = 1) +
-#   geom_path(data = data.frame(ellipse(Sigma_scm[c(i1, i2), c(i1, i2)], centre = mu_sm[c(i1, i2)])), aes(x, y, col = "red"), lwd = 1) +
-#   geom_path(data = data.frame(ellipse(fitted$cov[c(i1, i2), c(i1, i2)], centre = fitted$mu[c(i1, i2)])), aes(x, y, col = "blue"), lwd = 1) +
-#   ggtitle("Data points and shapes of covariance matrices")
-
-# ggplot(df, aes(x = instance, y = total_hits))+geom_point(size = 1)+geom_line()+
-# geom_line(aes(x=instance, y = line1, colour="myline1")) +
-# geom_vline(xintercept=805)+geom_line(aes(x=df$instance, y = line2, colour="myline2"))+
-# geom_line(aes(x=instance, y = line3, colour="myline3")) +
-# scale_colour_manual(name="Line Color",
-#     values=c(myline1="red", myline2="blue", myline3="purple"))
+  geom_path(data = data.frame(ellipse(Sigma[c(i1, i2), c(i1, i2)])), 
+            aes(x, y, col = "true"), lwd = 1) +
+  geom_path(data = data.frame(ellipse(Sigma_scm[c(i1, i2), c(i1, i2)], centre = mu_sm[c(i1, i2)])), 
+            aes(x, y, col = "SCM estimation"), lwd = 1) +
+  geom_path(data = data.frame(ellipse(fitted$cov[c(i1, i2), c(i1, i2)], centre = fitted$mu[c(i1, i2)])), 
+            aes(x, y, col = "heavy-tailed estimation"), lwd = 1) +
+  scale_colour_manual(name = "ellipses",
+                      values = c("true" = "black", "SCM estimation" = "red", "heavy-tailed estimation" = "blue")) +
+  guides(color = guide_legend(reverse = TRUE)) +
+  labs(title = "Data points and shapes of covariance matrices", x = NULL, y = NULL)
 ```
 
 
@@ -154,7 +144,9 @@ ggplot(data.frame(x = X[, i1], y = X[, i2]), aes(x, y)) +
 
 
 # Numerical Comparison with Existing Packages
-```{r}
+In the following, we generate multivariate heavy-tailed Student's $t$ distributed data and compare the performance of many different existing packages in terms of estimation accurary measured by the mean squared error (MSE) and cpu time.
+
+```{r, echo=FALSE}
 library(mvtnorm)
 library(fitHeavyTail)
 library(ggplot2)
@@ -168,12 +160,12 @@ set.seed(357)
 U <- t(rmvnorm(n = round(0.3*N), sigma = 0.1*diag(N)))
 Sigma <- U %*% t(U) + diag(N)
 Sigma_scatter <- (nu-2)/nu * Sigma
-qplot(eigen(Sigma)$values, geom = "histogram", xlab = "eigenvalues", fill = I("cyan"), col = I("black"),
-      main = "Histogram of eigenvalues of true covariance matrix")
+# qplot(eigen(Sigma)$values, geom = "histogram", xlab = "eigenvalues", fill = I("cyan"), col = I("black"),
+#       main = "Histogram of eigenvalues of true covariance matrix")
 ```
 
-```{r, fig.width = 9, fig.height = 5, out.width = "100%"}
-N_realiz <- 20  # multiple realizations for averaging
+```{r, echo=FALSE, cache=TRUE}
+N_realiz <- 100  # multiple realizations for averaging
 T_sweep <- round(seq(from = ceiling(1.5*N), to = 5*N, length.out = 12))
 MSE_rrcov_CovMrcd_T <- MSE_covRobust_cov.nnve_T <- MSE_robust_covRob_T <- MSE_robustbase_covMcd_T <- 
   MSE_MASS_cov.mve_T <- MSE_MASS_cov.trov_T <- MSE_QRM_fit.mst_T <- 
@@ -301,71 +293,96 @@ for(T in T_sweep) {
   time_covRobust_cov.nnve_T       <- c(time_covRobust_cov.nnve_T,       time_covRobust_cov.nnve / N_realiz)
   time_rrcov_CovMrcd_T            <- c(time_rrcov_CovMrcd_T,            time_rrcov_CovMrcd / N_realiz)
 }
+```
 
 
-# MSE plots
-MSE_all_T <- cbind("SCM"                          = MSE_SCM_T,
-                   #"fitHeavyTail::Tyler"          = MSE_fitHeavyTail_Tyler_T,
-                   #"fitHeavyTail::Cauchy"         = MSE_fitHeavyTail_Cauchy_T,
+```{r, warning=FALSE, echo=FALSE, fig.width = 9, fig.height = 5, out.width = "100%"}
+# MSE plot
+MSE_all_T <- cbind("stats::cov"                   = MSE_SCM_T,
                    "QRM::fit.mst"                 = MSE_QRM_fit.mst_T,
-                   "MASS::cov.trov (nu=6)"        = MSE_MASS_cov.trov_T,
+                   "MASS::cov.trob (nu=6)"        = MSE_MASS_cov.trov_T,
                    "MASS::cov.mve"                = MSE_MASS_cov.mve_T,
                    "robustbase::covMcd"           = MSE_robustbase_covMcd_T,
                    "robust::covRob"               = MSE_robust_covRob_T,
                    "covRobust::cov.nnve"          = MSE_covRobust_cov.nnve_T,
+                   "fitHeavyTail::fit_Tyler"      = MSE_fitHeavyTail_Tyler_T,
+                   "fitHeavyTail::fit_Cauchy"     = MSE_fitHeavyTail_Cauchy_T,
                    "fitHeavyTail::fit_mvt (nu=6)" = MSE_fitHeavyTail_Studentt_nu_T,
                    "fitHeavyTail::fit_mvt"        = MSE_fitHeavyTail_Studentt_T)
 rownames(MSE_all_T) <- T_sweep
-ggplot(melt(MSE_all_T), aes(x = Var1, y = value, col = Var2, shape = Var2)) +
-  geom_line() + geom_point(size = 2) + scale_y_log10() + #coord_cartesian(ylim = c(0, 500)) +
-  scale_shape_manual(values = 1:9) +
-  theme(legend.title = element_blank()) +
+ggplot(melt(MSE_all_T, varnames = c("Var1", "method")), aes(x = Var1, y = value, col = method, shape = method)) +
+  geom_line() + geom_point(size = 2) + scale_y_log10() +  # coord_cartesian(ylim = c(0, 500)) +
+  scale_shape_manual(values = 1:ncol(MSE_all_T)) +  # theme(legend.title = element_blank())
   ggtitle(bquote("MSE of covariance matrix estimation for heavy-tailed data (" * N == .(N) * "," ~ nu == .(nu)* ")")) +
   xlab("T") + ylab("MSE")
 # ggtitle(latex2exp::TeX(sprintf("MSE of covariance matrix estimation for heavy-tailed data (N = %d, $\\nu$ = %.2f)", N, nu))) +
 # check here is TeX problem has been fixed: https://github.com/stefano-meschiari/latex2exp/pull/21
 
 
-# time plots
-time_all_T <- cbind("SCM"                          = time_SCM_T,
-                    #"fitHeavyTail::Tyler"          = time_fitHeavyTail_Tyler_T,
-                    #"fitHeavyTail::Cauchy"         = time_fitHeavyTail_Cauchy_T,
+# time plot
+time_all_T <- cbind("stats::cov"                   = time_SCM_T,
                     "QRM::fit.mst"                 = time_QRM_fit.mst_T,
-                    "MASS::cov.trov (nu=6)"        = time_MASS_cov.trov_T,
+                    "MASS::cov.trob (nu=6)"        = time_MASS_cov.trov_T,
                     "MASS::cov.mve"                = time_MASS_cov.mve_T,
                     "robustbase::covMcd"           = time_robustbase_covMcd_T,
                     "robust::covRob"               = time_robust_covRob_T,
                     "covRobust::cov.nnve"          = time_covRobust_cov.nnve_T,
+                    "fitHeavyTail::fit_Tyler"      = time_fitHeavyTail_Tyler_T,
+                    "fitHeavyTail::fit_Cauchy"     = time_fitHeavyTail_Cauchy_T,
                     "fitHeavyTail::fit_mvt (nu=6)" = time_fitHeavyTail_Studentt_nu_T,
                     "fitHeavyTail::fit_mvt"        = time_fitHeavyTail_Studentt_T)
 rownames(time_all_T) <- T_sweep
 time_all_T[is.na(MSE_all_T)] <- NA
-ggplot(melt(time_all_T), aes(x = Var1, y = value, col = Var2, shape = Var2)) +
-  geom_line() + geom_point() + scale_y_log10() +
-  scale_shape_manual(values = 1:9) +
-  theme(legend.title = element_blank()) +
-  ggtitle(bquote("Computational cost of the computation of covariance matrices for heavy-tailed data (" * N == .(N) * "," ~ nu == .(nu)* ")")) +
+ggplot(melt(time_all_T, varnames = c("Var1", "method")), aes(x = Var1, y = value, col = method, shape = method)) +
+  geom_line() + geom_point(size = 2) + scale_y_log10() +
+  scale_shape_manual(values = 1:ncol(time_all_T)) +
+  ggtitle(bquote("Computational cost for different methods (" * N == .(N) * "," ~ nu == .(nu)* ")")) +
   xlab("T") + ylab("cpu time")
+
+
+# joint MSE-time plot
+ggplot(data.frame("MSE" = MSE_all_T["100", ], "cpu_time" = time_all_T["100", ], "method" = colnames(MSE_all_T)), 
+       aes(x = cpu_time, y = MSE, col = method)) +
+  scale_color_discrete(limits = colnames(MSE_all_T)) +  # this is to order the legend items
+  geom_point(size = 3) +
+  geom_ellipse(aes(x0 = 0.004, y0 = 11, a = 8e-3, b = 4, angle = 0), col = "black", size = 0.5) +
+  ggtitle(bquote("Performance vs cpu time for different methods (" * N == .(N) * ", T = 100," ~ nu == .(nu)* ")"))
 ```
 
-Observations:
+From the numerical results we can draw several observations:
 
-- our `fit_mvt()` seems to be the best; however, occasionally has some outlier of bad performance (to be explored)
-- our `fit_mvt(nu = 6)` works much better than `fit_mvt()` (even is the passed `nu` is not correct) and the computational cost is half!
+- `stats:cov()` is the sample covariance matrix (SCM). As expected, it is not robust to heavy tails and has the worst estimation error although enjoyes the lowest computational cost. It is not acceptable for heavy-tailed distributions.
+- `QRM::fit.mst()` has one of the highest computational cost with a not-so-good estimation error.
+- `MASS::cov.trob()` with fixed `nu = 6` assumes the data follows a multivariate $t$ distribution; it shows a good performance in terms of MSE and cpu time. It is probably the best choice among the benchmark existing packages (with the advantage that it comes preinstalled with base R in the package `MASS`).
+- `MASS::cov.mve()` shows one of the worst performance in terms of both estimation error and computational cost.
+- `robustbase::covMcd()` also shows one of the worst performance in terms of both estimation error and computational cost. 
+- `robust::covRob()` has a low computational cost but bad estimation error.
+- `covRobust::cov.nnve()` shows a bad performance in terms of both estimatior error and cpu time.
+- `fitHeavyTail::fit_Tyler()` normalizes the data (to get rid of the shape of the tail); it shows a very small estimation error with an acceptable computational cost.
+- `fitHeavyTail::fit_Cauchy()` assumes a multivariate Cauchy distribution and depending on the ratio $N/T$ can be better or worse than the Tyler counterpart.
+- `fitHeavyTail::fit_mvt()` assumes the data follows a multivariate $t$ distribution; it shows a small estimation error with accepteable computational cost.
+- `fitHeavyTail::fit_mvt()` with fixed `nu = 6` seems to perform much better than `fitHeavyTail::fit_mvt()` which also estimates `nu`.
 
-- `QRM::fit.mst()` has similar performance to our `fit_mvt()` (except that it fails with few observations), but the computational cost is unnacceptably high. It's not an option in practice.
-- `MASS::cov.trov(nu = 6)` seems to be the best of the benchmarks with a slighlty worse performance than our `fit_mvt(nu = 6)` and with similar compulational cost.
-- `MASS::cov.mve()` has a poor performance and unnacceptable computational cost.
-- `MASS::cov.mcd()` has an acceptable performance but the computational cost is ridiculous (so not included anymore in the numerical comparisons).
-- `robustbase::covMcd()` is better in performance and definitely in speed compared to its counterpart `MASS::cov.mcd()`.
-- `robust::covRob()` has a reasonable performance with a low computational cost, but still our `fit_mvt(nu = 6)` is much better.
+
+Concluding, the top choices seem to be (in order):
+
+1. `fitHeavyTail::fit_mvt()` (with `nu = 6`),
+2. `fitHeavyTail::fit_Tyler()` or `fitHeavyTail::fit_Tyler()` depending on the ratio $N/T$, and
+3. `MASS::cov.trob()` (with the advantage of being preinstalled with base R).
+
+
+The winner seems to be by a big margin `fitHeavyTail::fit_mvt()` (with `nu = 6`).
 
 
 
 # Algorithm Description
-The algorithms used in the package are based on the papers [@LiuRubin95], [@ZhouLiuKumarPalomar2019].
+The specific algorithms used are based either on the Expectation-Maximization (EM) algorithm or on the more general Majorization-Minimization (MM) algorithm [@SunBabPal2017]. In particular:
 
-TBD
+- The function `fitHeavyTail::fit_Tyler()` normalizes the samples, which then have an angular Gaussian distribution on the sphere, and performs a maximum likelihood estimation (MLE) based on the MM algorithm [@SunBabPal2014].
+
+- The function `fitHeavyTail::fit_Cauchy()` assumes that the data follows a multivariate Cauchy distribution and performs an MLE based on the MM algorithm [@SunBabPal2015].
+
+- The function `fitHeavyTail::fit_mvt()` assumes the the data follows a multivariate Student's $t$ distribution and performs an MLE based on the EM algorithm [@LiuRubin95]. This function can also incorporate a factor model structure on the covariance matrix and the algorithm is then based on the paper [@ZhouLiuKumarPalomar2019] (available in [arXiv](https://arxiv.org/abs/1909.12530)).
 
 
 

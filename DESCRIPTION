@@ -3,13 +3,9 @@ Title: Mean and Covariance Matrix Estimation under Heavy Tails
 Version: 0.1.0.9000
 Date: 2019-11-15
 Description: Robust estimation of mean vector and covariance matrix from data 
-    (possibly containing NAs) under a multivariate heavy-tailed Student's t 
-    distribution. Additionally, a factor model structure can be specified for 
-    the covariance matrix.
-    The package is based on the paper:
-    Rui Zhou, Junyan Liu, Sandeep Kumar, and Daniel P. Palomar, "Robust factor 
-    analysis parameter estimation," Lecture Notes in Computer Science (LNCS), 2019. 
-    <https://arxiv.org/abs/1909.12530>
+    (possibly containing NAs) under multivariate heavy-tailed distributions
+    such as angular Gaussian, Cauchy, and Student's t. Additionally, a factor 
+    model structure can be specified for the covariance matrix.
 Authors@R: c(
   person(c("Daniel", "P."), "Palomar", role = c("cre", "aut"), email = "daniel.p.palomar@gmail.com"),
   person("Rui", "Zhou", role =  "aut", email = "rzhouae@connect.ust.hk")
