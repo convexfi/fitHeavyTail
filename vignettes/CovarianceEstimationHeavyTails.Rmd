@@ -345,7 +345,7 @@ ggplot(data.frame("MSE" = MSE_all_T["100", ], "cpu_time" = time_all_T["100", ], 
        aes(x = cpu_time, y = MSE, col = method)) +
   scale_color_discrete(limits = colnames(MSE_all_T)) +  # this is to order the legend items
   geom_point(size = 3) +
-  geom_ellipse(aes(x0 = 0.004, y0 = 11, a = 8e-3, b = 4, angle = 0), col = "black", size = 0.5) +
+  geom_ellipse(aes(x0 = 0.0038, y0 = 11.6, a = 8e-3, b = 4, angle = 0), col = "black", size = 0.5) +
   ggtitle(bquote("Performance vs cpu time for different methods (" * N == .(N) * ", T = 100," ~ nu == .(nu)* ")"))
 ```
 
@@ -375,14 +375,18 @@ The winner seems to be by a big margin `fitHeavyTail::fit_mvt()` (with `nu = 6`)
 
 
 
-# Algorithm Description
-The specific algorithms used are based either on the Expectation-Maximization (EM) algorithm or on the more general Majorization-Minimization (MM) algorithm [@SunBabPal2017]. In particular:
+# Algorithms
+In essense, all the algorithms are based on the maximum likelihood estimation (MLE) of some assumed distribution given the observed data. The difficulty comes from the fact that the optimal solution to such MLE formulations becomes too involved in the form of a fixed-point equation and the framework of Majorization-Minimization (MM) algorithms [@SunBabPal2017] becomes key to derive efficient algorithms. 
 
-- The function `fitHeavyTail::fit_Tyler()` normalizes the samples, which then have an angular Gaussian distribution on the sphere, and performs a maximum likelihood estimation (MLE) based on the MM algorithm [@SunBabPal2014].
+In some cases, the probability distribution function becomes too complicated to manage directly (like the multivariate Student's $t$ distribution) and it is necessary to resort to a hierarchical distribution that involves some latent variables. In order to deal with such hidden variables, one has to resort to the Expectation-Maximization (EM) algorithm, which interestingly is an instance of the MM algorithm.
+
+In particular:
+
+- The function `fitHeavyTail::fit_Tyler()` normalizes the centered samples, which then have an angular Gaussian distribution on the sphere, and performs an MLE based on the MM algorithm [@SunBabPal2014].
 
 - The function `fitHeavyTail::fit_Cauchy()` assumes that the data follows a multivariate Cauchy distribution and performs an MLE based on the MM algorithm [@SunBabPal2015].
 
-- The function `fitHeavyTail::fit_mvt()` assumes the the data follows a multivariate Student's $t$ distribution and performs an MLE based on the EM algorithm [@LiuRubin95]. This function can also incorporate a factor model structure on the covariance matrix and the algorithm is then based on the paper [@ZhouLiuKumarPalomar2019] (available in [arXiv](https://arxiv.org/abs/1909.12530)).
+- The function `fitHeavyTail::fit_mvt()` assumes the the data follows a multivariate Student's $t$ distribution and performs an MLE based on the EM algorithm [@LiuRubin95]. This function can also incorporate a factor model structure on the covariance matrix, which requires a more sophisticated algorithm [@ZhouLiuKumarPalomar2019] (available in [arXiv](https://arxiv.org/abs/1909.12530)).
 
 
 
