@@ -2,7 +2,7 @@
 % Please edit documentation in R/fit_mvt.R
 \name{fit_mvt}
 \alias{fit_mvt}
-\title{Robustly estimate parameters of the multivariate Students' t data with (optional) assumption of factor model structure}
+\title{Estimate parameters of a multivariate Student's t distribution to fit data (optionally with a factor model structure)}
 \usage{
 fit_mvt(X, factors = ncol(X), max_iter = 100, ptol = 0.001,
   ftol = Inf, method = "ECM", nu = NULL, nu_target = NULL,
@@ -16,34 +16,45 @@ fit_mvt(X, factors = ncol(X), max_iter = 100, ptol = 0.001,
 
 \item{max_iter}{Interger indicating the maximum iterations of estimation method.}
 
-\item{ptol}{Number (>= 0) indicating the tolerance for parameter changing when judge convergence (default is Inf).}
+\item{ptol}{Number (\eqn{\ge 0}) indicating the tolerance for parameter changing when judge convergence (default is \code{0.001}).}
 
-\item{ftol}{Number (>= 0) indicating the tolerance for objective changing when judge convergence (default is Inf).
+\item{ftol}{Number (\eqn{\ge 0}) indicating the tolerance for objective changing when judge convergence (default is \code{Inf}).
 Note: it might be time consuming when use objective changing as a convergence judging criterion, especially when X is high-dimensional.}
 
-\item{method}{String indicating the method of estimating nu: "ECM" - by maximizing the Q function w.r.t. nu; "ECME" - by maximizing the L function w.r.t. nu.}
+\item{method}{String indicating the method of estimating \eqn{\nu}:
+\itemize{\item{\code{"ECM"}  - maximize the Q function w.r.t. \eqn{\nu}}
+         \item{\code{"ECME"} - maximize the L function w.r.t. \eqn{\nu}.}}}
 
-\item{nu}{Number (>= 0), if passed, the estimated nu is fixed to this number.}
+\item{nu}{If pass a number (\eqn{> 2}), the \eqn{\nu} will be fixed to this number; if pass \code{"kurtosis"},
+this function will automatically find a number via the kurtosis of Student's t distribution (default is \code{NULL}, so \eqn{\nu} will be estimated via EM method.).}
 
-\item{nu_target}{Number (>= 2), the regularized target of nu.}
+\item{nu_target}{Number (\eqn{\ge 2}) indicating the regularized target of \eqn{\nu} (default is the estimator via kurtosis).}
 
-\item{nu_regcoef}{Number (>= 0), the coefficience of nu regularized term.}
+\item{nu_regcoef}{Number (\eqn{\ge 0}), the coefficience of nu regularized term, only valid when \code{nu} is not passed (default is \code{0}).}
 
-\item{initializer}{A list of initial value of parameters for starting method.}
+\item{initializer}{List of initial value of parameters for starting method.}
 
-\item{return_iterates}{A logical value indicating whether to recode the procedure by iterations.}
+\item{return_iterates}{Logical value indicating whether to recode the procedure by iterations (default is \code{FALSE}).}
+
+\item{verbose}{Logical value indicating whether to allow the function to print messages (default is \code{FALSE}).}
 }
 \value{
 The estimated parameters as a list.
 }
 \description{
-Robust paramater estimation of the multivariate Students' t data with (optional) assumption of factor model structure
+Estimate parameters of a multivariate Student's t distribution to fit data.
+It can also consider a factor model structure on the covariance matrix.
 }
 \details{
-The nu regularized term is added to the nu sub-problem as \code{nu_regcoef * abs(nu - nu_target)}
+By default, this function is to estimate parameters of multivariate Student's t distribution via expectation–maximization (EM) algorithm.
+         But this function is also flexible to use when user has priori knowledge of \eqn{\nu}: one can force \eqn{\nu} to be a fixed number by passing such value to argument \code{nu},
+         or regularize \eqn{\nu} to a give target by passing argument \code{nu_regcoef} > 0. The nu regularized term is added to the nu sub-problem as \eqn{nu_regcoef * (nu - nu_target)^2}.
+         There is also an embedded function to estimate \eqn{\nu} via the kurtosis of \code{X}.
 }
 \examples{
-# examples are not yet ready!
+set.seed(1)
+X <- mvtnorm::rmvt(n = 1e2, df = 6)  # generate Student's t data
+fit_mvt(X)
 
 }
 \references{
@@ -51,7 +62,7 @@ Chuanhai Liu and Donald B. Rubin, “ML estimation of the t-distribution using E
 Statistica Sinica (5), pp. 19-39, 1995.
 
 Rui ZHOU, Junyan Liu, Sandeep Kumar, and Daniel P. Palomar, "Robust factor analysis parameter estimation,"
-Lecture Notes in Computer Science, 2020. <https://arxiv.org/abs/1909.12530>
+Lecture Notes in Computer Science (LNCS), 2019 <https://arxiv.org/abs/1909.12530>
 }
 \author{
 Rui ZHOU and Daniel P. Palomar

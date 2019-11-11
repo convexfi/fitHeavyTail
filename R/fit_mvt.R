@@ -6,19 +6,26 @@
 #' @param X Data matrix
 #' @param factors Interger indicating number of factor dimension (default is \code{ncol(X)}, so no factor model assumption).
 #' @param max_iter Interger indicating the maximum iterations of estimation method.
-#' @param ptol Number (>= 0) indicating the tolerance for parameter changing when judge convergence (default is Inf).
-#' @param ftol Number (>= 0) indicating the tolerance for objective changing when judge convergence (default is Inf).
+#' @param ptol Number (\eqn{\ge 0}) indicating the tolerance for parameter changing when judge convergence (default is \code{0.001}).
+#' @param ftol Number (\eqn{\ge 0}) indicating the tolerance for objective changing when judge convergence (default is \code{Inf}).
 #'             Note: it might be time consuming when use objective changing as a convergence judging criterion, especially when X is high-dimensional.
-#' @param method String indicating the method of estimating nu: "ECM" - by maximizing the Q function w.r.t. nu; "ECME" - by maximizing the L function w.r.t. nu.
-#' @param nu Number (>= 0), if passed, the estimated nu is fixed to this number.
-#' @param nu_target Number (>= 2), the regularized target of nu.
-#' @param nu_regcoef Number (>= 0), the coefficience of nu regularized term.
-#' @param initializer A list of initial value of parameters for starting method.
-#' @param return_iterates A logical value indicating whether to recode the procedure by iterations.
+#' @param method String indicating the method of estimating \eqn{\nu}:
+#'               \itemize{\item{\code{"ECM"}  - maximize the Q function w.r.t. \eqn{\nu}}
+#'                        \item{\code{"ECME"} - maximize the L function w.r.t. \eqn{\nu}.}}
+#' @param nu If pass a number (\eqn{> 2}), the \eqn{\nu} will be fixed to this number; if pass \code{"kurtosis"},
+#'           this function will automatically find a number via the kurtosis of Student's t distribution (default is \code{NULL}, so \eqn{\nu} will be estimated via EM method.).
+#' @param nu_target Number (\eqn{\ge 2}) indicating the regularized target of \eqn{\nu} (default is the estimator via kurtosis).
+#' @param nu_regcoef Number (\eqn{\ge 0}), the coefficience of nu regularized term, only valid when \code{nu} is not passed (default is \code{0}).
+#' @param initializer List of initial value of parameters for starting method.
+#' @param return_iterates Logical value indicating whether to recode the procedure by iterations (default is \code{FALSE}).
+#' @param verbose Logical value indicating whether to allow the function to print messages (default is \code{FALSE}).
 #'
 #' @return The estimated parameters as a list.
 #'
-#' @details The nu regularized term is added to the nu sub-problem as \code{nu_regcoef * abs(nu - nu_target)}
+#' @details By default, this function is to estimate parameters of multivariate Student's t distribution via expectation–maximization (EM) algorithm.
+#'          But this function is also flexible to use when user has priori knowledge of \eqn{\nu}: one can force \eqn{\nu} to be a fixed number by passing such value to argument \code{nu},
+#'          or regularize \eqn{\nu} to a give target by passing argument \code{nu_regcoef} > 0. The nu regularized term is added to the nu sub-problem as \eqn{nu_regcoef * (nu - nu_target)^2}.
+#'          There is also an embedded function to estimate \eqn{\nu} via the kurtosis of \code{X}.
 #'
 #' @author Rui ZHOU and Daniel P. Palomar
 #'
@@ -30,7 +37,9 @@
 #' Lecture Notes in Computer Science (LNCS), 2019 <https://arxiv.org/abs/1909.12530>
 #'
 #' @examples
-#' # examples are not yet ready!
+#' set.seed(1)
+#' X <- mvtnorm::rmvt(n = 1e2, df = 6)  # generate Student's t data
+#' fit_mvt(X)
 #'
 #' @export
 fit_mvt <- function(X, factors = ncol(X), max_iter = 100, ptol = 1e-3, ftol = Inf, method = "ECM",
