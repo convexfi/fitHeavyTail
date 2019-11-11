@@ -129,8 +129,15 @@ fit_mvt <- function(X, factors = ncol(X), max_iter = 100, ptol = 1e-3, ftol = In
     if (X_has_NA || FA_struct) {
       mu <- Q$ave_E_tau_X / Q$ave_E_tau
       alpha <- Q$ave_E_tau
-      Sigma <- Q$ave_E_tau_XX - cbind(mu) %*% rbind(Q$ave_E_tau_X) - cbind(Q$ave_E_tau_X) %*% rbind(mu) + Q$ave_E_tau * cbind(mu) %*% rbind(mu)
-      # nu  <- optimize_nu(- 1 - Q$ave_E_logtau + Q$ave_E_tau)
+      S <- Q$ave_E_tau_XX - cbind(mu) %*% rbind(Q$ave_E_tau_X) - cbind(Q$ave_E_tau_X) %*% rbind(mu) + Q$ave_E_tau * cbind(mu) %*% rbind(mu)
+      S <- S / alpha
+      if (FA_struct) {
+        B   <- optB(S = S, factors = factors, psi_vec = psi)
+        psi <- pmax(0, diag(S - B %*% t(B)))
+        Sigma <- B %*% t(B) + diag(psi, N)
+      } else {
+        Sigma <- S
+      }
       Q_nu <- function(nu) { - (nu/2)*log(nu/2) + lgamma(nu/2) - (nu/2)*(Q$ave_E_logtau - Q$ave_E_tau) + nu_regcoef * (nu/(nu-2) - nu_target/(nu_target-2))^2 }
       if (optimize_nu) nu <- optimize(Q_nu, interval = c(2 + 1e-12, 100))$minimum
     } else {
@@ -153,19 +160,6 @@ fit_mvt <- function(X, factors = ncol(X), max_iter = 100, ptol = 1e-3, ftol = In
                        optimize(LL_nu, interval = c(2 + 1e-12, 100))$minimum
                        },
                      stop("Method unknown."))
-    }
-
-    if (X_has_NA || FA_struct) {
-      # update B & psi
-      S <- Q$ave_E_tau_XX - cbind(mu) %*% rbind(Q$ave_E_tau_X) - cbind(Q$ave_E_tau_X) %*% rbind(mu) + Q$ave_E_tau * cbind(mu) %*% rbind(mu)
-      S <- S / alpha
-      if (FA_struct) {
-        B   <- optB(S = S, factors = factors, psi_vec = psi)
-        psi <- pmax(0, diag(S - B %*% t(B)))
-        Sigma <- B %*% t(B) + diag(psi, N)
-      } else {
-        Sigma <- S
-      }
     }
 
     ## -------- stopping criterion --------
