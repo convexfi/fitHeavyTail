@@ -1,5 +1,5 @@
 ---
-title: "Comparison of Covariance Matrix Estimation under Heavy Tails"
+title: "Mean Vector and Covariance Matrix Estimation under Heavy Tails"
 author: |
   | Daniel P. Palomar and Rui ZHOU
   | The Hong Kong University of Science and Technology (HKUST)
@@ -352,8 +352,8 @@ ggplot(data.frame("MSE" = MSE_all_T["100", ], "cpu_time" = time_all_T["100", ], 
 From the numerical results we can draw several observations:
 
 - `stats:cov()` is the sample covariance matrix (SCM). As expected, it is not robust to heavy tails and has the worst estimation error although enjoyes the lowest computational cost. It is not acceptable for heavy-tailed distributions.
-- `QRM::fit.mst()` has one of the highest computational cost with a not-so-good estimation error.
-- `MASS::cov.trob()` with fixed `nu = 6` assumes the data follows a multivariate $t$ distribution; it shows a good performance in terms of MSE and cpu time. It is probably the best choice among the benchmark existing packages (with the advantage that it comes preinstalled with base R in the package `MASS`).
+- `QRM::fit.mst()` assumes the data follows a multivariate $t$ distribution; it has one of the highest computational cost with a not-so-good estimation error.
+- `MASS::cov.trob()` (with fixed `nu = 6`) assumes the data follows a multivariate $t$ distribution; it shows a good performance in terms of MSE and cpu time. It is probably the best choice among the benchmark existing packages (with the advantage that it comes preinstalled with base R in the package `MASS`).
 - `MASS::cov.mve()` shows one of the worst performance in terms of both estimation error and computational cost.
 - `robustbase::covMcd()` also shows one of the worst performance in terms of both estimation error and computational cost. 
 - `robust::covRob()` has a low computational cost but bad estimation error.
@@ -362,13 +362,15 @@ From the numerical results we can draw several observations:
 - `fitHeavyTail::fit_Cauchy()` assumes a multivariate Cauchy distribution and depending on the ratio $N/T$ can be better or worse than the Tyler counterpart.
 - `fitHeavyTail::fit_mvt()` assumes the data follows a multivariate $t$ distribution; it shows a small estimation error with accepteable computational cost.
 - `fitHeavyTail::fit_mvt()` with fixed `nu = 6` seems to perform much better than `fitHeavyTail::fit_mvt()` which also estimates `nu`.
+- Note the ellipse at the bottom left that embraces the best four methods: `fitHeavyTail::fit_Tyler()`, `fitHeavyTail::fit_Cauchy()`, `fitHeavyTail::fit_mvt()`, and `fitHeavyTail::fit_mvt()` with fixed `nu = 6`.
 
 
 Concluding, the top choices seem to be (in order):
 
 1. `fitHeavyTail::fit_mvt()` (with `nu = 6`),
-2. `fitHeavyTail::fit_Tyler()` or `fitHeavyTail::fit_Tyler()` depending on the ratio $N/T$, and
-3. `MASS::cov.trob()` (with the advantage of being preinstalled with base R).
+2. `fitHeavyTail::fit_mvt()` (without fixing `nu`),
+3. `fitHeavyTail::fit_Tyler()` or `fitHeavyTail::fit_Cauchy()` depending on the ratio $N/T$, and
+4. `MASS::cov.trob()` (with the advantage of being preinstalled with base R).
 
 
 The winner seems to be by a big margin `fitHeavyTail::fit_mvt()` (with `nu = 6`).
