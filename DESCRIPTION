@@ -2,10 +2,10 @@ Package: fitHeavyTail
 Title: Mean and Covariance Matrix Estimation under Heavy Tails
 Version: 0.1.0.9000
 Date: 2019-11-15
-Description: Robust estimation of mean vector and covariance matrix from data 
-    (possibly containing NAs) under multivariate heavy-tailed distributions
-    such as angular Gaussian, Cauchy, and Student's t. Additionally, a factor 
-    model structure can be specified for the covariance matrix.
+Description: Robust estimation methods for the mean vector and covariance matrix 
+    from data (possibly containing NAs) under multivariate heavy-tailed 
+    distributions such as angular Gaussian, Cauchy, and Student's t. Additionally,
+    a factor model structure can be specified for the covariance matrix.
 Authors@R: c(
   person(c("Daniel", "P."), "Palomar", role = c("cre", "aut"), email = "daniel.p.palomar@gmail.com"),
   person("Rui", "Zhou", role =  "aut", email = "rzhouae@connect.ust.hk")
