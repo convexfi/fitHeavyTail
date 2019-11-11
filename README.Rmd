@@ -1,59 +1,136 @@
 ---
-title: "covHeavyTail"
+always_allow_html: yes
 output:
   md_document:
     variant: markdown_github
-  html_document: default
+  html_document:
+    keep_md: yes
+    variant: markdown_github
 ---
 
 <!-- README.md is generated from README.Rmd. Please edit that file -->
 
 ```{r, echo = FALSE}
-knitr::opts_chunk$set(
+library(knitr)
+opts_chunk$set(
   collapse = TRUE,
   comment = "#>",
-  fig.path = "README-"
+  fig.path = "man/figures/README-",
+  fig.align = "center",
+  fig.retina = 2,
+  out.width = "75%",
+  dpi = 96
 )
+knit_hooks$set(pngquant = hook_pngquant)
 ```
 
 
-This package provides several functions to estimate the mean and covariance matrix for multivariate iid time-series under heavy-tailed distributions commonly arising in financial data.
 
+# fitHeavyTail
+<!---
+[![CRAN_Status_Badge](https://www.r-pkg.org/badges/version/fitHeavyTail)](https://CRAN.R-project.org/package=fitHeavyTail)
+[![CRAN Downloads](https://cranlogs.r-pkg.org/badges/fitHeavyTail)](https://CRAN.R-project.org/package=fitHeavyTail)
+[![CRAN Downloads Total](https://cranlogs.r-pkg.org/badges/grand-total/fitHeavyTail?color=brightgreen)](https://CRAN.R-project.org/package=fitHeavyTail)
+--->
+
+Robust estimation methods for the mean vector and covariance matrix 
+from data (possibly containing NAs) under multivariate heavy-tailed 
+distributions such as angular Gaussian, Cauchy, and Student's $t$. Additionally,
+a factor model structure can be specified for the covariance matrix.
+    
 
 ## Installation
+The package can be installed from [CRAN](https://CRAN.R-project.org/package=fitHeavyTail) or [GitHub](https://github.com/dppalomar/fitHeavyTail):
+```{r, eval=FALSE}
+# install stable version from CRAN
+install.packages("fitHeavyTail")
+
+# install development version from GitHub
+devtools::install_github("dppalomar/fitHeavyTail")
+```
+
+To get help:
 ```{r, eval = FALSE}
-# Installation from local file
-install.packages(file.choose(), repos = NULL, type="source")
+library(fitHeavyTail)
+help(package = "fitHeavyTail")
+?fit_mvt
+```
 
-# Or from GitHub
-# install.packages("devtools")
-devtools::install_github("dppalomar/covHeavyTail")
-
-# Get help
-library(covHeavyTail)
-help(package="covHeavyTail")
-?momentsStudentt
+To cite `fitHeavyTail` in publications:
+```{r, eval = FALSE}
+citation("fitHeavyTail")
 ```
 
 
-## Usage
+## Quick Start
+To illustrate the simple usage of the package `fitHeavyTail`, let's start by generating some multivariate data under a Student's $t$ distribution with significant heavy tails ($\nu=4$):
+```{r}
+library(mvtnorm)  # package for multivariate t distribution
+N <- 10   # number of variables
+T <- 80   # number of observations
+nu <- 4   # degrees of freedom for tail heavyness
 
-This is a simple illustrative example:
-
-```{r, eval = FALSE}
-#generate heavy-tailed data
-N <- 40
-T <- 100
-mu <- rep(0,N)
-nv <- 4
-U <- t(mvtnorm::rmvnorm(n=round(0.7*N), sigma=0.1*diag(N)))
-R_cov <- U %*% t(U) + diag(N)
-X <- mvtnorm::rmvt(n=T, delta=mu, sigma=(nv-2)/nv*R_cov, df=nv)
-
-#estimate mean and covariance matrix
-res <- momentsStudentt(X)
-norm(res$mu - mu, "2")
-norm(colMeans(X) - mu, "2")
-norm(res$cov - R_cov, "F")
-norm(cov(X) - R_cov, "F")
+set.seed(42)
+mu <- rep(0, N)
+U <- t(rmvnorm(n = round(0.3*N), sigma = 0.1*diag(N)))
+Sigma <- U %*% t(U) + diag(N)  # covariance matrix with factor model structure
+Sigma_scatter <- (nu-2)/nu * Sigma
+X <- rmvt(n = T, delta = mu, sigma = Sigma_scatter, df = nu)  # generate data
 ```
+
+We can first estimate the mean vector and covariance matrix via the traditional sample estimates (i.e., sample mean and sample covariance matrix):
+```{r}
+mu_sm <- colMeans(X)
+Sigma_scm <- cov(X)
+```
+
+Then we can compute the robust estimates via the package `fitHeavyTail`:
+```{r}
+library(fitHeavyTail)
+fitted <- fit_mvt(X)
+```
+
+We can now compute the estimation errors and see the big improvement:
+```{r}
+sum((mu_sm - mu)^2)
+sum((fitted$mu - mu)^2)
+
+sum((Sigma_scm - Sigma)^2)
+sum((fitted$cov - Sigma)^2)
+```
+
+To get a visual idea of the robustness, we can plot the shapes of the covariance matrices (true and estimated ones) projected on two dimensions. Observe how the heavy-tailed estimation follows the true one more closely than the sample covariance matrix:
+```{r, echo=FALSE, message=FALSE, fig.width = 9, fig.height = 5, out.width = "80%"}
+library(ggplot2)
+library(ellipse)
+
+i1 <- 7; i2 <- 5
+ggplot(data.frame(x = X[, i1], y = X[, i2]), aes(x, y)) +
+  geom_point(alpha = 0.7, size = 3) +
+  geom_path(data = data.frame(ellipse(Sigma[c(i1, i2), c(i1, i2)])), 
+            aes(x, y, col = "true"), lwd = 1) +
+  geom_path(data = data.frame(ellipse(Sigma_scm[c(i1, i2), c(i1, i2)], centre = mu_sm[c(i1, i2)])), 
+            aes(x, y, col = "SCM estimation"), lwd = 1) +
+  geom_path(data = data.frame(ellipse(fitted$cov[c(i1, i2), c(i1, i2)], centre = fitted$mu[c(i1, i2)])), 
+            aes(x, y, col = "heavy-tailed estimation"), lwd = 1) +
+  scale_colour_manual(name = "ellipses",
+                      values = c("true" = "black", "SCM estimation" = "red", "heavy-tailed estimation" = "blue")) +
+  guides(color = guide_legend(reverse = TRUE)) +
+  labs(title = "Data points and shapes of covariance matrices", x = NULL, y = NULL)
+```
+
+
+<!---
+## Documentation
+For more detailed information, please check the
+[vignette](https://CRAN.R-project.org/package=fitHeavyTail/vignettes/CovarianceEstimationHeavyTails.html).
+--->
+
+
+## Links
+Package: [CRAN](https://CRAN.R-project.org/package=fitHeavyTail) and [GitHub](https://github.com/dppalomar/fitHeavyTail).
+
+README file: [GitHub-readme](https://github.com/dppalomar/fitHeavyTail/blob/master/README.md).
+<!---
+Vignette: [CRAN-vignette](https://CRAN.R-project.org/package=fitHeavyTail/vignettes/CovarianceEstimationHeavyTails.html).
+--->
