@@ -1,61 +1,102 @@
 #' @title Estimate parameters of a multivariate Student's t distribution to fit data
 #'
-#' Mean and Covariance Matrix Estimation under Heavy Tails
-#'
-#' @description Estimate parameters of a multivariate Student's t distribution to fit data.
-#' In particular, it will estimate the mean vector, the covariance matrix, the scatter
-#' matrix, and the degrees of freedom.
+#' @description Estimate parameters of a multivariate Student's t distribution to fit data,
+#' namely, the mean vector, the covariance matrix, the scatter matrix, and the degrees of freedom.
 #' The data can contain missing values denoted by NAs.
 #' It can also consider a factor model structure on the covariance matrix.
 #'
-#' @param X Data matrix
-#' @param factors Interger indicating number of factor dimension (default is \code{ncol(X)}, so no factor model assumption).
-#' @param max_iter Interger indicating the maximum iterations of estimation method.
-#' @param ptol Number (\eqn{\ge 0}) indicating the tolerance for parameter changing when judge convergence (default is \code{0.001}).
-#' @param ftol Number (\eqn{\ge 0}) indicating the tolerance for objective changing when judge convergence (default is \code{Inf}).
-#'             Note: it might be time consuming when use objective changing as a convergence judging criterion, especially when X is high-dimensional.
-#' @param method String indicating the method of estimating \eqn{\nu}:
-#'               \itemize{\item{\code{"ECM"}  - maximize the Q function w.r.t. \eqn{\nu}}
-#'                        \item{\code{"ECME"} - maximize the L function w.r.t. \eqn{\nu}.}}
-#' @param nu If pass a number (\eqn{> 2}), the \eqn{\nu} will be fixed to this number; if pass \code{"kurtosis"},
-#'           this function will automatically find a number via the kurtosis of Student's t distribution (default is \code{NULL}, so \eqn{\nu} will be estimated via EM method.).
-#' @param nu_target Number (\eqn{\ge 2}) indicating the regularized target of \eqn{\nu} (default is the estimator via kurtosis).
-#' @param nu_regcoef Number (\eqn{\ge 0}), the coefficience of nu regularized term, only valid when \code{nu} is not passed (default is \code{0}).
-#' @param initializer List of initial value of parameters for starting method.
-#' @param return_iterates Logical value indicating whether to recode the procedure by iterations (default is \code{FALSE}).
+#' @details This function estimates the parameters of a multivariate Student's t distribution (\code{mu},
+#'          \code{cov}, \code{scatter}, and \code{nu}) to fit the data via the expectation–maximization (EM) algorithm.
+#'          The data matrix \code{X} can contain missing values denoted by NAs.#'
+#'          The estimation of \code{nu} if very flexible: it can be directly passed as an argument (without being estimated),
+#'          it can be estimated by maximizing the log-likelihood or a surrogate function (methods \code{"ECME"} and
+#'          \code{"ECM"}, respectively), and it can be estimated by maximizing the log-likelihood regularized with a
+#'          target \code{nu_target} with weight \code{nu_regcoef > 0} (the regularization term is
+#'          \code{nu_regcoef * (nu - nu_target)^2}).
+#'
+#' @param X Data matrix containing the multivariate time series (each column is one time series).
+#' @param initial List of initial values of the parameters for the iterative estimation method.
+#'                Possible elements include:
+#'                \itemize{\item{\code{mu}: default is the data sample mean,}
+#'                         \item{\code{cov}: default is the data sample covariance matrix,}
+#'                         \item{\code{nu}: default is \code{4},}
+#'                         \item{\code{B}: default is the top eigenvectors of \code{initial$cov}
+#'                                                   multiplied by the sqrt of the eigenvalues,}
+#'                         \item{\code{psi}: default is
+#'                                          \code{diag(initial$cov - initial$B \%*\% t(initial$B)).}}}
+#' @param factors Integer indicating number of factors (default is \code{ncol(X)}, so no factor model assumption).
+#' @param max_iter Integer indicating the maximum number of iterations for the iterative estimation
+#'                 method (default is \code{100}).
+#' @param ptol Positive number indicating the relative tolerance for the change of the variables
+#'             to determine convergence of the iterative method (default is \code{1e-3}).
+#' @param ftol Positive number indicating the relative tolerance for the change of the log-likelihood
+#'             value to determine convergence of the iterative method (default is \code{Inf}, so it is
+#'             not active). Note that using this argument might have a computational cost as a convergence
+#'             criterion due to the computation of the log-likelihood (especially when \code{X} is high-dimensional).
+#' @param nu Degrees of freedom (\code{>2}) of the \eqn{t} distribution. If a number is passed,
+#'           then \code{nu} will be fixed to this number and will not be further optimized;
+#'           if \code{"kurtosis"} is passed, then \code{nu} will be computed from the marginal
+#'           kurtosis of the time series; otherwise (default option), \code{nu} will be
+#'           estimated via the EM method.
+#' @param method_nu String indicating the method for estimating \code{nu} (in case \code{nu} was not passed):
+#'                  \itemize{\item{\code{"ECM"}: maximize the Q function w.r.t. \code{nu}}
+#'                           \item{\code{"ECME"}: maximize the L function w.r.t. \code{nu}.}}
+#'                  This argument is used only when there are no NAs in the data and no factor model is chosen.
+#' @param nu_target Number (\code{>=2}) indicating the target for the regularization term for \code{nu}
+#'                  in case it is estimated (by default it is obtained via the marginal kurtosis).
+#' @param nu_regcoef Number (\code{>=0}) indicating the weight of the regularization term for \code{nu}
+#'                   in case it is estimated (default is \code{0}, so no regularion is used).
+#' @param return_iterates Logical value indicating whether to record the values of the parameters \code{mu},
+#'                        \code{scatter}, and \code{nu} (and possibly the log-likelihood if \code{ftol} is used)
+#'                        at each iteration (default is \code{FALSE}).
 #' @param verbose Logical value indicating whether to allow the function to print messages (default is \code{FALSE}).
 #'
 #' @return The estimated parameters as a list, namely, the mean vector in \code{mu}, the covariance matrix in \code{cov},
 #'         the scatter matrix in \code{scatter}, and the degrees of freedom in in \code{nu}. Some additional elements
 #'         may be returned if \code{return_iterates = TRUE}.
 #'
-#' @details By default, this function is to estimate parameters of multivariate Student's t distribution via expectation–maximization (EM) algorithm.
-#'          But this function is also flexible to use when user has priori knowledge of \eqn{\nu}: one can force \eqn{\nu} to be a fixed number by passing such value to argument \code{nu},
-#'          or regularize \eqn{\nu} to a give target by passing argument \code{nu_regcoef} > 0. The nu regularized term is added to the nu sub-problem as \eqn{nu_regcoef * (nu - nu_target)^2}.
-#'          There is also an embedded function to estimate \eqn{\nu} via the kurtosis of \code{X}.
+#'         A list containing possibly the following elements:
+#'         \item{\code{mu}}{Mean vector estimate.}
+#'         \item{\code{cov}}{Covariance matrix estimate.}
+#'         \item{\code{scatter}}{Scatter matrix estimate.}
+#'         \item{\code{nu}}{Degrees of freedom estimate.}
+#'         \item{\code{B}}{Factor model loading matrix estimate according to \code{cov = (B \%*\% t(B) + diag(psi)}
+#'                         (only if factor model requested).}
+#'         \item{\code{psi}}{Factor model idiosynchratic variances estimates according to \code{cov = (B \%*\% t(B) + diag(psi)}
+#'                           (only if factor model requested).}
+#'         \item{\code{log_likelihood}}{Value of log-likelihood after converge of the estimation algorithm
+#'                                      (only if \code{ftol < Inf}).}
+#'         \item{\code{iterates_record}}{Iterates of the parameters (\code{mu}, \code{scatter}, \code{nu},
+#'                                       and possibly \code{log_likelihood} (if \code{ftol < Inf})) along the iterations
+#'                                       (only if \code{return_iterates = TRUE}).}
+#'         \item{\code{converged}}{Boolean denoting whether the algorithm has converged (\code{TRUE}) or the maximum number
+#'                                 of iterations \code{max_iter} has reached (\code{FALSE}).}
 #'
-#' @author Rui ZHOU and Daniel P. Palomar
+#' @author Rui Zhou and Daniel P. Palomar
 #'
 #' @references
 #' Chuanhai Liu and Donald B. Rubin, “ML estimation of the t-distribution using EM and its extensions, ECM and ECME,”
 #' Statistica Sinica (5), pp. 19-39, 1995.
 #'
 #' Rui Zhou, Junyan Liu, Sandeep Kumar, and Daniel P. Palomar, "Robust factor analysis parameter estimation,"
-#' Lecture Notes in Computer Science (LNCS), 2019 <https://arxiv.org/abs/1909.12530>
+#' Lecture Notes in Computer Science (LNCS), 2019. <https://arxiv.org/abs/1909.12530>
 #'
 #' @examples
-#' library(mvtnorm)  # to generate heavy-tailed data
+#' library(mvtnorm)       # to generate heavy-tailed data
 #' library(fitHeavyTail)
+#'
 #' X <- rmvt(n = 1000, df = 6)  # generate Student's t data
 #' fit_mvt(X)
 #'
+#' @importFrom stats optimize
 #' @export
-fit_mvt <- function(X, factors = ncol(X), max_iter = 100, ptol = 1e-3, ftol = Inf, method = "ECM",
-                    nu = NULL, nu_target = NULL, nu_regcoef = 0, initializer = NULL,
+fit_mvt <- function(X, initial = NULL, factors = ncol(X),
+                    max_iter = 100, ptol = 1e-3, ftol = Inf,
+                    nu = NULL, method_nu = c("ECM", "ECME"), nu_target = NULL, nu_regcoef = 0,
                     return_iterates = FALSE, verbose = FALSE) {
   ####### error control ########
   X <- try(as.matrix(X), silent = TRUE)
-  if (!is.matrix(X)) stop("\"X\" must be a matrix or can be converted to a matrix.")
+  if (!is.matrix(X)) stop("\"X\" must be a matrix or coercible to a matrix.")
   if (!all(is.na(X) | is.numeric(X))) stop("\"X\" only allows numerical or NA values.")
   if (ncol(X) <= 1) X <- X[!is.na(X), , drop = FALSE]
   if (nrow(X) <= 1) stop("Only T=1 sample!!")
@@ -68,6 +109,7 @@ fit_mvt <- function(X, factors = ncol(X), max_iter = 100, ptol = 1e-3, ftol = In
 
   T <- nrow(X)
   N <- ncol(X)
+  method_nu <- match.arg(method_nu)
   X_has_NA <- anyNA(X)
   FA_struct <- factors != N
   optimize_nu <- is.null(nu)
@@ -88,33 +130,30 @@ fit_mvt <- function(X, factors = ncol(X), max_iter = 100, ptol = 1e-3, ftol = In
 
   # initialize all parameters
   alpha <- 1  # an extra variable for PX-EM acceleration
-  if (optimize_nu) nu <- if (is.null(initializer$nu)) 4 else initializer$nu
-  mu <- if (is.null(initializer$mu)) colMeans(X, na.rm = TRUE) else initializer$mu
-  SCM <- var(X, na.rm = TRUE)
+  if (optimize_nu) nu <- if (is.null(initial$nu)) 4 else initial$nu
+  mu <- if (is.null(initial$mu)) colMeans(X, na.rm = TRUE) else initial$mu
+  SCM <- if (is.null(initial$cov)) var(X, na.rm = TRUE) else initial$cov
   if (FA_struct) {  # Sigma is the scatter matrix, not the covariance matrix
     SCM_eigen <- eigen(SCM, symmetric = TRUE)
-    B <- if (is.null(initializer$B)) SCM_eigen$vectors[, 1:factors] %*% diag(sqrt(SCM_eigen$values[1:factors]), factors)
-         else initializer$B
-    psi <- if (is.null(initializer$psi)) pmax(0, diag(SCM) - diag(B %*% t(B)))
-           else initializer$psi
+    B <- if (is.null(initial$B)) SCM_eigen$vectors[, 1:factors] %*% diag(sqrt(SCM_eigen$values[1:factors]), factors)
+         else initial$B
+    psi <- if (is.null(initial$psi)) pmax(0, diag(SCM) - diag(B %*% t(B)))
+           else initial$psi
     Sigma <- (nu-2)/nu * (B %*% t(B) + diag(psi, N))
   } else {
     Sigma <- (nu-2)/nu * SCM
   }
 
-  #mask_notNA <- !is.na(rowSums(X))
   if (ftol < Inf) log_likelihood <- ifelse(X_has_NA,
                                            dmvt_withNA(X = X, delta = mu, sigma = Sigma / alpha, df = nu),
                                            sum(mvtnorm::dmvt(X, delta = mu, sigma = Sigma, df = nu, log = TRUE, type = "shifted")))
   snapshot <- function() {
-    if (ftol < Inf)
-      list(mu = mu, scatter = Sigma, nu = nu, log_likelihood = log_likelihood)
-    else
-      list(mu = mu, scatter = Sigma, nu = nu)
+    if (ftol < Inf) list(mu = mu, scatter = Sigma, nu = nu, log_likelihood = log_likelihood)
+    else list(mu = mu, scatter = Sigma, nu = nu)
   }
 
   # loop
-  if (return_iterates) iterations_record <- list(snapshot())
+  if (return_iterates) iterates_record <- list(snapshot())
   for (iter in 1:max_iter) {
     # record the current status
     Sigma_old <- Sigma
@@ -155,7 +194,7 @@ fit_mvt <- function(X, factors = ncol(X), max_iter = 100, ptol = 1e-3, ftol = In
       ave_E_tau_XX <- (1/T) * crossprod(sqrt(E_tau) * X_)  # (1/T) * t(X_) %*% diag(E_tau) %*% X_
       Sigma <- ave_E_tau_XX / alpha
       if (optimize_nu)
-        nu <- switch(method,
+        nu <- switch(method_nu,
                      "ECM" = {  # based on minus the Q function of nu
                        S <- T*(digamma((N+nu)/2) - log((N+nu)/2)) + sum(log(E_tau) - E_tau)  # S is E_log_tau-E_tau
                        Q_nu <- function(nu) { - T*(nu/2)*log(nu/2) + T*lgamma(nu/2) - (nu/2)*sum(S) + nu_regcoef * (nu/(nu-2) - nu_target/(nu_target-2))^2 }
@@ -181,7 +220,7 @@ fit_mvt <- function(X, factors = ncol(X), max_iter = 100, ptol = 1e-3, ftol = In
     } else has_fun_converged <- TRUE
     # record the current the variables/loglikelihood if required
     names(mu) <- colnames(Sigma) <- rownames(Sigma) <- colnames(X)  # add names first
-    if (return_iterates) iterations_record[[iter + 1]] <- snapshot()
+    if (return_iterates) iterates_record[[iter + 1]] <- snapshot()
     if (have_params_converged && has_fun_converged) break
   }
 
@@ -194,17 +233,18 @@ fit_mvt <- function(X, factors = ncol(X), max_iter = 100, ptol = 1e-3, ftol = In
   if (FA_struct) {
     rownames(B) <- names(psi) <- colnames(X)  # add name first
     vars_to_be_returned$B   <- B
-    vars_to_be_returned$Psi <-  psi
+    vars_to_be_returned$psi <- psi
   }
   if (ftol < Inf)
     vars_to_be_returned$log_likelihood <- log_likelihood
   if (return_iterates) {
-    names(iterations_record) <- paste("iter", 0:(length(iterations_record)-1))
-    vars_to_be_returned$iterations_record <- iterations_record
+    names(iterates_record) <- paste("iter", 0:(length(iterates_record)-1))
+    vars_to_be_returned$iterates_record <- iterates_record
   }
+  vars_to_be_returned$converged <- iter < max_iter
+
   return(vars_to_be_returned)
 }
-
 
 
 fnu <- function(nu) {nu/(nu-2)}
@@ -328,16 +368,17 @@ dmvt_withNA <- function(X, delta, sigma, df) {
 
 
 # estimate nu via the kurtosis of each variable
-excess_kurtosis_unbias <- function(x) {
+excess_kurtosis_unbiased <- function(x) {
   x <- as.vector(x)
   T <- length(x)
-  excess_kurt <- PerformanceAnalytics::kurtosis(x, method = "fisher", na.rm = TRUE) # mean(x_demean^4) / (mean(x_demean^2))^2 - 3
-  excess_kurt_unbias <- (T-1) / (T-2) / (T-3) * ((T+1)*excess_kurt + 6)  # TODO check if such bias correction is still necessary
-  return(excess_kurt_unbias)
+  excess_kurt <- (T+1)*(T-1) * ((sum(x^4)/T)/(sum(x^2)/T)^2 - 3*(T-1)/(T+1))/((T-2)*(T-3))
+  excess_kurt_unbiased <- (T-1) / (T-2) / (T-3) * ((T+1)*excess_kurt + 6)  # is this bias correction still necessary?
+  return(excess_kurt_unbiased)
 }
 
+
 est_nu_kurtosis <- function(X) {
-  kurt <- apply(X, 2, excess_kurtosis_unbias)
+  kurt <- apply(X, 2, excess_kurtosis_unbiased)
   kappa <- max(0, mean(kurt)/3)
   nu <- 2 / kappa + 4
   # in case of some funny results

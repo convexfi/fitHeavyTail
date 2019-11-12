@@ -2,58 +2,105 @@
 % Please edit documentation in R/fit_mvt.R
 \name{fit_mvt}
 \alias{fit_mvt}
-\title{Estimate parameters of a multivariate Student's t distribution to fit data (optionally with a factor model structure)}
+\title{Estimate parameters of a multivariate Student's t distribution to fit data}
 \usage{
-fit_mvt(X, factors = ncol(X), max_iter = 100, ptol = 0.001,
-  ftol = Inf, method = "ECM", nu = NULL, nu_target = NULL,
-  nu_regcoef = 0, initializer = NULL, return_iterates = FALSE,
+fit_mvt(X, initial = NULL, factors = ncol(X), max_iter = 100,
+  ptol = 0.001, ftol = Inf, nu = NULL, method_nu = c("ECM",
+  "ECME"), nu_target = NULL, nu_regcoef = 0, return_iterates = FALSE,
   verbose = FALSE)
 }
 \arguments{
-\item{X}{Data matrix}
+\item{X}{Data matrix containing the multivariate time series (each column is one time series).}
 
-\item{factors}{Interger indicating number of factor dimension (default is \code{ncol(X)}, so no factor model assumption).}
+\item{initial}{List of initial values of the parameters for the iterative estimation method.
+Possible elements include:
+\itemize{\item{\code{mu}: default is the data sample mean,}
+         \item{\code{cov}: default is the data sample covariance matrix,}
+         \item{\code{nu}: default is \code{4},}
+         \item{\code{B}: default is the top eigenvectors of \code{initial$cov}
+                                   multiplied by the sqrt of the eigenvalues,}
+         \item{\code{psi}: default is
+                          \code{diag(initial$cov - initial$B \%*\% t(initial$B)).}}}}
 
-\item{max_iter}{Interger indicating the maximum iterations of estimation method.}
+\item{factors}{Integer indicating number of factors (default is \code{ncol(X)}, so no factor model assumption).}
 
-\item{ptol}{Number (\eqn{\ge 0}) indicating the tolerance for parameter changing when judge convergence (default is \code{0.001}).}
+\item{max_iter}{Integer indicating the maximum number of iterations for the iterative estimation
+method (default is \code{100}).}
 
-\item{ftol}{Number (\eqn{\ge 0}) indicating the tolerance for objective changing when judge convergence (default is \code{Inf}).
-Note: it might be time consuming when use objective changing as a convergence judging criterion, especially when X is high-dimensional.}
+\item{ptol}{Positive number indicating the relative tolerance for the change of the variables
+to determine convergence of the iterative method (default is \code{1e-3}).}
 
-\item{method}{String indicating the method of estimating \eqn{\nu}:
-\itemize{\item{\code{"ECM"}  - maximize the Q function w.r.t. \eqn{\nu}}
-         \item{\code{"ECME"} - maximize the L function w.r.t. \eqn{\nu}.}}}
+\item{ftol}{Positive number indicating the relative tolerance for the change of the log-likelihood
+value to determine convergence of the iterative method (default is \code{Inf}, so it is
+not active). Note that using this argument might have a computational cost as a convergence
+criterion due to the computation of the log-likelihood (especially when \code{X} is high-dimensional).}
 
-\item{nu}{If pass a number (\eqn{> 2}), the \eqn{\nu} will be fixed to this number; if pass \code{"kurtosis"},
-this function will automatically find a number via the kurtosis of Student's t distribution (default is \code{NULL}, so \eqn{\nu} will be estimated via EM method.).}
+\item{nu}{Degrees of freedom (\code{>2}) of the \eqn{t} distribution. If a number is passed,
+then \code{nu} will be fixed to this number and will not be further optimized;
+if \code{"kurtosis"} is passed, then \code{nu} will be computed from the marginal
+kurtosis of the time series; otherwise (default option), \code{nu} will be
+estimated via the EM method.}
 
-\item{nu_target}{Number (\eqn{\ge 2}) indicating the regularized target of \eqn{\nu} (default is the estimator via kurtosis).}
+\item{method_nu}{String indicating the method for estimating \code{nu} (in case \code{nu} was not passed):
+\itemize{\item{\code{"ECM"}: maximize the Q function w.r.t. \code{nu}}
+         \item{\code{"ECME"}: maximize the L function w.r.t. \code{nu}.}}
+This argument is used only when there are no NAs in the data and no factor model is chosen.}
 
-\item{nu_regcoef}{Number (\eqn{\ge 0}), the coefficience of nu regularized term, only valid when \code{nu} is not passed (default is \code{0}).}
+\item{nu_target}{Number (\code{>=2}) indicating the target for the regularization term for \code{nu}
+in case it is estimated (by default it is obtained via the marginal kurtosis).}
 
-\item{initializer}{List of initial value of parameters for starting method.}
+\item{nu_regcoef}{Number (\code{>=0}) indicating the weight of the regularization term for \code{nu}
+in case it is estimated (default is \code{0}, so no regularion is used).}
 
-\item{return_iterates}{Logical value indicating whether to recode the procedure by iterations (default is \code{FALSE}).}
+\item{return_iterates}{Logical value indicating whether to record the values of the parameters \code{mu},
+\code{scatter}, and \code{nu} (and possibly the log-likelihood if \code{ftol} is used)
+at each iteration (default is \code{FALSE}).}
 
 \item{verbose}{Logical value indicating whether to allow the function to print messages (default is \code{FALSE}).}
 }
 \value{
-The estimated parameters as a list.
+The estimated parameters as a list, namely, the mean vector in \code{mu}, the covariance matrix in \code{cov},
+        the scatter matrix in \code{scatter}, and the degrees of freedom in in \code{nu}. Some additional elements
+        may be returned if \code{return_iterates = TRUE}.
+
+        A list containing possibly the following elements:
+        \item{\code{mu}}{Mean vector estimate.}
+        \item{\code{cov}}{Covariance matrix estimate.}
+        \item{\code{scatter}}{Scatter matrix estimate.}
+        \item{\code{nu}}{Degrees of freedom estimate.}
+        \item{\code{B}}{Factor model loading matrix estimate according to \code{cov = (B \%*\% t(B) + diag(psi)}
+                        (only if factor model requested).}
+        \item{\code{psi}}{Factor model idiosynchratic variances estimates according to \code{cov = (B \%*\% t(B) + diag(psi)}
+                          (only if factor model requested).}
+        \item{\code{log_likelihood}}{Value of log-likelihood after converge of the estimation algorithm
+                                     (only if \code{ftol < Inf}).}
+        \item{\code{iterates_record}}{Iterates of the parameters (\code{mu}, \code{scatter}, \code{nu},
+                                      and possibly \code{log_likelihood} (if \code{ftol < Inf})) along the iterations
+                                      (only if \code{return_iterates = TRUE}).}
+        \item{\code{converged}}{Boolean denoting whether the algorithm has converged (\code{TRUE}) or the maximum number
+                                of iterations \code{max_iter} has reached (\code{FALSE}).}
 }
 \description{
-Estimate parameters of a multivariate Student's t distribution to fit data.
+Estimate parameters of a multivariate Student's t distribution to fit data,
+namely, the mean vector, the covariance matrix, the scatter matrix, and the degrees of freedom.
+The data can contain missing values denoted by NAs.
 It can also consider a factor model structure on the covariance matrix.
 }
 \details{
-By default, this function is to estimate parameters of multivariate Student's t distribution via expectation–maximization (EM) algorithm.
-         But this function is also flexible to use when user has priori knowledge of \eqn{\nu}: one can force \eqn{\nu} to be a fixed number by passing such value to argument \code{nu},
-         or regularize \eqn{\nu} to a give target by passing argument \code{nu_regcoef} > 0. The nu regularized term is added to the nu sub-problem as \eqn{nu_regcoef * (nu - nu_target)^2}.
-         There is also an embedded function to estimate \eqn{\nu} via the kurtosis of \code{X}.
+This function estimates the parameters of a multivariate Student's t distribution (\code{mu},
+         \code{cov}, \code{scatter}, and \code{nu}) to fit the data via the expectation–maximization (EM) algorithm.
+         The data matrix \code{X} can contain missing values denoted by NAs.#'
+         The estimation of \code{nu} if very flexible: it can be directly passed as an argument (without being estimated),
+         it can be estimated by maximizing the log-likelihood or a surrogate function (methods \code{"ECME"} and
+         \code{"ECM"}, respectively), and it can be estimated by maximizing the log-likelihood regularized with a
+         target \code{nu_target} with weight \code{nu_regcoef > 0} (the regularization term is
+         \code{nu_regcoef * (nu - nu_target)^2}).
 }
 \examples{
-set.seed(1)
-X <- mvtnorm::rmvt(n = 1e2, df = 6)  # generate Student's t data
+library(mvtnorm)       # to generate heavy-tailed data
+library(fitHeavyTail)
+
+X <- rmvt(n = 1000, df = 6)  # generate Student's t data
 fit_mvt(X)
 
 }
@@ -61,9 +108,9 @@ fit_mvt(X)
 Chuanhai Liu and Donald B. Rubin, “ML estimation of the t-distribution using EM and its extensions, ECM and ECME,”
 Statistica Sinica (5), pp. 19-39, 1995.
 
-Rui ZHOU, Junyan Liu, Sandeep Kumar, and Daniel P. Palomar, "Robust factor analysis parameter estimation,"
-Lecture Notes in Computer Science (LNCS), 2019 <https://arxiv.org/abs/1909.12530>
+Rui Zhou, Junyan Liu, Sandeep Kumar, and Daniel P. Palomar, "Robust factor analysis parameter estimation,"
+Lecture Notes in Computer Science (LNCS), 2019. <https://arxiv.org/abs/1909.12530>
 }
 \author{
-Rui ZHOU and Daniel P. Palomar
+Rui Zhou and Daniel P. Palomar
 }
