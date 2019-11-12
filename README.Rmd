@@ -123,7 +123,7 @@ ggplot(data.frame(x = X[, i1], y = X[, i2]), aes(x, y)) +
 <!---
 ## Documentation
 For more detailed information, please check the
-[vignette](https://CRAN.R-project.org/package=fitHeavyTail/vignettes/CovarianceEstimationHeavyTails.html).
+[vignette](https://CRAN.R-project.org/package=fitHeavyTail/vignettes/CovarianceEstimationHeavyTail.html).
 --->
 
 
@@ -132,5 +132,5 @@ Package: [CRAN](https://CRAN.R-project.org/package=fitHeavyTail) and [GitHub](ht
 
 README file: [GitHub-readme](https://github.com/dppalomar/fitHeavyTail/blob/master/README.md).
 <!---
-Vignette: [CRAN-vignette](https://CRAN.R-project.org/package=fitHeavyTail/vignettes/CovarianceEstimationHeavyTails.html).
+Vignette: [CRAN-vignette](https://CRAN.R-project.org/package=fitHeavyTail/vignettes/CovarianceEstimationHeavyTail.html).
 --->

@@ -104,7 +104,7 @@ more closely than the sample covariance matrix:
 <!---
 ## Documentation
 For more detailed information, please check the
-[vignette](https://CRAN.R-project.org/package=fitHeavyTail/vignettes/CovarianceEstimationHeavyTails.html).
+[vignette](https://CRAN.R-project.org/package=fitHeavyTail/vignettes/CovarianceEstimationHeavyTail.html).
 --->
 
 Links
@@ -116,5 +116,5 @@ Package: [CRAN](https://CRAN.R-project.org/package=fitHeavyTail) and
 README file:
 [GitHub-readme](https://github.com/dppalomar/fitHeavyTail/blob/master/README.md).
 <!---
-Vignette: [CRAN-vignette](https://CRAN.R-project.org/package=fitHeavyTail/vignettes/CovarianceEstimationHeavyTails.html).
+Vignette: [CRAN-vignette](https://CRAN.R-project.org/package=fitHeavyTail/vignettes/CovarianceEstimationHeavyTail.html).
 --->
