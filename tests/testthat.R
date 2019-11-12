@@ -1,4 +1,4 @@
 library(testthat)
-library(covHeavyTail)
+library(fitHeavyTail)
 
-test_check("covHeavyTail")
+test_check("fitHeavyTail")
