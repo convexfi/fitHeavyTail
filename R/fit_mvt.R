@@ -46,13 +46,14 @@ fit_mvt <- function(X, factors = ncol(X), max_iter = 100, ptol = 1e-3, ftol = In
                     nu = NULL, nu_target = NULL, nu_regcoef = 0, initializer = NULL,
                     return_iterates = FALSE, verbose = FALSE) {
   ####### error control ########
-  X <- as.matrix(X)
-  if (ncol(X) == 1) X <- X[!is.na(X), , drop = FALSE]
-  if (nrow(X) == 1) stop("Only T=1 sample!!")
+  X <- try(as.matrix(X), silent = TRUE)
+  if (!is.matrix(X)) stop("\"X\" must be a matrix or can be converted to a matrix.")
+  if (!all(is.na(X) | is.numeric(X))) stop("\"X\" only allows numerical or NA values.")
+  if (ncol(X) <= 1) X <- X[!is.na(X), , drop = FALSE]
+  if (nrow(X) <= 1) stop("Only T=1 sample!!")
   factors <- round(factors)
   max_iter <- round(max_iter)
-  if (!is.matrix(X)) stop("\"X\" must be a matrix or can be converted to a matrix.")
-  if (factors < 1 || factors > ncol(X)) stop("\"factors\" must satisfy \"1 <= factors <= ncol(X)\"")
+  if (factors < 1 || factors > ncol(X)) stop("\"factors\" must be no less than 1 and no more than column number of \"X\".")
   if (max_iter < 1) stop("\"max_iter\" must be greater than 1.")
   # if (nrow(X) <= 2*ncol(X) && nu_regcoef <= 0 && is.null(nu)) warning("Small sample size! Estimation results might be inaccurate, please try regularized mode (set \"nu_regcoef\" > 0).")
   ##############################
