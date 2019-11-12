@@ -1,6 +1,11 @@
-#' @title Estimate parameters of a multivariate Student's t distribution to fit data (optionally with a factor model structure)
+#' @title Estimate parameters of a multivariate Student's t distribution to fit data
+#'
+#' Mean and Covariance Matrix Estimation under Heavy Tails
 #'
 #' @description Estimate parameters of a multivariate Student's t distribution to fit data.
+#' In particular, it will estimate the mean vector, the covariance matrix, the scatter
+#' matrix, and the degrees of freedom.
+#' The data can contain missing values denoted by NAs.
 #' It can also consider a factor model structure on the covariance matrix.
 #'
 #' @param X Data matrix
@@ -20,7 +25,9 @@
 #' @param return_iterates Logical value indicating whether to recode the procedure by iterations (default is \code{FALSE}).
 #' @param verbose Logical value indicating whether to allow the function to print messages (default is \code{FALSE}).
 #'
-#' @return The estimated parameters as a list.
+#' @return The estimated parameters as a list, namely, the mean vector in \code{mu}, the covariance matrix in \code{cov},
+#'         the scatter matrix in \code{scatter}, and the degrees of freedom in in \code{nu}. Some additional elements
+#'         may be returned if \code{return_iterates = TRUE}.
 #'
 #' @details By default, this function is to estimate parameters of multivariate Student's t distribution via expectation–maximization (EM) algorithm.
 #'          But this function is also flexible to use when user has priori knowledge of \eqn{\nu}: one can force \eqn{\nu} to be a fixed number by passing such value to argument \code{nu},
@@ -33,12 +40,13 @@
 #' Chuanhai Liu and Donald B. Rubin, “ML estimation of the t-distribution using EM and its extensions, ECM and ECME,”
 #' Statistica Sinica (5), pp. 19-39, 1995.
 #'
-#' Rui ZHOU, Junyan Liu, Sandeep Kumar, and Daniel P. Palomar, "Robust factor analysis parameter estimation,"
+#' Rui Zhou, Junyan Liu, Sandeep Kumar, and Daniel P. Palomar, "Robust factor analysis parameter estimation,"
 #' Lecture Notes in Computer Science (LNCS), 2019 <https://arxiv.org/abs/1909.12530>
 #'
 #' @examples
-#' set.seed(1)
-#' X <- mvtnorm::rmvt(n = 1e2, df = 6)  # generate Student's t data
+#' library(mvtnorm)  # to generate heavy-tailed data
+#' library(fitHeavyTail)
+#' X <- rmvt(n = 1000, df = 6)  # generate Student's t data
 #' fit_mvt(X)
 #'
 #' @export
@@ -135,9 +143,8 @@ fit_mvt <- function(X, factors = ncol(X), max_iter = 100, ptol = 1e-3, ftol = In
         B   <- optB(S = S, factors = factors, psi_vec = psi)
         psi <- pmax(0, diag(S - B %*% t(B)))
         Sigma <- B %*% t(B) + diag(psi, N)
-      } else {
+      } else
         Sigma <- S
-      }
       Q_nu <- function(nu) { - (nu/2)*log(nu/2) + lgamma(nu/2) - (nu/2)*(Q$ave_E_logtau - Q$ave_E_tau) + nu_regcoef * (nu/(nu-2) - nu_target/(nu_target-2))^2 }
       if (optimize_nu) nu <- optimize(Q_nu, interval = c(2 + 1e-12, 100))$minimum
     } else {
