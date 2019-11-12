@@ -99,6 +99,13 @@ sum((Sigma_scm - Sigma)^2)
 sum((fitted$cov - Sigma)^2)
 ```
 
+```{r, eval=FALSE, echo=FALSE}
+# fitting with factor model
+fitted_3factors <- fit_mvt(X, factors = 3)
+sum((fitted_3factors$mu - mu)^2)
+sum((fitted_3factors$cov - Sigma)^2)
+```
+
 To get a visual idea of the robustness, we can plot the shapes of the covariance matrices (true and estimated ones) projected on two dimensions. Observe how the heavy-tailed estimation follows the true one more closely than the sample covariance matrix:
 ```{r, eval=FALSE, echo=FALSE}
 library(ellipse)
@@ -119,7 +126,7 @@ lines(ellipse(fitted$cov[c(i1, i2), c(i1, i2)], centre = fitted$mu[c(i1, i2)]), 
 ```
 
 
-```{r, echo=FALSE, fig.width = 9, fig.height = 5, out.width = "100%"}
+```{r, echo=FALSE, message=FALSE, fig.width = 9, fig.height = 5, out.width = "100%"}
 library(ggplot2)
 library(ellipse)
 
@@ -144,13 +151,10 @@ ggplot(data.frame(x = X[, i1], y = X[, i2]), aes(x, y)) +
 
 
 # Numerical Comparison with Existing Packages
-In the following, we generate multivariate heavy-tailed Student's $t$ distributed data and compare the performance of many different existing packages in terms of estimation accurary measured by the mean squared error (MSE) and cpu time.
+In the following, we generate multivariate heavy-tailed Student's $t$ distributed data and compare the performance of many different existing packages in terms of estimation accurary, measured by the mean squared error (MSE), and cpu time.
 
 ```{r, echo=FALSE}
 library(mvtnorm)
-library(fitHeavyTail)
-library(ggplot2)
-library(reshape2)
 
 N <- 20
 nu <- 4
@@ -164,152 +168,133 @@ Sigma_scatter <- (nu-2)/nu * Sigma
 #       main = "Histogram of eigenvalues of true covariance matrix")
 ```
 
-```{r, echo=FALSE, cache=TRUE}
-N_realiz <- 100  # multiple realizations for averaging
-T_sweep <- round(seq(from = ceiling(1.5*N), to = 5*N, length.out = 12))
-MSE_rrcov_CovMrcd_T <- MSE_covRobust_cov.nnve_T <- MSE_robust_covRob_T <- MSE_robustbase_covMcd_T <- 
-  MSE_MASS_cov.mve_T <- MSE_MASS_cov.trov_T <- MSE_QRM_fit.mst_T <- 
-  MSE_fitHeavyTail_Studentt_T <- MSE_fitHeavyTail_Studentt_nu_T <- MSE_fitHeavyTail_Cauchy_T <- MSE_fitHeavyTail_Tyler_T <- MSE_SCM_T <- NULL
-time_rrcov_CovMrcd_T <- time_covRobust_cov.nnve_T <- time_robust_covRob_T <- time_robustbase_covMcd_T <- 
-  time_MASS_cov.mve_T <- time_MASS_cov.trov_T <- time_QRM_fit.mst_T <- 
-  time_fitHeavyTail_Studentt_T <- time_fitHeavyTail_Studentt_nu_T <- time_fitHeavyTail_Cauchy_T <- time_fitHeavyTail_Tyler_T <- time_SCM_T <- NULL
-if (!knitr_in_progress) pbar <- txtProgressBar(min = it<-0, max = length(T_sweep), style=3)
-for(T in T_sweep) {
-  if (!knitr_in_progress) setTxtProgressBar(pbar, it<-it+1)
-  MSE_rrcov_CovMrcd <- MSE_covRobust_cov.nnve <- MSE_robust_covRob <- MSE_robustbase_covMcd <- 
-    MSE_MASS_cov.mve <- MSE_MASS_cov.trov <- MSE_QRM_fit.mst <- 
-    MSE_fitHeavyTail_Studentt <- MSE_fitHeavyTail_Studentt_nu <- MSE_fitHeavyTail_Cauchy <- MSE_fitHeavyTail_Tyler <- MSE_SCM <- 0
-  time_rrcov_CovMrcd <- time_covRobust_cov.nnve <- time_robust_covRob <- time_robustbase_covMcd <- 
-    time_MASS_cov.mve <- time_MASS_cov.trov <- time_QRM_fit.mst <- 
-    time_fitHeavyTail_Studentt <- time_fitHeavyTail_Studentt_nu <- time_fitHeavyTail_Cauchy <- time_fitHeavyTail_Tyler <- time_SCM <- 0
-  for (ii in 1:N_realiz) {
-    # generate data
-    X <- rmvt(n = T, delta = mu, sigma = Sigma_scatter, df = nu)  # heavy-tailed data
-    #X <- rmvnorm(n = T, mean = mu, sigma = Sigma)  # Gaussian data
+```{r Monte-Carlo, echo=FALSE, cache=TRUE}
+library(fitHeavyTail)
+library(tictoc)
+library(parallel)  # detectCores(logical = FALSE)
+#library(foreach)
+#library(doParallel)
 
+MSE <- function(Sigma_hat) norm(Sigma_hat - Sigma, "F")^2
 
-    # Sigma estimation
-    time_SCM <- time_SCM + system.time({
-      Sigma_SCM <- cov(X)
-    })["elapsed"]
-
-    time_fitHeavyTail_Tyler <- time_fitHeavyTail_Tyler + system.time({
-      Sigma_fitHeavyTail_Tyler <- fitHeavyTail:::momentsTyler(X)$cov
-    })["elapsed"]
-
-    time_fitHeavyTail_Cauchy <- time_fitHeavyTail_Cauchy + system.time({
-      Sigma_fitHeavyTail_Cauchy <- fitHeavyTail:::momentsCauchy(X)$cov
-    })["elapsed"]
-
-    time_fitHeavyTail_Studentt_nu <- time_fitHeavyTail_Studentt_nu + system.time({
-      Sigma_fitHeavyTail_Studentt_nu <- fit_mvt(X, nu = 6)$cov
-      # res <- fit_mvt(X, nu = 6, ftol = 1e6, return_iterates = TRUE)
-      # plot(sapply(res$iterations_record, `[[`, "nu"))
-      # plot(sapply(res$iterations_record, `[[`, "log_likelihood"))
-    })["elapsed"]
-
-    time_fitHeavyTail_Studentt <- time_fitHeavyTail_Studentt + system.time({
-      Sigma_fitHeavyTail_Studentt <- fit_mvt(X, nu_regcoef = 1e0, verbose = FALSE)$cov
-      # res <- fit_mvt(X, ftol = 1e6, return_iterates = TRUE)
-      # plot(sapply(res$iterations_record, `[[`, "nu"))
-      # plot(sapply(res$iterations_record, `[[`, "log_likelihood"))
-    })["elapsed"]
-
-    time_QRM_fit.mst <- time_QRM_fit.mst + system.time({
-      Sigma_QRM_fit.mst <- tryCatch(
-        as.matrix(QRM::fit.mst(X, method = "BFGS", nit = 100, tol = 1e-6)$covariance),
-        warning = function(w) return(NA),
-        error   = function(e) return(NA))
-    })["elapsed"]
-
-    time_MASS_cov.trov <- time_MASS_cov.trov + system.time({
-      Sigma_MASS_cov.trov <- MASS::cov.trob(X, nu = 6)$cov
-    })["elapsed"]
-    
-    time_MASS_cov.mve <- time_MASS_cov.mve + system.time({
-      Sigma_MASS_cov.mve <- MASS::cov.mve(X)$cov
-    })["elapsed"]
-
-    time_robustbase_covMcd <- time_robustbase_covMcd + system.time({
-      Sigma_robustbase_covMcd <- suppressWarnings(robustbase::covMcd(X)$cov)
-    })["elapsed"]
-    
-    time_robust_covRob <- time_robust_covRob + system.time({
-      Sigma_robust_covRob <- tryCatch(
-        robust::covRob(X, estim = "pairwiseQC")$cov,  # "pairwiseQC", also: "weighted", "M", "pairwiseGK"
-        warning = function(w) return(NA),
-        error   = function(e) return(NA))
-    })["elapsed"]
-    
-    time_covRobust_cov.nnve <- time_covRobust_cov.nnve + system.time({
-      Sigma_covRobust_cov.nnve <- covRobust::cov.nnve(X)$cov
-    })["elapsed"]
-
-    time_rrcov_CovMrcd <- time_rrcov_CovMrcd + system.time({
-      Sigma_rrcov_CovMrcd <- rrcov::CovMrcd(X)$cov
-    })["elapsed"]
-        
-    
-
-    # compute MSEs
-    MSE_SCM                      <- MSE_SCM                      + norm(Sigma_SCM - Sigma, "F")^2
-    MSE_fitHeavyTail_Tyler       <- MSE_fitHeavyTail_Tyler       + norm(Sigma_Tyler - Sigma, "F")^2
-    MSE_fitHeavyTail_Cauchy      <- MSE_fitHeavyTail_Cauchy      + norm(Sigma_fitHeavyTail_Cauchy - Sigma, "F")^2
-    MSE_fitHeavyTail_Studentt_nu <- MSE_fitHeavyTail_Studentt_nu + norm(Sigma_fitHeavyTail_Studentt_nu - Sigma, "F")^2
-    MSE_fitHeavyTail_Studentt    <- MSE_fitHeavyTail_Studentt    + norm(Sigma_fitHeavyTail_Studentt - Sigma, "F")^2
-    MSE_QRM_fit.mst              <- MSE_QRM_fit.mst              + norm(Sigma_QRM_fit.mst - Sigma, "F")^2
-    MSE_MASS_cov.trov            <- MSE_MASS_cov.trov            + norm(Sigma_MASS_cov.trov - Sigma, "F")^2
-    MSE_MASS_cov.mve             <- MSE_MASS_cov.mve             + norm(Sigma_MASS_cov.mve - Sigma, "F")^2
-    MSE_robustbase_covMcd        <- MSE_robustbase_covMcd        + norm(Sigma_robustbase_covMcd - Sigma, "F")^2
-    MSE_robust_covRob            <- MSE_robust_covRob            + norm(Sigma_robust_covRob - Sigma, "F")^2
-    MSE_covRobust_cov.nnve       <- MSE_covRobust_cov.nnve       + norm(Sigma_covRobust_cov.nnve  - Sigma, "F")^2
-    MSE_rrcov_CovMrcd            <- MSE_rrcov_CovMrcd            + norm(Sigma_rrcov_CovMrcd  - Sigma, "F")^2
-  }
-  # keep track of MSEs
-  MSE_SCM_T                      <- c(MSE_SCM_T,                      MSE_SCM / N_realiz)
-  MSE_fitHeavyTail_Tyler_T       <- c(MSE_fitHeavyTail_Tyler_T,       MSE_fitHeavyTail_Tyler / N_realiz)
-  MSE_fitHeavyTail_Cauchy_T      <- c(MSE_fitHeavyTail_Cauchy_T,      MSE_fitHeavyTail_Cauchy / N_realiz)
-  MSE_fitHeavyTail_Studentt_nu_T <- c(MSE_fitHeavyTail_Studentt_nu_T, MSE_fitHeavyTail_Studentt_nu / N_realiz)
-  MSE_fitHeavyTail_Studentt_T    <- c(MSE_fitHeavyTail_Studentt_T,    MSE_fitHeavyTail_Studentt / N_realiz)
-  MSE_QRM_fit.mst_T              <- c(MSE_QRM_fit.mst_T,              MSE_QRM_fit.mst / N_realiz)
-  MSE_MASS_cov.trov_T            <- c(MSE_MASS_cov.trov_T,            MSE_MASS_cov.trov / N_realiz)
-  MSE_MASS_cov.mve_T             <- c(MSE_MASS_cov.mve_T,             MSE_MASS_cov.mve / N_realiz)
-  MSE_robustbase_covMcd_T        <- c(MSE_robustbase_covMcd_T,        MSE_robustbase_covMcd / N_realiz)
-  MSE_robust_covRob_T            <- c(MSE_robust_covRob_T,            MSE_robust_covRob / N_realiz)
-  MSE_covRobust_cov.nnve_T       <- c(MSE_covRobust_cov.nnve_T,       MSE_covRobust_cov.nnve / N_realiz)
-  MSE_rrcov_CovMrcd_T            <- c(MSE_rrcov_CovMrcd_T,            MSE_rrcov_CovMrcd / N_realiz)
+eval_single <- function(X) {
+  MSE <- time <- c()
   
-  # keep track of times
-  time_SCM_T                      <- c(time_SCM_T,                      time_SCM / N_realiz)
-  time_fitHeavyTail_Tyler_T       <- c(time_fitHeavyTail_Tyler_T,       time_fitHeavyTail_Tyler / N_realiz)
-  time_fitHeavyTail_Cauchy_T      <- c(time_fitHeavyTail_Cauchy_T,      time_fitHeavyTail_Cauchy/ N_realiz)
-  time_fitHeavyTail_Studentt_nu_T <- c(time_fitHeavyTail_Studentt_nu_T, time_fitHeavyTail_Studentt_nu / N_realiz)
-  time_fitHeavyTail_Studentt_T    <- c(time_fitHeavyTail_Studentt_T,    time_fitHeavyTail_Studentt / N_realiz)
-  time_QRM_fit.mst_T              <- c(time_QRM_fit.mst_T,              time_QRM_fit.mst / N_realiz)
-  time_MASS_cov.trov_T            <- c(time_MASS_cov.trov_T,            time_MASS_cov.trov / N_realiz)
-  time_MASS_cov.mve_T             <- c(time_MASS_cov.mve_T,             time_MASS_cov.mve / N_realiz)
-  time_robustbase_covMcd_T        <- c(time_robustbase_covMcd_T,        time_robustbase_covMcd / N_realiz)
-  time_robust_covRob_T            <- c(time_robust_covRob_T,            time_robust_covRob / N_realiz)
-  time_covRobust_cov.nnve_T       <- c(time_covRobust_cov.nnve_T,       time_covRobust_cov.nnve / N_realiz)
-  time_rrcov_CovMrcd_T            <- c(time_rrcov_CovMrcd_T,            time_rrcov_CovMrcd / N_realiz)
+  name        <- "stats::cov"
+  time[name]  <- system.time({Sigma_hat <- cov(X)})["elapsed"]
+  MSE[name]   <- MSE(Sigma_hat)
+  
+  name        <- "QRM::fit.mst"
+  time[name]  <- system.time({Sigma_hat <- tryCatch(as.matrix(QRM::fit.mst(X, method = "BFGS", nit = 100, tol = 1e-6)$covariance),
+                                                    warning = function(w) return(NA), 
+                                                    error   = function(e) return(NA))})["elapsed"]
+  MSE[name]   <- MSE(Sigma_hat)
+  
+  name        <- "MASS::cov.trov (nu=6)"
+  time[name]  <- system.time({Sigma_hat <- MASS::cov.trob(X, nu = 6)$cov})["elapsed"]
+  MSE[name]   <- MSE(Sigma_hat)
+  
+  name        <- "MASS::cov.mve"
+  time[name]  <- system.time({Sigma_hat <- MASS::cov.mve(X)$cov})["elapsed"]
+  MSE[name]   <- MSE(Sigma_hat)
+  
+  name        <- "robustbase::covMcd"
+  time[name]  <- system.time({Sigma_hat <- suppressWarnings(robustbase::covMcd(X)$cov)})["elapsed"]
+  MSE[name]   <- MSE(Sigma_hat)
+  
+  name        <- "robust::covRob"
+  time[name]  <- system.time({Sigma_hat <- tryCatch(robust::covRob(X, estim = "pairwiseQC")$cov,  # also: "weighted", "M", "pairwiseGK"
+                                                    warning = function(w) return(NA), 
+                                                    error   = function(e) return(NA))})["elapsed"]
+  MSE[name]   <- MSE(Sigma_hat)
+
+  name        <- "covRobust::cov.nnve"
+  time[name]  <- system.time({Sigma_hat <- covRobust::cov.nnve(X)$cov})["elapsed"]
+  MSE[name]   <- MSE(Sigma_hat)
+  
+  name        <- "rrcov::CovMrcd"
+  time[name]  <- system.time({Sigma_hat <- rrcov::CovMrcd(X)$cov})["elapsed"]
+  MSE[name]   <- MSE(Sigma_hat)
+  
+  name        <- "fitHeavyTail::fit_Tyler"
+  time[name]  <- system.time({Sigma_hat <- fitHeavyTail:::momentsTyler(X)$cov})["elapsed"]
+  MSE[name]   <- MSE(Sigma_hat)
+  
+  name        <- "fitHeavyTail::fit_Cauchy"
+  time[name]  <- system.time({Sigma_hat <- fitHeavyTail:::momentsCauchy(X)$cov})["elapsed"]
+  MSE[name]   <- MSE(Sigma_hat)
+
+  name        <- "fitHeavyTail::fit_mvt (nu=6)"
+  time[name]  <- system.time({Sigma_hat <- fitHeavyTail::fit_mvt(X, nu = 6)$cov})["elapsed"]
+  MSE[name]   <- MSE(Sigma_hat)
+  
+  # name        <- "fitHeavyTail::fit_mvt (factors = 6, nu=6)"
+  # time[name]  <- system.time({Sigma_hat <- fit_mvt(X, factors = 6, nu = 6)$cov})["elapsed"]
+  # MSE[name]   <- MSE(Sigma_hat)
+  
+  name        <- "fitHeavyTail::fit_mvt"
+  time[name]  <- system.time({Sigma_hat <- fitHeavyTail::fit_mvt(X, nu_regcoef = 1e2)$cov})["elapsed"]
+  MSE[name]   <- MSE(Sigma_hat)
+
+  # name        <- "fitHeavyTail::fit_mvt (factors = 6)"
+  # time[name]  <- system.time({Sigma_hat <- fit_mvt(X, factors = 6, nu_regcoef = 1e2)$cov})["elapsed"]
+  # MSE[name]   <- MSE(Sigma_hat)
+
+  return(list("MSE" = MSE, "time" = time))
+}
+
+N_realiz <- 200  # multiple realizations for averaging
+T_sweep <- round(seq(from = ceiling(1.5*N), to = 5*N, length.out = 12))
+if (!knitr_in_progress) pbar <- txtProgressBar(min = it <- 0, max = length(T_sweep), style = 3)
+MSE_all_T <- time_all_T <- NULL
+
+#tic(sprintf("Total execution time for %d Monte-Carlo realizations:", N_realiz))
+for(T in T_sweep) {
+  if (!knitr_in_progress) setTxtProgressBar(pbar, it <- it + 1)
+  # first, generate random heavy-tailed data sequentially for reproducibility
+  X <- replicate(N_realiz, rmvt(n = T, delta = mu, sigma = Sigma_scatter, df = nu), simplify = FALSE)
+
+  # then, run the estimation in parallel (https://bookdown.org/rdpeng/rprogdatascience/parallel-computation.html)
+  res <- mclapply(X, eval_single, mc.cores = 4)
+
+  # finally, keep track of MSEs and times
+  MSE_all_T  <- rbind(MSE_all_T,  rowMeans(sapply(res, function(x) x$MSE)))
+  time_all_T <- rbind(time_all_T, rowMeans(sapply(res, function(x) x$time)))
+}
+#toc()
+rownames(time_all_T) <- rownames(MSE_all_T) <- T_sweep
+```
+
+```{r, eval=FALSE, echo=FALSE}
+# other options for paralellizations:
+for(T in T_sweep) {
+  if (!knitr_in_progress) setTxtProgressBar(pbar, it <- it + 1)
+  # first, generate random heavy-tailed data sequentially for reproducibility
+  #X <- lapply(1:N_realiz, function(idx) {rmvt(n = T, delta = mu, sigma = Sigma_scatter, df = nu)})
+  X <- replicate(N_realiz, rmvt(n = T, delta = mu, sigma = Sigma_scatter, df = nu), simplify = FALSE)
+  #X <- foreach(1:N_realiz) %do% rmvt(n = T, delta = mu, sigma = Sigma_scatter, df = nu)
+
+  # then, run the estimation in parallel (https://bookdown.org/rdpeng/rprogdatascience/parallel-computation.html)
+  # (https://nceas.github.io/oss-lessons/parallel-computing-in-r/parallel-computing-in-r.html)
+  #res <- lapply(X, eval_single)
+  #res <- foreach(i = 1:N_realiz) %do% eval_single(X[[i]])
+  res <- mclapply(X, eval_single, mc.cores = 4)
+  #res <- parLapply(cl = cl, X, eval_single)  # this requires: cl <- makeCluster(4); clusterExport(cl = cl, varlist = ls(envir = .GlobalEnv)); stopCluster(cl = cl)
+  #res <- foreach(i = 1:N_realiz) %dopar% eval_single(X[[i]])  # this requires: registerDoParallel(4); stopImplicitCluster()
+  
+  # finally, keep track of MSEs and times
+  MSE_all_T  <- rbind(MSE_all_T,  rowMeans(sapply(res, function(x) x$MSE)))
+  time_all_T <- rbind(time_all_T, rowMeans(sapply(res, function(x) x$time)))
 }
 ```
 
 
-```{r, warning=FALSE, echo=FALSE, fig.width = 9, fig.height = 5, out.width = "100%"}
+```{r plots, warning=FALSE, echo=FALSE, fig.width = 9, fig.height = 5, out.width = "100%"}
+library(ggplot2)
+library(reshape2)
+library(ggforce)  # for geom_ellipse
+
 # MSE plot
-MSE_all_T <- cbind("stats::cov"                   = MSE_SCM_T,
-                   "QRM::fit.mst"                 = MSE_QRM_fit.mst_T,
-                   "MASS::cov.trob (nu=6)"        = MSE_MASS_cov.trov_T,
-                   "MASS::cov.mve"                = MSE_MASS_cov.mve_T,
-                   "robustbase::covMcd"           = MSE_robustbase_covMcd_T,
-                   "robust::covRob"               = MSE_robust_covRob_T,
-                   "covRobust::cov.nnve"          = MSE_covRobust_cov.nnve_T,
-                   "fitHeavyTail::fit_Tyler"      = MSE_fitHeavyTail_Tyler_T,
-                   "fitHeavyTail::fit_Cauchy"     = MSE_fitHeavyTail_Cauchy_T,
-                   "fitHeavyTail::fit_mvt (nu=6)" = MSE_fitHeavyTail_Studentt_nu_T,
-                   "fitHeavyTail::fit_mvt"        = MSE_fitHeavyTail_Studentt_T)
-rownames(MSE_all_T) <- T_sweep
 ggplot(melt(MSE_all_T, varnames = c("Var1", "method")), aes(x = Var1, y = value, col = method, shape = method)) +
   geom_line() + geom_point(size = 2) + scale_y_log10() +  # coord_cartesian(ylim = c(0, 500)) +
   scale_shape_manual(values = 1:ncol(MSE_all_T)) +  # theme(legend.title = element_blank())
@@ -320,32 +305,25 @@ ggplot(melt(MSE_all_T, varnames = c("Var1", "method")), aes(x = Var1, y = value,
 
 
 # time plot
-time_all_T <- cbind("stats::cov"                   = time_SCM_T,
-                    "QRM::fit.mst"                 = time_QRM_fit.mst_T,
-                    "MASS::cov.trob (nu=6)"        = time_MASS_cov.trov_T,
-                    "MASS::cov.mve"                = time_MASS_cov.mve_T,
-                    "robustbase::covMcd"           = time_robustbase_covMcd_T,
-                    "robust::covRob"               = time_robust_covRob_T,
-                    "covRobust::cov.nnve"          = time_covRobust_cov.nnve_T,
-                    "fitHeavyTail::fit_Tyler"      = time_fitHeavyTail_Tyler_T,
-                    "fitHeavyTail::fit_Cauchy"     = time_fitHeavyTail_Cauchy_T,
-                    "fitHeavyTail::fit_mvt (nu=6)" = time_fitHeavyTail_Studentt_nu_T,
-                    "fitHeavyTail::fit_mvt"        = time_fitHeavyTail_Studentt_T)
-rownames(time_all_T) <- T_sweep
 time_all_T[is.na(MSE_all_T)] <- NA
 ggplot(melt(time_all_T, varnames = c("Var1", "method")), aes(x = Var1, y = value, col = method, shape = method)) +
   geom_line() + geom_point(size = 2) + scale_y_log10() +
   scale_shape_manual(values = 1:ncol(time_all_T)) +
   ggtitle(bquote("Computational cost for different methods (" * N == .(N) * "," ~ nu == .(nu)* ")")) +
   xlab("T") + ylab("cpu time")
+```
 
-
+The following plot gives a nice overall perspective of the MSE vs. cput time tradeoff of the different methods:
+```{r plots, warning=FALSE, echo=FALSE, fig.width = 9, fig.height = 5, out.width = "100%"}
 # joint MSE-time plot
+mse4 <- tail(MSE_all_T["100", ], 4)    # for the ellipse
+time4 <- tail(time_all_T["100", ], 4)  #
 ggplot(data.frame("MSE" = MSE_all_T["100", ], "cpu_time" = time_all_T["100", ], "method" = colnames(MSE_all_T)), 
        aes(x = cpu_time, y = MSE, col = method)) +
   scale_color_discrete(limits = colnames(MSE_all_T)) +  # this is to order the legend items
   geom_point(size = 3) +
-  geom_ellipse(aes(x0 = 0.0038, y0 = 11.6, a = 8e-3, b = 4, angle = 0), col = "black", size = 0.5) +
+  geom_ellipse(aes(x0 = mean(time4), y0 = mean(mse4), a = 1.5*(max(time4) - min(time4)), b = 1.5*(max(mse4) - min(mse4)), angle = 0), 
+               col = "black", size = 0.5) +
   ggtitle(bquote("Performance vs cpu time for different methods (" * N == .(N) * ", T = 100," ~ nu == .(nu)* ")"))
 ```
 
@@ -361,24 +339,23 @@ From the numerical results we can draw several observations:
 - `fitHeavyTail::fit_Tyler()` normalizes the data (to get rid of the shape of the tail); it shows a very small estimation error with an acceptable computational cost.
 - `fitHeavyTail::fit_Cauchy()` assumes a multivariate Cauchy distribution and depending on the ratio $N/T$ can be better or worse than the Tyler counterpart.
 - `fitHeavyTail::fit_mvt()` assumes the data follows a multivariate $t$ distribution; it shows a small estimation error with accepteable computational cost.
-- `fitHeavyTail::fit_mvt()` with fixed `nu = 6` seems to perform much better than `fitHeavyTail::fit_mvt()` which also estimates `nu`.
+- `fitHeavyTail::fit_mvt()` with fixed `nu = 6` seems to perform similar to `fitHeavyTail::fit_mvt()`, which also estimates `nu`, with a lower cpu time.
 - Note the ellipse at the bottom left that embraces the best four methods: `fitHeavyTail::fit_Tyler()`, `fitHeavyTail::fit_Cauchy()`, `fitHeavyTail::fit_mvt()`, and `fitHeavyTail::fit_mvt()` with fixed `nu = 6`.
 
 
 Concluding, the top choices seem to be (in order):
 
-1. `fitHeavyTail::fit_mvt()` (with `nu = 6`),
-2. `fitHeavyTail::fit_mvt()` (without fixing `nu`),
-3. `fitHeavyTail::fit_Tyler()` or `fitHeavyTail::fit_Cauchy()` depending on the ratio $N/T$, and
-4. `MASS::cov.trob()` (with the advantage of being preinstalled with base R).
+1. `fitHeavyTail::fit_mvt()` (either without fixing `nu` or with `nu = 6`),
+2. `fitHeavyTail::fit_Tyler()` or `fitHeavyTail::fit_Cauchy()` depending on the ratio $N/T$, and
+3. `MASS::cov.trob()` (with the advantage of being preinstalled with base R).
 
 
-The winner seems to be by a big margin `fitHeavyTail::fit_mvt()` (with `nu = 6`).
+The winner seems to be by a big margin `fitHeavyTail::fit_mvt()`.
 
 
 
 # Algorithms
-In essense, all the algorithms are based on the maximum likelihood estimation (MLE) of some assumed distribution given the observed data. The difficulty comes from the fact that the optimal solution to such MLE formulations becomes too involved in the form of a fixed-point equation and the framework of Majorization-Minimization (MM) algorithms [@SunBabPal2017] becomes key to derive efficient algorithms. 
+In essence, all the algorithms are based on the maximum likelihood estimation (MLE) of some assumed distribution given the observed data. The difficulty comes from the fact that the optimal solution to such MLE formulations becomes too involved in the form of a fixed-point equation and the framework of Majorization-Minimization (MM) algorithms [@SunBabPal2017] becomes key to derive efficient algorithms. 
 
 In some cases, the probability distribution function becomes too complicated to manage directly (like the multivariate Student's $t$ distribution) and it is necessary to resort to a hierarchical distribution that involves some latent variables. In order to deal with such hidden variables, one has to resort to the Expectation-Maximization (EM) algorithm, which interestingly is an instance of the MM algorithm.
 
