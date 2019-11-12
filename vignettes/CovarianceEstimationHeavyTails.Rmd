@@ -151,7 +151,7 @@ ggplot(data.frame(x = X[, i1], y = X[, i2]), aes(x, y)) +
 
 
 # Numerical Comparison with Existing Packages
-In the following, we generate multivariate heavy-tailed Student's $t$ distributed data and compare the performance of many different existing packages in terms of estimation accurary measured by the mean squared error (MSE) and cpu time.
+In the following, we generate multivariate heavy-tailed Student's $t$ distributed data and compare the performance of many different existing packages in terms of estimation accurary, measured by the mean squared error (MSE), and cpu time.
 
 ```{r, echo=FALSE}
 library(mvtnorm)
@@ -311,8 +311,10 @@ ggplot(melt(time_all_T, varnames = c("Var1", "method")), aes(x = Var1, y = value
   scale_shape_manual(values = 1:ncol(time_all_T)) +
   ggtitle(bquote("Computational cost for different methods (" * N == .(N) * "," ~ nu == .(nu)* ")")) +
   xlab("T") + ylab("cpu time")
+```
 
-
+The following plot gives a nice overall perspective of the MSE vs. cput time tradeoff of the different methods:
+```{r plots, warning=FALSE, echo=FALSE, fig.width = 9, fig.height = 5, out.width = "100%"}
 # joint MSE-time plot
 mse4 <- tail(MSE_all_T["100", ], 4)    # for the ellipse
 time4 <- tail(time_all_T["100", ], 4)  #
@@ -324,7 +326,6 @@ ggplot(data.frame("MSE" = MSE_all_T["100", ], "cpu_time" = time_all_T["100", ], 
                col = "black", size = 0.5) +
   ggtitle(bquote("Performance vs cpu time for different methods (" * N == .(N) * ", T = 100," ~ nu == .(nu)* ")"))
 ```
-
 
 From the numerical results we can draw several observations:
 
