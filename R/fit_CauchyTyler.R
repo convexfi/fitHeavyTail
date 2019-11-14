@@ -77,7 +77,7 @@ gmean <- function(X, method = "mean", k = NULL) {
 #' @export
 #' @importFrom stats cov var
 #' @importFrom utils tail
-momentsTyler <- function(X, verbose = FALSE) {
+fit_Tyler <- function(X, verbose = FALSE) {
   max_iter <- 100
   error_th_Sigma <- 1e-3
 
@@ -120,14 +120,14 @@ momentsTyler <- function(X, verbose = FALSE) {
   #          ly_lines(na.omit(obj_value_record), color="blue") )
 
   #finally, recover missing scaling factor
-  sigma2 <- apply(X, 2, var)
-  d <- diag(Sigma)
-  kappa <- crossprod(sigma2, d)/crossprod(d, d)  # (sigma2 %*% d) / (d %*% d)
-  Sigma <- as.numeric(kappa)*Sigma
+  kappa <- scaling_fitting_ka_with_b(a = diag(Sigma), b = apply(X^2, 2, mean, trim = max(1/T, 0.03)))
+  Sigma <- kappa * Sigma
 
   return( list(mu = mu, cov = Sigma,
                obj_value_record = na.omit(obj_value_record)) )
 }
+
+
 
 
 
@@ -156,7 +156,7 @@ momentsTyler <- function(X, verbose = FALSE) {
 #' @export
 #' @importFrom stats cov var
 #' @importFrom utils tail
-momentsCauchy <- function(X, verbose = FALSE) {
+fit_Cauchy <- function(X, verbose = FALSE) {
   max_iter <- 100
   error_th_mu <- 1e-3
   error_th_Sigma <- 1e-3
@@ -205,128 +205,22 @@ momentsCauchy <- function(X, verbose = FALSE) {
   #          ly_lines(na.omit(obj_value_record), color="blue") )
 
   #finally, recover missing scaling factor (since we are imposing nu=1 rather than estimating it)
-  sigma2 <- apply(X, 2, var)
-  d <- diag(Sigma)
-  kappa <- crossprod(sigma2, d)/crossprod(d, d)  # (sigma2 %*% d) / (d %*% d)
-  Sigma <- as.numeric(kappa)*Sigma
+  kappa <- scaling_fitting_ka_with_b(a = diag(Sigma), b = apply(X^2, 2, mean, trim = max(1/T, 0.03)))
+  Sigma <- kappa * Sigma
 
   return( list(mu = mu, cov = Sigma,
                obj_value_record = na.omit(obj_value_record)) )
 }
 
 
-
-#' Estimation of mean and covariance matrix based on fitting data to the Student-t distribution.
-#'
-#' The function \code{momentsStudentt} implements a maximum likelihood estimation (MLE) of the mean, covariance matrix,
-#' and degrees of freedom nu to fit the data to a Student-t distribution (via the ECME algorithm).
-#'
-#' @param X Data matrix containing the multivariate time series (each column is one time series).
-#' @param nu If passed, then \code{nu} will not be optimized and will be set to that value.
-#' @param method Choice of method c("ECM", "ECME") for the maximization of \code{nu}.
-#' @param verbose If \code{TRUE}, info about iterations for convergence will be output.
-#' @return A list with the following components:
-#' \item{\code{mu}}{mean estimate}
-#' \item{\code{cov}}{covariance matrix estimate}
-#' \item{\code{nu}}{degrees of freedom}
-#' \item{\code{obj_value_record}}{convergence of objective value vs iterations}
-#' @author Daniel P. Palomar and Junyan LIU
-#' @references
-#' Chuanhai Liu and Donald B. Rubin, “ML estimation of the t-distribution using EM and its extensions, ECM and ECME,”
-#' Statistica Sinica (5), pp. 19-39, 1995.
-#' @examples
-#' data(heavy_data)
-#' res <- momentsStudentt(heavy_data$X)
-#' norm(res$mu - heavy_data$mu, "2")
-#' norm(colMeans(heavy_data$X) - heavy_data$mu, "2")
-#' norm(res$cov - heavy_data$cov, "F")
-#' norm(cov(heavy_data$X) - heavy_data$cov, "F")
-#' @export
-#' @importFrom stats cov var optimize
-#' @importFrom mvtnorm dmvt
-momentsStudentt <- function(X, nu = NULL, max_iter = 100, method = "ECM", verbose = FALSE) {
-  error_th_nu <- 0.1
-  error_th_Sigma <- 1e-3
-  error_th_mu <- 1e-3
-
-  #error control
-  if (anyNA(X)) stop("This function cannot handle NAs.")
-  X <- as.matrix(X)
-  T <- nrow(X)
-  N <- ncol(X)
-  if (T == 1) stop("Only T=1 sample!!")
-  if (N == 1) stop("Data is univariate!")
-
-  optimize_nu <- ifelse(is.null(nu), TRUE, FALSE)
-  if (!optimize_nu && nu == Inf)
-    nu <- 1e15
-
-  #initial point based on sample mean and SCM
-  if (optimize_nu)
-    nu <- 4
-  mu <- colMeans(X)
-  Sigma <- (nu-2)/nu*cov(X)  #Sigma is the scatter matrix, not the covariance matrix
-
-  #loop
-  nu_record <- obj_value_record <- mu_diff_record <- Sigma_diff_record <- nu_diff_record <- rep(NA, max_iter)
-  for (k in 1:max_iter) {
-    mu_prev <- mu
-    Sigma_prev <- Sigma
-    nu_prev <- nu
-
-    # update
-    X_ <- X - matrix(mu, T, N, byrow = TRUE)
-    tmp <- rowSums(X_ * (X_ %*% inv(Sigma)))  # diag( X_ %*% inv(Sigma) %*% t(X_) )
-    obj_value_record[k] <- sum(mvtnorm::dmvt(X, delta = mu, sigma = Sigma, df = nu, log = TRUE, type = "shifted"))
-    # update mu and sigma
-    weights <- (nu+N)/(nu+tmp)  #E_tau
-    mu <- as.vector(weights %*% X)/sum(weights)
-    X_ <- X - matrix(mu, T, N, byrow = TRUE)  #this is slower: sweep(X, 2, FUN = "-", STATS = mu)  #X_ <- X - rep(mu, each = TRUE)  # this is wrong?
-    beta <- T/sum(weights)  #acceleration
-    X_demeaned_gaussianized <- sqrt(beta) * sqrt(weights) * X_
-    Sigma <- (1/T) * crossprod(X_demeaned_gaussianized)  # (1/T) * t(X_) %*% diag(weights) %*% X_
-    # update nu
-    if (optimize_nu) {
-      switch(method,
-             "ECM" = {
-               # based on minus the Q function of nu
-               S <- T*(digamma((N+nu)/2) - log((N+nu)/2)) + sum(log(weights) - weights)  # S is E_log_tau-E_tau
-               Q_nu <- function(nu) { - T*(nu/2)*log(nu/2) + T*lgamma(nu/2) - (nu/2)*sum(S) }
-               nu <- optimize(Q_nu, interval = c(2 + 1e-16, 100))$minimum
-             },
-             "ECME" = {
-               # based on minus log-likelihood of nu with mu and sigma fixed to mu[k+1] and sigma[k+1]
-               tmp <- rowSums(X_ * (X_ %*% inv(Sigma)))  # diag( X_ %*% inv(Sigma) %*% t(X_) )
-               LL_nu <- function(nu) { - sum ( - ((nu+N)/2)*log(nu+tmp) + lgamma( (nu+N)/2 ) - lgamma(nu/2) + (nu/2)*log(nu) ) }
-               nu <- optimize(LL_nu, interval = c(2 + 1e-16, 100))$minimum
-             },
-             stop("Method unknown")
-      )
-    }
-
-    #stopping criterion
-    nu_record[k] <- nu
-    nu_diff_record[k] <- abs((nu - nu_prev)/nu_prev)
-    #nu_diff_record[k] <- abs((log(nu) - log(nu_prev))/log(nu_prev))
-    mu_diff_record[k] <- norm(mu - mu_prev, "2")/norm(mu_prev, "2")
-    Sigma_diff_record[k] <- norm(Sigma - Sigma_prev, "F")/norm(Sigma_prev, "F")
-    if (mu_diff_record[k] < error_th_mu && Sigma_diff_record[k] < error_th_Sigma && nu_diff_record[k] < error_th_nu)
-      break
+# IRLS method to minimize ||k*a - b||_1 w.r.t. k
+scaling_fitting_ka_with_b <- function(a, b, num_iter = 5) {
+  for (i in 1:num_iter) {
+    w <- if (i == 1) rep(1, length(a))
+    else 1 / pmax(1e-5, abs(kappa * a - b))
+    kappa <- sum(w*a*b) / sum(w*a^2)
   }
-  if (verbose) cat(sprintf("Number of iterations for Student-t estimator = %d\n", k))
-  # print( figure(width=700, title="Convergence of parameters", xlab="t", ylab="param diff") %>%
-  #          ly_lines(na.omit(nu_diff_record), color="black", legend="nu") %>%
-  #          ly_lines(na.omit(mu_diff_record), color="blue", legend="mu") %>%
-  #          ly_lines(na.omit(Sigma_diff_record), color="green", legend="Sigma") )
-  # figure(width=700, title="Convergence of parameters", xlab="t", ylab="nu") %>%
-  #   ly_lines(na.omit(nu_record), color="black", legend="nu")
-
-  X_demeaned_gaussianized <- sqrt(nu/(nu - 2)) * X_demeaned_gaussianized
-  # note that norm((1/T)*t(X_demeaned_gaussianized) %*% X_demeaned_gaussianized - nu/(nu-2)*Sigma, "F")
-
-  names(mu) <- colnames(X)
-
-  return(list(mu = mu, cov = nu/(nu-2)*Sigma, scatter = Sigma, nu = nu,
-              obj_value_record = na.omit(obj_value_record),
-              Xcg = X_demeaned_gaussianized))
+  return(kappa)
 }
+
+

@@ -59,11 +59,7 @@ at each iteration (default is \code{FALSE}).}
 \item{verbose}{Logical value indicating whether to allow the function to print messages (default is \code{FALSE}).}
 }
 \value{
-The estimated parameters as a list, namely, the mean vector in \code{mu}, the covariance matrix in \code{cov},
-        the scatter matrix in \code{scatter}, and the degrees of freedom in in \code{nu}. Some additional elements
-        may be returned if \code{return_iterates = TRUE}.
-
-        A list containing possibly the following elements:
+A list containing possibly the following elements:
         \item{\code{mu}}{Mean vector estimate.}
         \item{\code{cov}}{Covariance matrix estimate.}
         \item{\code{scatter}}{Scatter matrix estimate.}

@@ -51,11 +51,7 @@
 #'                        at each iteration (default is \code{FALSE}).
 #' @param verbose Logical value indicating whether to allow the function to print messages (default is \code{FALSE}).
 #'
-#' @return The estimated parameters as a list, namely, the mean vector in \code{mu}, the covariance matrix in \code{cov},
-#'         the scatter matrix in \code{scatter}, and the degrees of freedom in in \code{nu}. Some additional elements
-#'         may be returned if \code{return_iterates = TRUE}.
-#'
-#'         A list containing possibly the following elements:
+#' @return A list containing possibly the following elements:
 #'         \item{\code{mu}}{Mean vector estimate.}
 #'         \item{\code{cov}}{Covariance matrix estimate.}
 #'         \item{\code{scatter}}{Scatter matrix estimate.}
@@ -97,6 +93,7 @@ fit_mvt <- function(X, initial = NULL, factors = ncol(X),
   ####### error control ########
   X <- try(as.matrix(X), silent = TRUE)
   if (!is.matrix(X)) stop("\"X\" must be a matrix or coercible to a matrix.")
+  if (is.null(colnames(X))) colnames(X) <- 1:ncol(X)
   if (!all(is.na(X) | is.numeric(X))) stop("\"X\" only allows numerical or NA values.")
   if (ncol(X) <= 1) X <- X[!is.na(X), , drop = FALSE]
   if (nrow(X) <= 1) stop("Only T=1 sample!!")
@@ -104,7 +101,6 @@ fit_mvt <- function(X, initial = NULL, factors = ncol(X),
   max_iter <- round(max_iter)
   if (factors < 1 || factors > ncol(X)) stop("\"factors\" must be no less than 1 and no more than column number of \"X\".")
   if (max_iter < 1) stop("\"max_iter\" must be greater than 1.")
-  # if (nrow(X) <= 2*ncol(X) && nu_regcoef <= 0 && is.null(nu)) warning("Small sample size! Estimation results might be inaccurate, please try regularized mode (set \"nu_regcoef\" > 0).")
   ##############################
 
   T <- nrow(X)
@@ -115,10 +111,10 @@ fit_mvt <- function(X, initial = NULL, factors = ncol(X),
   optimize_nu <- is.null(nu)
   if (!optimize_nu) {
     if (nu == Inf) nu <- 1e15  # for numerical stability (for the Gaussian case)
-    if (nu == "kurtosis") {  # estimate nu if argument nu = "kurtosis"
+    else if (nu == "kurtosis") {  # estimate nu if argument nu = "kurtosis"
       nu <- est_nu_kurtosis(X)
       if (verbose) message(sprintf("Automatically set nu = %.2f", nu))
-    }
+    } else if (!is.numeric(nu) || nu <=2 ) stop("Non-valid value for nu.")
   } else  # choose nu_target if necessary
     if (is.null(nu_target)) {
       if (nu_regcoef > 0) {  # really need nu_target
@@ -126,7 +122,7 @@ fit_mvt <- function(X, initial = NULL, factors = ncol(X),
         if (verbose) message(sprintf("Automatically choose a target nu = %.2f", nu_target))
       } else  # no need to have nu_target, but assign a value to simplify following codes
         nu_target <- 0
-    }
+    } else if (nu_target < 2) stop("Non-valid value for nu_target.")
 
   # initialize all parameters
   alpha <- 1  # an extra variable for PX-EM acceleration
@@ -225,13 +221,13 @@ fit_mvt <- function(X, initial = NULL, factors = ncol(X),
   }
 
   ## -------- return variables --------
-
   vars_to_be_returned <- list("mu"          = mu,
                               "cov"         = nu/(nu-2) * Sigma,
                               "nu"          = nu,
                               "scatter"     = Sigma)
   if (FA_struct) {
-    rownames(B) <- names(psi) <- colnames(X)  # add name first
+    rownames(B) <- names(psi) <- colnames(X)
+    colnames(B) <- paste0("factor-", 1:ncol(B))
     vars_to_be_returned$B   <- B
     vars_to_be_returned$psi <- psi
   }
@@ -242,7 +238,6 @@ fit_mvt <- function(X, initial = NULL, factors = ncol(X),
     vars_to_be_returned$iterates_record <- iterates_record
   }
   vars_to_be_returned$converged <- iter < max_iter
-
   return(vars_to_be_returned)
 }
 
@@ -312,6 +307,7 @@ Estep <- function(mu, full_Sigma, psi, nu, X) {
 indexRowOfMatrix <- function(target_vector, mat) {
   return(which(apply(mat, 1, function(x) all.equal(x, target_vector) == "TRUE")))
 }
+
 
 # solve optimal nu via bisection method:
 # log(nu/2) - digamma(nu/2) = y
