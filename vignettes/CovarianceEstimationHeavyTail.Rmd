@@ -37,7 +37,7 @@ opts_chunk$set(
 )
 knitr_in_progress <- isTRUE(getOption('knitr.in.progress'))
 knit_hooks$set(pngquant = hook_pngquant)
-# rmarkdown::render("vignettes/CovarianceEstimationHeavyTails.Rmd", "prettydoc::html_pretty")
+# rmarkdown::render("vignettes/CovarianceEstimationHeavyTail.Rmd", "prettydoc::html_pretty")
 ```
 
 -----------
@@ -172,8 +172,6 @@ Sigma_scatter <- (nu-2)/nu * Sigma
 library(fitHeavyTail)
 library(tictoc)
 library(parallel)  # detectCores(logical = FALSE)
-#library(foreach)
-#library(doParallel)
 
 MSE <- function(Sigma_hat) norm(Sigma_hat - Sigma, "F")^2
 
@@ -217,11 +215,11 @@ eval_single <- function(X) {
   MSE[name]   <- MSE(Sigma_hat)
   
   name        <- "fitHeavyTail::fit_Tyler"
-  time[name]  <- system.time({Sigma_hat <- fitHeavyTail:::momentsTyler(X)$cov})["elapsed"]
+  time[name]  <- system.time({Sigma_hat <- fitHeavyTail:::fit_Tyler(X)$cov})["elapsed"]
   MSE[name]   <- MSE(Sigma_hat)
   
   name        <- "fitHeavyTail::fit_Cauchy"
-  time[name]  <- system.time({Sigma_hat <- fitHeavyTail:::momentsCauchy(X)$cov})["elapsed"]
+  time[name]  <- system.time({Sigma_hat <- fitHeavyTail:::fit_Cauchy(X)$cov})["elapsed"]
   MSE[name]   <- MSE(Sigma_hat)
 
   name        <- "fitHeavyTail::fit_mvt (nu=6)"
@@ -243,7 +241,7 @@ eval_single <- function(X) {
   return(list("MSE" = MSE, "time" = time))
 }
 
-N_realiz <- 200  # multiple realizations for averaging
+N_realiz <- 100  # multiple realizations for averaging
 T_sweep <- round(seq(from = ceiling(1.5*N), to = 5*N, length.out = 12))
 if (!knitr_in_progress) pbar <- txtProgressBar(min = it <- 0, max = length(T_sweep), style = 3)
 MSE_all_T <- time_all_T <- NULL
@@ -255,7 +253,8 @@ for(T in T_sweep) {
   X <- replicate(N_realiz, rmvt(n = T, delta = mu, sigma = Sigma_scatter, df = nu), simplify = FALSE)
 
   # then, run the estimation in parallel (https://bookdown.org/rdpeng/rprogdatascience/parallel-computation.html)
-  res <- mclapply(X, eval_single, mc.cores = 4)
+  #res <- mclapply(X, eval_single, mc.cores = 4)
+  res <- lapply(X, eval_single)
 
   # finally, keep track of MSEs and times
   MSE_all_T  <- rbind(MSE_all_T,  rowMeans(sapply(res, function(x) x$MSE)))
@@ -266,6 +265,13 @@ rownames(time_all_T) <- rownames(MSE_all_T) <- T_sweep
 ```
 
 ```{r, eval=FALSE, echo=FALSE}
+#library(foreach)
+#library(doParallel)
+  # https://bookdown.org/rdpeng/rprogdatascience/parallel-computation.html
+  # https://nceas.github.io/oss-lessons/parallel-computing-in-r/parallel-computing-in-r.html
+  # https://docs.microsoft.com/en-us/machine-learning-server/r/how-to-revoscaler-distributed-computing-foreach
+  # http://dept.stat.lsa.umich.edu/~jerrick/courses/stat701/notes/parallel.html
+
 # other options for paralellizations:
 for(T in T_sweep) {
   if (!knitr_in_progress) setTxtProgressBar(pbar, it <- it + 1)
@@ -274,8 +280,7 @@ for(T in T_sweep) {
   X <- replicate(N_realiz, rmvt(n = T, delta = mu, sigma = Sigma_scatter, df = nu), simplify = FALSE)
   #X <- foreach(1:N_realiz) %do% rmvt(n = T, delta = mu, sigma = Sigma_scatter, df = nu)
 
-  # then, run the estimation in parallel (https://bookdown.org/rdpeng/rprogdatascience/parallel-computation.html)
-  # (https://nceas.github.io/oss-lessons/parallel-computing-in-r/parallel-computing-in-r.html)
+  # then, run the estimation in parallel 
   #res <- lapply(X, eval_single)
   #res <- foreach(i = 1:N_realiz) %do% eval_single(X[[i]])
   res <- mclapply(X, eval_single, mc.cores = 4)
@@ -289,7 +294,7 @@ for(T in T_sweep) {
 ```
 
 
-```{r plots, warning=FALSE, echo=FALSE, fig.width = 9, fig.height = 5, out.width = "100%"}
+```{r plots-1, warning=FALSE, echo=FALSE, fig.width = 9, fig.height = 5, out.width = "100%"}
 library(ggplot2)
 library(reshape2)
 library(ggforce)  # for geom_ellipse
@@ -314,7 +319,7 @@ ggplot(melt(time_all_T, varnames = c("Var1", "method")), aes(x = Var1, y = value
 ```
 
 The following plot gives a nice overall perspective of the MSE vs. cput time tradeoff of the different methods:
-```{r plots, warning=FALSE, echo=FALSE, fig.width = 9, fig.height = 5, out.width = "100%"}
+```{r plots-2, warning=FALSE, echo=FALSE, fig.width = 9, fig.height = 5, out.width = "100%"}
 # joint MSE-time plot
 mse4 <- tail(MSE_all_T["100", ], 4)    # for the ellipse
 time4 <- tail(time_all_T["100", ], 4)  #
@@ -361,11 +366,38 @@ In some cases, the probability distribution function becomes too complicated to 
 
 In particular:
 
-- The function `fitHeavyTail::fit_Tyler()` normalizes the centered samples, which then have an angular Gaussian distribution on the sphere, and performs an MLE based on the MM algorithm [@SunBabPal2014].
+- The function `fitHeavyTail::fit_Tyler()` normalizes the centered samples $\mathbf{x}_t - \boldsymbol{\mu}$, which then have an angular Gaussian distribution on the sphere, and performs an MLE based on the MM algorithm [@SunBabPal2014]. The MLE formulation is
+$$
+\begin{array}{ll}
+\underset{\boldsymbol{\Sigma}}{\textsf{maximize}} & 
+  -\frac{T}{2}\log\det(\boldsymbol{\Sigma})
+  - \frac{N}{2}\sum\limits_{t=1}^{T}\log{\left((\mathbf{x}_t - \boldsymbol{\mu})^T\boldsymbol{\Sigma}^{-1}(\mathbf{x}_t - \boldsymbol{\mu})\right)}.
+\end{array}
+$$
 
-- The function `fitHeavyTail::fit_Cauchy()` assumes that the data follows a multivariate Cauchy distribution and performs an MLE based on the MM algorithm [@SunBabPal2015].
+- The function `fitHeavyTail::fit_Cauchy()` assumes that the data follows a multivariate Cauchy distribution ($t$ distribution with $\nu=1$) and performs an MLE based on the MM algorithm [@SunBabPal2015]. The MLE formulation is
+$$
+\begin{array}{ll}
+\underset{\boldsymbol{\mu},\boldsymbol{\Sigma}}{\textsf{maximize}} & 
+  -\frac{T}{2}\log\det(\boldsymbol{\Sigma})
+  - \frac{N+1}{2}\sum\limits_{t=1}^{T}\log{\left(1+(\mathbf{x}_t - \boldsymbol{\mu})^T\boldsymbol{\Sigma}^{-1}(\mathbf{x}_t - \boldsymbol{\mu})\right)}
+\end{array}
+$$
 
-- The function `fitHeavyTail::fit_mvt()` assumes the the data follows a multivariate Student's $t$ distribution and performs an MLE based on the EM algorithm [@LiuRubin95]. This function can also incorporate a factor model structure on the covariance matrix, which requires a more sophisticated algorithm [@ZhouLiuKumarPalomar2019] (available in [arXiv](https://arxiv.org/abs/1909.12530)).
+- The function `fitHeavyTail::fit_mvt()` assumes the the data follows a multivariate Student's $t$ distribution and performs an MLE based on the EM algorithm [@LiuRubin95]. The MLE formulation is
+$$
+\begin{array}{ll}
+\underset{\boldsymbol{\mu},\boldsymbol{\Sigma},\nu}{\textsf{maximize}} & 
+  \begin{aligned}[t]
+  -\frac{T}{2}\log\det(\boldsymbol{\Sigma})
+  - \frac{N+\nu}{2}\sum\limits_{t=1}^{T}\log{\left(1+\frac{1}{\nu}(\mathbf{x}_t - \boldsymbol{\mu})^T\boldsymbol{\Sigma}^{-1}(\mathbf{x}_t - \boldsymbol{\mu})\right)}\\
+  + T\log{\Gamma\left(\frac{N+\nu}{2}\right)} 
+  - T\log{\Gamma\left(\frac{\nu}{2}\right)} 
+  - \frac{TN}{2}\log{\nu}.
+  \end{aligned}
+\end{array}
+$$
+This function can also incorporate a factor model structure on the covariance matrix $\boldsymbol{\Sigma} = \mathbf{B}\mathbf{B}^T + {\sf Diag}(\boldsymbol{\psi})$, which requires a more sophisticated algorithm [@ZhouLiuKumarPalomar2019] (available in [arXiv](https://arxiv.org/abs/1909.12530)).
 
 
 
