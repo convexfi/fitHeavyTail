@@ -46,8 +46,14 @@ test_that("default mode works", {
   load("mvt_model_check.RData")
   expect_equal(mvt_model, mvt_model_check)
 
+  # test for xts
   fitted_xts <- fit_mvt(X_xts)
   expect_equal(mvt_model, fitted_xts)
+
+  # test for vector
+  fitted_1colmatrix <- fit_mvt(X[, 1])
+  fitted_vector <- fit_mvt(as.vector(X[, 1]))
+  expect_equal(fitted_1colmatrix, fitted_vector)
 })
 
 
