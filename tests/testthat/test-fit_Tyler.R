@@ -12,14 +12,14 @@ test_that("error control works", {
 })
 
 
-test_that("cov estimates are ok", {
+test_that("cov estimate works", {
   # test against fit_mvt()
   fitted_Tyler <- fit_Tyler(X)
   fitted_mvt <- fit_mvt(X)
-  expect_equal(fitted_Tyler$cov, fitted_mvt$cov, tolerance = 0.27)
+  expect_equal(fitted_Tyler$cov, fitted_mvt$cov, tolerance = 0.45)
 
   # # plotting convergence
-  # fitted_Tyler <- fit_Tyler(X, verbose = TRUE, return_iterates = TRUE)
+  # fitted_Tyler <- fit_Tyler(X, ftol = 1, verbose = TRUE, return_iterates = TRUE)
   # plotConvergence(fitted_Tyler)
 
   # test agains saved results

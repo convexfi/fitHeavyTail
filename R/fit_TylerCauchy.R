@@ -68,10 +68,9 @@ fit_Tyler <- function(X, initial = NULL, max_iter = 100, ptol = 1e-3, ftol = Inf
     Sigma <- Sigma/sum(diag(Sigma))
   } else Sigma <- initial$cov
   X_ <- X_ <- X - matrix(mu, T, N, byrow = TRUE)  # demean data
-  if (ftol < Inf) {
-    weights <- 1/rowSums(X_ * (X_ %*% inv(Sigma)))   # 1/diag( X_ %*% inv(Sigma) %*% t(X_) )
-    log_likelihood <- - (N/2)*sum(log(weights)) + (T/2)*log(det(Sigma))
-  }
+  weights <- 1/rowSums(X_ * (X_ %*% inv(Sigma)))   # 1/diag( X_ %*% inv(Sigma) %*% t(X_) )
+  if (ftol < Inf)
+    log_likelihood <- (N/2)*sum(log(weights)) - (T/2)*log(det(Sigma))
 
   # aux function to save iterates
   snapshot <- function() {
@@ -87,14 +86,14 @@ fit_Tyler <- function(X, initial = NULL, max_iter = 100, ptol = 1e-3, ftol = Inf
     if (ftol < Inf) log_likelihood_prev <- log_likelihood
 
     # Tyler update
-    weights <- 1/rowSums(X_ * (X_ %*% inv(Sigma)))   # 1/diag( X_ %*% inv(Sigma) %*% t(X_) )
     Sigma <- (N/T) * crossprod(sqrt(weights)*X_)  # (N/T) * t(X_) %*% diag(weights) %*% X_
     Sigma <- Sigma/sum(diag(Sigma))
+    weights <- 1/rowSums(X_ * (X_ %*% inv(Sigma)))   # 1/diag( X_ %*% inv(Sigma) %*% t(X_) )
 
     #stopping criterion
-    has_param_converged <- all(abs(Sigma - Sigma_prev) <= .5 * ptol * (abs(Sigma_prev) + abs(Sigma)))
+    has_param_converged <- all(abs(Sigma - Sigma_prev) <= .5 * ptol * (abs(Sigma) + abs(Sigma_prev)))
     if (ftol < Inf) {
-      log_likelihood <- - (N/2)*sum(log(weights)) + (T/2)*log(det(Sigma))
+      log_likelihood <- (N/2)*sum(log(weights)) - (T/2)*log(det(Sigma))
       has_fun_converged <- abs(log_likelihood - log_likelihood_prev) <= .5 * ftol * (abs(log_likelihood) + abs(log_likelihood_prev))
     } else has_fun_converged <- TRUE
 
