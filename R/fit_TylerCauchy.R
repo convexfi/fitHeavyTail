@@ -108,6 +108,7 @@ fit_Tyler <- function(X, initial = NULL, max_iter = 100, ptol = 1e-3, ftol = Inf
   Sigma <- kappa * Sigma
 
   # return variables
+  #Sigma <- T/(T-1) * Sigma  # unbiased estimator
   vars_to_be_returned <- list("mu"  = mu, "cov" = Sigma)
   if (ftol < Inf)
     vars_to_be_returned$log_likelihood <- log_likelihood
