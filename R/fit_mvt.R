@@ -9,7 +9,7 @@
 #'
 #' @details This function estimates the parameters of a multivariate Student's t distribution (\code{mu},
 #'          \code{cov}, \code{scatter}, and \code{nu}) to fit the data via the expectation–maximization (EM) algorithm.
-#'          The data matrix \code{X} can contain missing values denoted by NAs.#'
+#'          The data matrix \code{X} can contain missing values denoted by NAs.
 #'          The estimation of \code{nu} if very flexible: it can be directly passed as an argument (without being estimated),
 #'          it can be estimated by maximizing the log-likelihood or a surrogate function (methods \code{"ECME"} and
 #'          \code{"ECM"}, respectively), and it can be estimated by maximizing the log-likelihood regularized with a

@@ -2,7 +2,7 @@
 # example:
 #   fitted_Tyler <- fit_Tyler(X, return_iterates = TRUE)
 #   plotConvergence(fitted_Tyler)
-#
+#' @importFrom stats median
 plotConvergence <- function(res_fit) {
   if (is.null(res_fit$iterates_record))
     stop("Fitting result does not contain iteration converge. Make sure to use \"return_iterates = TRUE\" when doing the fitting.")
