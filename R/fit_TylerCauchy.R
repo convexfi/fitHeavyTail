@@ -87,7 +87,7 @@ fit_Tyler <- function(X, initial = NULL, max_iter = 100, ptol = 1e-3, ftol = Inf
     Sigma_prev <- Sigma
     if (ftol < Inf) log_likelihood_prev <- log_likelihood
 
-    # Tyler update
+    # Tyler update (no need for acceleration due to the trace normalization)
     Sigma <- (N/T) * crossprod(sqrt(weights)*X_)  # (N/T) * t(X_) %*% diag(weights) %*% X_
     Sigma <- Sigma/sum(diag(Sigma))
     weights <- 1/rowSums(X_ * (X_ %*% inv(Sigma)))   # 1/diag( X_ %*% inv(Sigma) %*% t(X_) )
@@ -203,7 +203,6 @@ fit_Cauchy <- function(X, initial = NULL, max_iter = 100, ptol = 1e-3, ftol = In
     else list(mu = mu, scatter = Sigma)
   }
 
-
   # loop
   if (return_iterates) iterates_record <- list(snapshot())
   for (iter in 1:max_iter) {
@@ -215,8 +214,8 @@ fit_Cauchy <- function(X, initial = NULL, max_iter = 100, ptol = 1e-3, ftol = In
     # update
     mu <- as.vector(weights %*% X)/sum(weights)
     X_ <- X - matrix(mu, T, N, byrow = TRUE)
-    beta <- T/(N+1)/sum(weights)  # acceleration
-    Sigma <- beta*((N+1)/T) * crossprod(sqrt(weights)*X_)  # (N/T) * t(X_) %*% diag(weights) %*% X_
+    beta <- T/(N+1)/sum(weights)  # acceleration (otherwise set beta=1)
+    Sigma <- beta * (N+1)/T * crossprod(sqrt(weights)*X_)  # (N+1)/T * t(X_) %*% diag(weights) %*% X_
     weights <- 1/(1 + rowSums(X_ * (X_ %*% inv(Sigma))))   # 1/( 1 + diag( X_ %*% inv(Sigma) %*% t(X_) ) )
 
     # stopping criterion
