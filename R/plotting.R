@@ -1,5 +1,7 @@
 #
-#
+# example:
+#   fitted_Tyler <- fit_Tyler(X, return_iterates = TRUE)
+#   plotConvergence(fitted_Tyler)
 #
 plotConvergence <- function(res_fit) {
   if (is.null(res_fit$iterates_record))
