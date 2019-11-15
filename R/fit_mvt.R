@@ -233,6 +233,10 @@ fit_mvt <- function(X, initial = NULL, factors = ncol(X),
                               "cov"         = nu/(nu-2) * Sigma,
                               "scatter"     = Sigma,
                               "nu"          = nu)
+  if (!optimize_nu) {
+    kappa <- scaling_fitting_ka_with_b(a = diag(Sigma), b = apply(X^2, 2, mean, trim = max(1/T, 0.03)))
+    vars_to_be_returned$cov <- kappa * Sigma
+  }
   if (FA_struct) {
     rownames(B) <- names(psi) <- colnames(X)
     colnames(B) <- paste0("factor-", 1:ncol(B))
