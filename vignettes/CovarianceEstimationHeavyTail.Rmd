@@ -87,6 +87,7 @@ Sigma_scm <- cov(X)
 Then we can compute the robust estimates via the package `fitHeavyTail`:
 ```{r}
 library(fitHeavyTail)
+
 fitted <- fit_mvt(X)
 ```
 
@@ -131,6 +132,7 @@ library(ggplot2)
 library(ellipse)
 
 i1 <- 7; i2 <- 5
+colnames(fitted$cov) <- rownames(fitted$cov) <- NULL
 ggplot(data.frame(x = X[, i1], y = X[, i2]), aes(x, y)) +
   geom_point(alpha = 0.7, size = 3) +
   geom_path(data = data.frame(ellipse(Sigma[c(i1, i2), c(i1, i2)])), 
@@ -168,7 +170,7 @@ Sigma_scatter <- (nu-2)/nu * Sigma
 #       main = "Histogram of eigenvalues of true covariance matrix")
 ```
 
-```{r Monte-Carlo, echo=FALSE, cache=TRUE}
+```{r Monte-Carlo, echo=FALSE, cache=FALSE}
 library(fitHeavyTail)
 library(tictoc)
 library(parallel)  # detectCores(logical = FALSE)
@@ -253,8 +255,8 @@ for(T in T_sweep) {
   X <- replicate(N_realiz, rmvt(n = T, delta = mu, sigma = Sigma_scatter, df = nu), simplify = FALSE)
 
   # then, run the estimation in parallel (https://bookdown.org/rdpeng/rprogdatascience/parallel-computation.html)
-  #res <- mclapply(X, eval_single, mc.cores = 4)
-  res <- lapply(X, eval_single)
+  res <- mclapply(X, eval_single, mc.cores = 4)
+  #res <- lapply(X, eval_single)
 
   # finally, keep track of MSEs and times
   MSE_all_T  <- rbind(MSE_all_T,  rowMeans(sapply(res, function(x) x$MSE)))
