@@ -3,11 +3,11 @@ context("Function \"fit_mvt()\"")
 
 # # generate the multivariate Student's t data ----------------
 # set.seed(123)
-# N <- 10
+# N <- 5
 # T <- 50
 # nu <- 6
 # X <- mvtnorm::rmvt(n = T, sigma = diag(N), df = nu, delta = rep(0, N))
-# colnames(X) <- c(1:10)
+# colnames(X) <- c(1:N)
 # X_xts <- xts::as.xts(X, order.by = as.Date("1975-04-28") + 1:nrow(X))
 # save(X, X_xts, file = "X.RData", version = 2, compress = "xz")
 
@@ -29,10 +29,6 @@ test_that("default mode works", {
   # mvt_model_check <- fit_mvt(X)
   # save(mvt_model_check, file = "mvt_model_check.RData", version = 2, compress = "xz")
   mvt_model <- fit_mvt(X)
-
-  #TODO{Rui}: You can see the problem here:
-  #mvt_model <- fit_mvt(X, return_iterates = TRUE)
-  #plotConvergence(mvt_model)
 
   load("mvt_model_check.RData")
   expect_identical(mvt_model, mvt_model_check)
