@@ -27,10 +27,10 @@ test_that("error control works", {
 
 test_that("default mode works", {
   # mvt_model_check <- fit_mvt(X)
-  # save(mvt_model_check, file = "mvt_model_check.RData", version = 2, compress = "xz")
+  # save(mvt_model_check, file = "fitted_mvt_check.RData", version = 2, compress = "xz")
   mvt_model <- fit_mvt(X)
 
-  load("mvt_model_check.RData")
+  load("fitted_mvt_check.RData")
   expect_identical(mvt_model, mvt_model_check)
 
   # test for xts
@@ -52,10 +52,10 @@ test_that("Gaussian case fits", {
 
 
 test_that("factor structure constraint on scatter matrix works", {
-  # mvt_model_factor_check <- fit_mvt(X, factors = 5)
-  # save(mvt_model_factor_check, file = "mvt_model_factor_check.RData", version = 2, compress = "xz")
-  mvt_model_factor <- fit_mvt(X, factors = 5)
-  load("mvt_model_factor_check.RData")
+  # mvt_model_factor_check <- fit_mvt(X, factors = 3)
+  # save(mvt_model_factor_check, file = "fitted_mvt_factor_check.RData", version = 2, compress = "xz")
+  mvt_model_factor <- fit_mvt(X, factors = 3)
+  load("fitted_mvt_factor_check.RData")
   expect_identical(mvt_model_factor, mvt_model_factor_check)
 })
 
@@ -64,9 +64,9 @@ test_that("X with NAs works", {
   X_wNA <- X
   for (i in 1:5) X_wNA[i, i] <- NA
   # mvt_model_wNA_check <- fit_mvt(X_wNA)
-  # save(mvt_model_wNA_check, file = "mvt_model_wNA_check.RData", version = 2, compress = "xz")
+  # save(mvt_model_wNA_check, file = "fitted_mvt_wNA_check.RData", version = 2, compress = "xz")
   mvt_model_wNA <- fit_mvt(X_wNA)
-  load("mvt_model_wNA_check.RData")
+  load("fitted_mvt_wNA_check.RData")
   expect_identical(mvt_model_wNA, mvt_model_wNA_check)
 })
 
@@ -74,8 +74,8 @@ test_that("X with NAs works", {
 test_that("fixed nu works", {
   # nu_kurtosis <- fitHeavyTail:::est_nu_kurtosis(X)
   # mvt_model_fixednu_check <- fit_mvt(X, nu = nu_kurtosis)
-  # save(mvt_model_fixednu_check, file = "mvt_model_fixednu_check.RData", version = 2, compress = "xz")
-  load("mvt_model_fixednu_check.RData")
+  # save(mvt_model_fixednu_check, file = "fitted_mvt_fixednu_check.RData", version = 2, compress = "xz")
+  load("fitted_mvt_fixednu_check.RData")
   mvt_model_fixednu <- fit_mvt(X, nu = "kurtosis")
   expect_identical(mvt_model_fixednu, mvt_model_fixednu_check)
 })
@@ -84,8 +84,8 @@ test_that("fixed nu works", {
 test_that("regularized nu works", {
   # nu_kurtosis <- fitHeavyTail:::est_nu_kurtosis(X)
   # mvt_model_regnu_check <- fit_mvt(X, nu_target = nu_kurtosis, nu_regcoef = 1)
-  # save(mvt_model_regnu_check, file = "mvt_model_regnu_check.RData", version = 2, compress = "xz")
-  load("mvt_model_regnu_check.RData")
+  # save(mvt_model_regnu_check, file = "fitted_mvt_regnu_check.RData", version = 2, compress = "xz")
+  load("fitted_mvt_regnu_check.RData")
   mvt_model_regnu <- fit_mvt(X, nu_regcoef = 1)
   expect_identical(mvt_model_regnu, mvt_model_regnu_check)
 })
