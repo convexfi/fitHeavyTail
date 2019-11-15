@@ -26,7 +26,8 @@ test_that("cov estimate works", {
   # fitted_Cauchy_check <- fit_Cauchy(X)
   # save(fitted_Cauchy_check, file = "fitted_Cauchy_check.RData", version = 2, compress = "xz")
   load("fitted_Cauchy_check.RData")
-  expect_identical(fitted_Cauchy, fitted_Cauchy_check)
+  # expect_identical(fitted_Cauchy, fitted_Cauchy_check)
+  expect_equal(fitted_Cauchy, fitted_Cauchy_check)
 
   # test for xts
   fitted_xts <- fit_Cauchy(X_xts)
