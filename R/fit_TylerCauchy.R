@@ -1,55 +1,29 @@
-#
-# TO DO:
-# Acceleration?
-
-# 00) Use sum(log(eigen(Sigma)$values)) instead of log(det(Sigma))
-# 000) Use obj_value_record <- obj_value_record[1:k]
-#      Sigma_diff_record <- Sigma_diff_record[1:k]
-# 1) include shrinkage to target in most of the functions
-# 2) check the 1D case?
-
-
-
-inv <- function(...) solve(...)
-
-
-#' @importFrom ICSNP spatial.median
-Gmedian_of_means <- function(X, k = min(10, ceiling(T/2))) {
-  T <- nrow(X)
-  N <- ncol(X)
-  i1 <- floor(seq(1, T, by = T/k))
-  i2 <- c(i1[-1]-1, T)
-  mu <- matrix(NA, k, N)
-  for (i in 1:k)
-    mu[i, ] <- colMeans(X[i1[i]:i2[i], ])
-  mu <- ICSNP::spatial.median(X)
-  return(mu)
-}
-
-
-#' @importFrom ICSNP spatial.median
-gmean <- function(X, method = "mean", k = NULL) {
-  switch(method,
-         "mean"             = colMeans(X),
-         "median"           = apply(X, 2, median),
-         "Gmedian"          = ICSNP::spatial.median(X),
-         "Gmedian of means" = Gmedian_of_means(X, k),
-         stop("Method unknown"))
-}
-
-
-
-#' Estimation of mean (with median) and of covariance matrix via Tyler's estimator.
+#' @title Estimate parameters of a multivariate elliptical distribution to fit data via Tyler's mehod
 #'
-#' The function \code{momentsTyler} first estimates a robust mean with the median and then (after removing
-#' the mean) estimates the covariance matrix based on Tyler's estimator.
+#' @description Estimate parameters of a multivariate elliptical distribution to fit data,
+#' namely, the mean vector and the covariance matrix. Any sample with NAs will be simply dropped.
+#' The algorithm is based on Tyler's method, which normalizes the centered samples to get rid of
+#' the shape of the distribution tail. The data is first demeaned with the geometric mean by default.
+#' Since Tyler's method can only estimate the covariance matrix up to a scaling factor,
+#' a very effective method is employed to recover the scaling factor.
 #'
-#' @param X Data matrix containing the multivariate time series (each column is one time series).
-#' @param verbose If \code{TRUE}, info about iterations for convergence will be output.
-#' @return A list with the following components:
-#' \item{\code{mu}}{mean estimate}
-#' \item{\code{cov}}{covariance matrix estimate}
-#' \item{\code{obj_value_record}}{convergence of objective value vs iterations}
+#' @inheritParams fit_mvt
+#' @param initial List of initial values of the parameters for the iterative estimation method.
+#'                Possible elements include:
+#'                \itemize{\item{\code{mu}: default is the data sample mean,}
+#'                         \item{\code{cov}: default is the data sample covariance matrix.}}
+#'
+#' @return A list containing possibly the following elements:
+#'         \item{\code{mu}}{Mean vector estimate.}
+#'         \item{\code{cov}}{Covariance matrix estimate.}
+#'         \item{\code{log_likelihood}}{Value of log-likelihood after converge of the estimation algorithm
+#'                                      (only if \code{ftol < Inf}).}
+#'         \item{\code{iterates_record}}{Iterates of the parameters (\code{mu} and possibly
+#'                                       \code{log_likelihood} (if \code{ftol < Inf})) along the iterations
+#'                                       (only if \code{return_iterates = TRUE}).}
+#'         \item{\code{converged}}{Boolean denoting whether the algorithm has converged (\code{TRUE}) or the maximum number
+#'                                 of iterations \code{max_iter} has reached (\code{FALSE}).}
+#'
 #' @author Daniel P. Palomar
 #'
 #' @seealso \code{\link{fit_Cauchy}} and \code{\link{fit_mvt}}
@@ -59,12 +33,11 @@ gmean <- function(X, method = "mean", k = NULL) {
 #' IEEE Trans. on Signal Processing, vol. 62, no. 19, pp. 5143-5156, Oct. 2014.
 #'
 #' @examples
-#' data(heavy_data)
-#' res <- momentsStudentt(heavy_data$X)
-#' norm(res$mu - heavy_data$mu, "2")
-#' norm(colMeans(heavy_data$X) - heavy_data$mu, "2")
-#' norm(res$cov - heavy_data$cov, "F")
-#' norm(cov(heavy_data$X) - heavy_data$cov, "F")
+#' library(mvtnorm)       # to generate heavy-tailed data
+#' library(fitHeavyTail)
+#'
+#' X <- rmvt(n = 1000, df = 6)  # generate Student's t data
+#' fit_Tyler(X)
 #'
 #' @importFrom stats cov var
 #' @importFrom utils tail
@@ -115,7 +88,7 @@ fit_Tyler <- function(X, initial = NULL, max_iter = 100, ptol = 1e-3, ftol = Inf
 
     # Tyler update
     weights <- 1/rowSums(X_ * (X_ %*% inv(Sigma)))   # 1/diag( X_ %*% inv(Sigma) %*% t(X_) )
-    Sigma <- (N/T) * crossprod( sqrt(weights)*X_ )  # (N/T) * t(X_) %*% diag(weights) %*% X_
+    Sigma <- (N/T) * crossprod(sqrt(weights)*X_)  # (N/T) * t(X_) %*% diag(weights) %*% X_
     Sigma <- Sigma/sum(diag(Sigma))
 
     #stopping criterion
@@ -234,6 +207,37 @@ fit_Cauchy <- function(X, verbose = FALSE) {
 
   return( list(mu = mu, cov = Sigma,
                obj_value_record = na.omit(obj_value_record)) )
+}
+
+
+
+
+
+inv <- function(...) solve(...)
+
+
+#' @importFrom ICSNP spatial.median
+Gmedian_of_means <- function(X, k = min(10, ceiling(T/2))) {
+  T <- nrow(X)
+  N <- ncol(X)
+  i1 <- floor(seq(1, T, by = T/k))
+  i2 <- c(i1[-1]-1, T)
+  mu <- matrix(NA, k, N)
+  for (i in 1:k)
+    mu[i, ] <- colMeans(X[i1[i]:i2[i], ])
+  mu <- ICSNP::spatial.median(X)
+  return(mu)
+}
+
+
+#' @importFrom ICSNP spatial.median
+gmean <- function(X, method = "mean", k = NULL) {
+  switch(method,
+         "mean"             = colMeans(X),
+         "median"           = apply(X, 2, median),
+         "Gmedian"          = ICSNP::spatial.median(X),
+         "Gmedian of means" = Gmedian_of_means(X, k),
+         stop("Method unknown"))
 }
 
 
