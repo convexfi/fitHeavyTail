@@ -16,6 +16,7 @@ fit_mvt(X, initial = NULL, factors = ncol(X), max_iter = 100,
 Possible elements include:
 \itemize{\item{\code{mu}: default is the data sample mean,}
          \item{\code{cov}: default is the data sample covariance matrix,}
+         \item{\code{scatter}: default follows from the scaled sample covariance matrix,}
          \item{\code{nu}: default is \code{4},}
          \item{\code{B}: default is the top eigenvectors of \code{initial$cov}
                                    multiplied by the sqrt of the eigenvalues,}
@@ -81,6 +82,8 @@ Estimate parameters of a multivariate Student's t distribution to fit data,
 namely, the mean vector, the covariance matrix, the scatter matrix, and the degrees of freedom.
 The data can contain missing values denoted by NAs.
 It can also consider a factor model structure on the covariance matrix.
+The estimation is based on the maximum likelihood estimation (MLE) and the algorithm is
+obtained from the expectation-maximization (EM) method.
 }
 \details{
 This function estimates the parameters of a multivariate Student's t distribution (\code{mu},

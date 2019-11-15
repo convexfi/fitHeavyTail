@@ -2,7 +2,7 @@
 % Please edit documentation in R/fit_TylerCauchy.R
 \name{fit_Tyler}
 \alias{fit_Tyler}
-\title{Estimate parameters of a multivariate elliptical distribution to fit data via Tyler's mehod}
+\title{Estimate parameters of a multivariate elliptical distribution to fit data via Tyler's method}
 \usage{
 fit_Tyler(X, initial = NULL, max_iter = 100, ptol = 0.001,
   ftol = Inf, return_iterates = FALSE, verbose = FALSE)
@@ -45,10 +45,12 @@ A list containing possibly the following elements:
                                 of iterations \code{max_iter} has reached (\code{FALSE}).}
 }
 \description{
-Estimate parameters of a multivariate elliptical distribution to fit data,
-namely, the mean vector and the covariance matrix. Any sample with NAs will be simply dropped.
+Estimate parameters of a multivariate elliptical distribution, namely, the mean vector
+and the covariance matrix, to fit data. Any data sample with NAs will be simply dropped.
 The algorithm is based on Tyler's method, which normalizes the centered samples to get rid of
-the shape of the distribution tail. The data is first demeaned with the geometric mean by default.
+the shape of the distribution tail. The data is first demeaned (with the geometric mean by default)
+and normalized. Then the estimation is based on the maximum likelihood estimation (MLE) and the
+algorithm is obtained from the majorization-minimization (MM) optimization framework.
 Since Tyler's method can only estimate the covariance matrix up to a scaling factor,
 a very effective method is employed to recover the scaling factor.
 }

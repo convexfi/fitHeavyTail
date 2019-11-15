@@ -2,32 +2,66 @@
 % Please edit documentation in R/fit_TylerCauchy.R
 \name{fit_Cauchy}
 \alias{fit_Cauchy}
-\title{Estimation of mean and covariance matrix based on fitting data to the Cauchy distribution.}
+\title{Estimate parameters of a multivariate elliptical distribution to fit data under a Cauchy distribution}
 \usage{
-fit_Cauchy(X, verbose = FALSE)
+fit_Cauchy(X, initial = NULL, max_iter = 100, ptol = 0.001,
+  ftol = Inf, return_iterates = FALSE, verbose = FALSE)
 }
 \arguments{
 \item{X}{Data matrix containing the multivariate time series (each column is one time series).}
 
-\item{verbose}{If \code{TRUE}, info about iterations for convergence will be output.}
+\item{initial}{List of initial values of the parameters for the iterative estimation method.
+Possible elements include:
+\itemize{\item{\code{mu}: default is the data sample mean,}
+         \item{\code{cov}: default is the data sample covariance matrix,}
+         \item{\code{scatter}: default follows from the scaled sample covariance matrix.}}}
+
+\item{max_iter}{Integer indicating the maximum number of iterations for the iterative estimation
+method (default is \code{100}).}
+
+\item{ptol}{Positive number indicating the relative tolerance for the change of the variables
+to determine convergence of the iterative method (default is \code{1e-3}).}
+
+\item{ftol}{Positive number indicating the relative tolerance for the change of the log-likelihood
+value to determine convergence of the iterative method (default is \code{Inf}, so it is
+not active). Note that using this argument might have a computational cost as a convergence
+criterion due to the computation of the log-likelihood (especially when \code{X} is high-dimensional).}
+
+\item{return_iterates}{Logical value indicating whether to record the values of the parameters \code{mu},
+\code{scatter}, and \code{nu} (and possibly the log-likelihood if \code{ftol} is used)
+at each iteration (default is \code{FALSE}).}
+
+\item{verbose}{Logical value indicating whether to allow the function to print messages (default is \code{FALSE}).}
 }
 \value{
-A list with the following components:
-\item{\code{mu}}{mean estimate}
-\item{\code{cov}}{covariance matrix estimate}
-\item{\code{obj_value_record}}{convergence of objective value vs iterations}
+A list containing possibly the following elements:
+        \item{\code{mu}}{Mean vector estimate.}
+        \item{\code{cov}}{Covariance matrix estimate.}
+        \item{\code{scatter}}{Scatter matrix estimate.}
+        \item{\code{log_likelihood}}{Value of log-likelihood after converge of the estimation algorithm
+                                     (only if \code{ftol < Inf}).}
+        \item{\code{iterates_record}}{Iterates of the parameters (\code{mu} and possibly
+                                      \code{log_likelihood} (if \code{ftol < Inf})) along the iterations
+                                      (only if \code{return_iterates = TRUE}).}
+        \item{\code{converged}}{Boolean denoting whether the algorithm has converged (\code{TRUE}) or the maximum number
+                                of iterations \code{max_iter} has reached (\code{FALSE}).}
 }
 \description{
-The function \code{momentsCauchy} implements a maximum likelihood estimation (MLE) of the mean and covariance matrix
-to fit the data to a Cauchy distribution (Student-t with nu=1).
+Estimate parameters of a multivariate elliptical distribution, namely, the mean vector
+and the covariance matrix, to fit data. Any data sample with NAs will be simply dropped.
+The estimation is based on the maximum likelihood estimation (MLE) under a Cauchy distribution and
+the algorithm is obtained from the majorization-minimization (MM) optimization framework.
+The Cauchy distribution does not have second-order moments and the algorithm actually estimates
+the scatter matrix. Nevertheless, assuming that the observed data has second-order moments, the
+covariance matrix is returned by computing the missing scaling factor with a very effective method.
 }
 \examples{
-data(heavy_data)
-res <- momentsStudentt(heavy_data$X)
-norm(res$mu - heavy_data$mu, "2")
-norm(colMeans(heavy_data$X) - heavy_data$mu, "2")
-norm(res$cov - heavy_data$cov, "F")
-norm(cov(heavy_data$X) - heavy_data$cov, "F")
+library(mvtnorm)       # to generate heavy-tailed data
+library(fitHeavyTail)
+
+X <- rmvt(n = 1000, df = 6)  # generate Student's t data
+fit_Cauchy(X)
+
 }
 \references{
 Ying Sun, Prabhu Babu, and Daniel P. Palomar, “Regularized Robust Estimation of Mean and Covariance Matrix Under Heavy-Tailed Distributions,”

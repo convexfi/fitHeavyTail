@@ -4,6 +4,8 @@
 #' namely, the mean vector, the covariance matrix, the scatter matrix, and the degrees of freedom.
 #' The data can contain missing values denoted by NAs.
 #' It can also consider a factor model structure on the covariance matrix.
+#' The estimation is based on the maximum likelihood estimation (MLE) and the algorithm is
+#' obtained from the expectation-maximization (EM) method.
 #'
 #' @details This function estimates the parameters of a multivariate Student's t distribution (\code{mu},
 #'          \code{cov}, \code{scatter}, and \code{nu}) to fit the data via the expectation–maximization (EM) algorithm.
@@ -19,6 +21,7 @@
 #'                Possible elements include:
 #'                \itemize{\item{\code{mu}: default is the data sample mean,}
 #'                         \item{\code{cov}: default is the data sample covariance matrix,}
+#'                         \item{\code{scatter}: default follows from the scaled sample covariance matrix,}
 #'                         \item{\code{nu}: default is \code{4},}
 #'                         \item{\code{B}: default is the top eigenvectors of \code{initial$cov}
 #'                                                   multiplied by the sqrt of the eigenvalues,}
@@ -130,16 +133,15 @@ fit_mvt <- function(X, initial = NULL, factors = ncol(X),
   alpha <- 1  # an extra variable for PX-EM acceleration
   if (optimize_nu) nu <- if (is.null(initial$nu)) 4 else initial$nu
   mu <- if (is.null(initial$mu)) colMeans(X, na.rm = TRUE) else initial$mu
-  SCM <- if (is.null(initial$cov)) var(X, na.rm = TRUE) else initial$cov
+  Sigma <- if (is.null(initial$cov)) (nu-2)/nu * var(X, na.rm = TRUE) else (nu-2)/nu * initial$cov
+  if (!is.null(initial$scatter)) Sigma <- initial$scatter
   if (FA_struct) {  # Sigma is the scatter matrix, not the covariance matrix
-    SCM_eigen <- eigen(SCM, symmetric = TRUE)
-    B <- if (is.null(initial$B)) SCM_eigen$vectors[, 1:factors] %*% diag(sqrt(SCM_eigen$values[1:factors]), factors)
+    Sigma_eigen <- eigen(Sigma, symmetric = TRUE)
+    B <- if (is.null(initial$B)) Sigma_eigen$vectors[, 1:factors] %*% diag(sqrt(Sigma_eigen$values[1:factors]), factors)
          else initial$B
-    psi <- if (is.null(initial$psi)) pmax(0, diag(SCM) - diag(B %*% t(B)))
+    psi <- if (is.null(initial$psi)) pmax(0, diag(Sigma_eigen) - diag(B %*% t(B)))
            else initial$psi
-    Sigma <- (nu-2)/nu * (B %*% t(B) + diag(psi, N))
-  } else {
-    Sigma <- (nu-2)/nu * SCM
+    Sigma <- B %*% t(B) + diag(psi, N)
   }
   if (ftol < Inf) log_likelihood <- ifelse(X_has_NA,
                                            dmvt_withNA(X = X, delta = mu, sigma = Sigma / alpha, df = nu),
@@ -223,6 +225,7 @@ fit_mvt <- function(X, initial = NULL, factors = ncol(X),
     if (return_iterates) iterates_record[[iter + 1]] <- snapshot()
     if (have_params_converged && has_fun_converged) break
   }
+  if (verbose) message(sprintf("Number of iterations for mvt estimator = %d\n", iter))
 
   ## -------- return variables --------
   vars_to_be_returned <- list("mu"          = mu,
