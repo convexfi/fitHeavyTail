@@ -30,6 +30,7 @@ plotConvergence <- function(res_fit) {
     print(p_nu_div_nu_2)
     p_all <- c(p_all, list(p_nu_div_nu_2))
   }
+
   if (!is.null(res_fit$iterates_record[[1]]$mu)) {
     mu_matrix <- sapply(res_fit$iterates_record, `[[`, "mu")
     rownames(mu_matrix) <- paste0("mu", 1:nrow(mu_matrix))
@@ -53,5 +54,15 @@ plotConvergence <- function(res_fit) {
     print(p_scatter)
     p_all <- c(p_all, list(p_scatter))
   }
+
+  if (!is.null(res_fit$iterates_record[[1]]$log_likelihood)) {
+    data$log_likelihood <- sapply(res_fit$iterates_record, `[[`, "log_likelihood")
+    p_log_likelihood <- ggplot2::ggplot(data, ggplot2::aes(x = iteration, y = log_likelihood)) +
+      ggplot2::geom_line() + ggplot2::geom_point() +
+      ggplot2::ggtitle("Convergence of log_likelihood")
+    print(p_log_likelihood)
+    p_all <- c(p_all, list(p_log_likelihood))
+  }
+
   return(invisible(p_all))
 }
