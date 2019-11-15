@@ -112,7 +112,7 @@ fit_mvt <- function(X, initial = NULL, factors = ncol(X),
   N <- ncol(X)
   method_nu <- match.arg(method_nu)
   X_has_NA <- anyNA(X)
-  FA_struct <- factors != N
+  FA_struct <- (factors != N)
   optimize_nu <- is.null(nu)
   if (!optimize_nu) {
     if (nu == Inf) nu <- 1e15  # for numerical stability (for the Gaussian case)
@@ -139,7 +139,7 @@ fit_mvt <- function(X, initial = NULL, factors = ncol(X),
     Sigma_eigen <- eigen(Sigma, symmetric = TRUE)
     B <- if (is.null(initial$B)) Sigma_eigen$vectors[, 1:factors] %*% diag(sqrt(Sigma_eigen$values[1:factors]), factors)
          else initial$B
-    psi <- if (is.null(initial$psi)) pmax(0, diag(Sigma_eigen) - diag(B %*% t(B)))
+    psi <- if (is.null(initial$psi)) pmax(0, diag(Sigma) - diag(B %*% t(B)))
            else initial$psi
     Sigma <- B %*% t(B) + diag(psi, N)
   }
@@ -228,15 +228,16 @@ fit_mvt <- function(X, initial = NULL, factors = ncol(X),
   if (verbose) message(sprintf("Number of iterations for mvt estimator = %d\n", iter))
 
   ## -------- return variables --------
+  #Sigma <- T/(T-1) * Sigma  # unbiased estimator
   vars_to_be_returned <- list("mu"          = mu,
                               "cov"         = nu/(nu-2) * Sigma,
-                              "nu"          = nu,
-                              "scatter"     = Sigma)
+                              "scatter"     = Sigma,
+                              "nu"          = nu)
   if (FA_struct) {
     rownames(B) <- names(psi) <- colnames(X)
     colnames(B) <- paste0("factor-", 1:ncol(B))
-    vars_to_be_returned$B   <- B
-    vars_to_be_returned$psi <- psi
+    vars_to_be_returned$B   <- sqrt(nu/(nu-2)) * B
+    vars_to_be_returned$psi <- nu/(nu-2) * psi
   }
   if (ftol < Inf)
     vars_to_be_returned$log_likelihood <- log_likelihood
@@ -247,6 +248,13 @@ fit_mvt <- function(X, initial = NULL, factors = ncol(X),
   vars_to_be_returned$converged <- (iter < max_iter)
   return(vars_to_be_returned)
 }
+
+
+
+
+
+
+
 
 
 fnu <- function(nu) {nu/(nu-2)}
