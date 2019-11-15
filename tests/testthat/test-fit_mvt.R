@@ -1,4 +1,5 @@
 context("Function \"fit_mvt()\"")
+#library(testthat)
 
 # # generate the multivariate Student's t data ----------------
 # set.seed(123)
@@ -10,26 +11,16 @@ context("Function \"fit_mvt()\"")
 # X_xts <- xts::as.xts(X, order.by = as.Date("1975-04-28") + 1:nrow(X))
 # save(X, X_xts, file = "X.RData", version = 2, compress = "xz")
 
-library(testthat)
-library(fitHeavyTail)
 load("X.RData")
 
 test_that("error control works", {
-
   expect_error(fit_mvt(X = median), "\"X\" must be a matrix or coercible to a matrix.")
-
   expect_error(fit_mvt(X = "HongKong"), "\"X\" only allows numerical or NA values.")
-
   expect_error(fit_mvt(X = 1), "Only T=1 sample!!")
-
   expect_error(fit_mvt(X = X, factors = -1), "\"factors\" must be no less than 1 and no more than column number of \"X\".")
-
   expect_error(fit_mvt(X = X, max_iter = -1), "\"max_iter\" must be greater than 1.")
-
   expect_error(fit_mvt(X = X, nu = "lala"), "Non-valid value for nu.")
-
   expect_error(fit_mvt(X = X, nu = 1), "Non-valid value for nu.")
-
   expect_error(fit_mvt(X = X, nu_regcoef = 0.1, nu_target = 1), "Non-valid value for nu_target.")
 })
 
@@ -44,16 +35,16 @@ test_that("default mode works", {
   #plotConvergence(mvt_model)
 
   load("mvt_model_check.RData")
-  expect_equal(mvt_model, mvt_model_check)
+  expect_identical(mvt_model, mvt_model_check)
 
   # test for xts
   fitted_xts <- fit_mvt(X_xts)
-  expect_equal(mvt_model, fitted_xts)
+  expect_identical(mvt_model, fitted_xts)
 
   # test for vector
   fitted_1colmatrix <- fit_mvt(X[, 1])
   fitted_vector <- fit_mvt(as.vector(X[, 1]))
-  expect_equal(fitted_1colmatrix, fitted_vector)
+  expect_identical(fitted_1colmatrix, fitted_vector)
 })
 
 
@@ -69,7 +60,7 @@ test_that("factor structure constraint on scatter matrix works", {
   # save(mvt_model_factor_check, file = "mvt_model_factor_check.RData", version = 2, compress = "xz")
   mvt_model_factor <- fit_mvt(X, factors = 5)
   load("mvt_model_factor_check.RData")
-  expect_equal(mvt_model_factor, mvt_model_factor_check)
+  expect_identical(mvt_model_factor, mvt_model_factor_check)
 })
 
 
@@ -80,7 +71,7 @@ test_that("X with NAs works", {
   # save(mvt_model_wNA_check, file = "mvt_model_wNA_check.RData", version = 2, compress = "xz")
   mvt_model_wNA <- fit_mvt(X_wNA)
   load("mvt_model_wNA_check.RData")
-  expect_equal(mvt_model_wNA, mvt_model_wNA_check)
+  expect_identical(mvt_model_wNA, mvt_model_wNA_check)
 })
 
 
@@ -90,7 +81,7 @@ test_that("fixed nu works", {
   # save(mvt_model_fixednu_check, file = "mvt_model_fixednu_check.RData", version = 2, compress = "xz")
   load("mvt_model_fixednu_check.RData")
   mvt_model_fixednu <- fit_mvt(X, nu = "kurtosis")
-  expect_equal(mvt_model_fixednu, mvt_model_fixednu_check)
+  expect_identical(mvt_model_fixednu, mvt_model_fixednu_check)
 })
 
 
@@ -100,5 +91,5 @@ test_that("regularized nu works", {
   # save(mvt_model_regnu_check, file = "mvt_model_regnu_check.RData", version = 2, compress = "xz")
   load("mvt_model_regnu_check.RData")
   mvt_model_regnu <- fit_mvt(X, nu_regcoef = 1)
-  expect_equal(mvt_model_regnu, mvt_model_regnu_check)
+  expect_identical(mvt_model_regnu, mvt_model_regnu_check)
 })
