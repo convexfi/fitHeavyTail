@@ -7,7 +7,8 @@ context("Function \"fit_mvt()\"")
 # nu <- 6
 # X <- mvtnorm::rmvt(n = T, sigma = diag(N), df = nu, delta = rep(0, N))
 # colnames(X) <- c(1:10)
-# save(X, file = "X.RData", version = 2, compress = "xz")
+# X_xts <- xts::as.xts(X, order.by = as.Date("1975-04-28") + 1:nrow(X))
+# save(X, X_xts, file = "X.RData", version = 2, compress = "xz")
 
 library(testthat)
 library(fitHeavyTail)
@@ -42,9 +43,11 @@ test_that("default mode works", {
   #mvt_model <- fit_mvt(X, return_iterates = TRUE)
   #plotConvergence(mvt_model)
 
-
   load("mvt_model_check.RData")
   expect_equal(mvt_model, mvt_model_check)
+
+  fitted_xts <- fit_mvt(X_xts)
+  expect_equal(mvt_model, fitted_xts)
 })
 
 
