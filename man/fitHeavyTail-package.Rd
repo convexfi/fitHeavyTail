@@ -5,18 +5,14 @@
 \alias{fitHeavyTail-package}
 \title{fitHeavyTail: Mean and Covariance Matrix Estimation under Heavy Tails}
 \description{
-Estimation of mean vector and covariance matrix for heavy-tailed
-distributions. In particular, a multivariate Student t distribution is
-fitted to the data (possibly containing NAs).
-Special emphasis is placed on a fast implementation.
-The package is based on the paper:
-Rui ZHOU, Junyan Liu, Sandeep Kumar, and Daniel P. Palomar, "Robust factor
-analysis parameter estimation," Lecture Notes in Computer Science, 2020.
-<https://arxiv.org/abs/1909.12530>
+Robust estimation methods for the mean vector and covariance matrix
+from data (possibly containing NAs) under multivariate heavy-tailed
+distributions such as angular Gaussian, Cauchy, and Student's t. Additionally,
+a factor model structure can be specified for the covariance matrix.
 }
 \section{Functions}{
 
-\code{\link{momentsTyler}}, \code{\link{momentsCauchy}}, and \code{\link{momentsStudentt}}
+\code{\link{fit_Tyler}}, \code{\link{fit_Cauchy}}, and \code{\link{fit_mvt}}
 }
 
 \section{Help}{
@@ -25,6 +21,19 @@ For a quick help see the README file:
 \href{https://github.com/dppalomar/fitHeavyTail/blob/master/README.md}{GitHub-README}.
 }
 
+\references{
+Ying Sun, Prabhu Babu, and Daniel P. Palomar, “Regularized Tyler’s Scatter Estimator: Existence, Uniqueness, and Algorithms,”
+IEEE Trans. on Signal Processing, vol. 62, no. 19, pp. 5143-5156, Oct. 2014.
+
+Ying Sun, Prabhu Babu, and Daniel P. Palomar, “Regularized Robust Estimation of Mean and Covariance Matrix Under Heavy-Tailed Distributions,”
+IEEE Trans. on Signal Processing, vol. 63, no. 12, pp. 3096-3109, June 2015.
+
+Chuanhai Liu and Donald B. Rubin, “ML estimation of the t-distribution using EM and its extensions, ECM and ECME,”
+Statistica Sinica (5), pp. 19-39, 1995.
+
+Rui Zhou, Junyan Liu, Sandeep Kumar, and Daniel P. Palomar, "Robust factor analysis parameter estimation,"
+Lecture Notes in Computer Science (LNCS), 2019. <https://arxiv.org/abs/1909.12530>
+}
 \author{
-Daniel P. Palomar and Rui ZHOU
+Daniel P. Palomar and Rui Zhou
 }
