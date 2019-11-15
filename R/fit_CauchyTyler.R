@@ -6,9 +6,6 @@
 # 0) compare with package TTmoment
 # 1) include shrinkage to target in most of the functions
 # 2) check the 1D case?
-# 3) Junyan: extend to NA still with EM
-# 4) Junyan: estend to NA with stochastic EM
-# 5) Junyan: include shrinkage
 #
 
 # Use nu/(nu-2) as variable for checking convergence
@@ -64,6 +61,9 @@ gmean <- function(X, method = "mean", k = NULL) {
 #' \item{\code{cov}}{covariance matrix estimate}
 #' \item{\code{obj_value_record}}{convergence of objective value vs iterations}
 #' @author Daniel P. Palomar
+#'
+#' @seealso \code{\link{fit_Cauchy}} and \code{\link{fit_mvt}}
+#'
 #' @references
 #' Ying Sun, Prabhu Babu, and Daniel P. Palomar, “Regularized Tyler’s Scatter Estimator: Existence, Uniqueness, and Algorithms,”
 #' IEEE Trans. on Signal Processing, vol. 62, no. 19, pp. 5143-5156, Oct. 2014.
@@ -143,6 +143,9 @@ fit_Tyler <- function(X, verbose = FALSE) {
 #' \item{\code{cov}}{covariance matrix estimate}
 #' \item{\code{obj_value_record}}{convergence of objective value vs iterations}
 #' @author Daniel P. Palomar
+#'
+#' @seealso \code{\link{fit_Tyler}} and \code{\link{fit_mvt}}
+#'
 #' @references
 #' Ying Sun, Prabhu Babu, and Daniel P. Palomar, “Regularized Robust Estimation of Mean and Covariance Matrix Under Heavy-Tailed Distributions,”
 #' IEEE Trans. on Signal Processing, vol. 63, no. 12, pp. 3096-3109, June 2015.

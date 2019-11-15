@@ -70,6 +70,8 @@
 #'
 #' @author Rui Zhou and Daniel P. Palomar
 #'
+#' @seealso \code{\link{fit_Tyler}} and \code{\link{fit_Cauchy}}
+#'
 #' @references
 #' Chuanhai Liu and Donald B. Rubin, “ML estimation of the t-distribution using EM and its extensions, ECM and ECME,”
 #' Statistica Sinica (5), pp. 19-39, 1995.
