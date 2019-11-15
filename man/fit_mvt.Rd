@@ -107,6 +107,9 @@ Statistica Sinica (5), pp. 19-39, 1995.
 Rui Zhou, Junyan Liu, Sandeep Kumar, and Daniel P. Palomar, "Robust factor analysis parameter estimation,"
 Lecture Notes in Computer Science (LNCS), 2019. <https://arxiv.org/abs/1909.12530>
 }
+\seealso{
+\code{\link{fit_Tyler}} and \code{\link{fit_Cauchy}}
+}
 \author{
 Rui Zhou and Daniel P. Palomar
 }
