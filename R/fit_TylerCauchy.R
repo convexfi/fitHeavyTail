@@ -1,9 +1,11 @@
-#' @title Estimate parameters of a multivariate elliptical distribution to fit data via Tyler's mehod
+#' @title Estimate parameters of a multivariate elliptical distribution to fit data via Tyler's method
 #'
-#' @description Estimate parameters of a multivariate elliptical distribution to fit data,
-#' namely, the mean vector and the covariance matrix. Any sample with NAs will be simply dropped.
+#' @description Estimate parameters of a multivariate elliptical distribution, namely, the mean vector
+#' and the covariance matrix, to fit data. Any data sample with NAs will be simply dropped.
 #' The algorithm is based on Tyler's method, which normalizes the centered samples to get rid of
-#' the shape of the distribution tail. The data is first demeaned with the geometric mean by default.
+#' the shape of the distribution tail. The data is first demeaned (with the geometric mean by default)
+#' and normalized. Then the estimation is based on the maximum likelihood estimation (MLE) and the
+#' algorithm is obtained from the majorization-minimization (MM) optimization framework.
 #' Since Tyler's method can only estimate the covariance matrix up to a scaling factor,
 #' a very effective method is employed to recover the scaling factor.
 #'
@@ -90,14 +92,12 @@ fit_Tyler <- function(X, initial = NULL, max_iter = 100, ptol = 1e-3, ftol = Inf
     Sigma <- Sigma/sum(diag(Sigma))
     weights <- 1/rowSums(X_ * (X_ %*% inv(Sigma)))   # 1/diag( X_ %*% inv(Sigma) %*% t(X_) )
 
-    #stopping criterion
+    # stopping criterion
     has_param_converged <- all(abs(Sigma - Sigma_prev) <= .5 * ptol * (abs(Sigma) + abs(Sigma_prev)))
     if (ftol < Inf) {
       log_likelihood <- (N/2)*sum(log(weights)) - (T/2)*log(det(Sigma))
       has_fun_converged <- abs(log_likelihood - log_likelihood_prev) <= .5 * ftol * (abs(log_likelihood) + abs(log_likelihood_prev))
     } else has_fun_converged <- TRUE
-
-    # record the current the variables/loglikelihood if required
     if (return_iterates) iterates_record[[iter + 1]] <- snapshot()
     if (has_param_converged && has_fun_converged) break
   }
@@ -108,8 +108,7 @@ fit_Tyler <- function(X, initial = NULL, max_iter = 100, ptol = 1e-3, ftol = Inf
   Sigma <- kappa * Sigma
 
   # return variables
-  vars_to_be_returned <- list("mu"  = mu,
-                              "cov" = Sigma)
+  vars_to_be_returned <- list("mu"  = mu, "cov" = Sigma)
   if (ftol < Inf)
     vars_to_be_returned$log_likelihood <- log_likelihood
   if (return_iterates) {
@@ -123,18 +122,35 @@ fit_Tyler <- function(X, initial = NULL, max_iter = 100, ptol = 1e-3, ftol = Inf
 
 
 
-
-#' Estimation of mean and covariance matrix based on fitting data to the Cauchy distribution.
+#' @title Estimate parameters of a multivariate elliptical distribution to fit data under a Cauchy distribution
 #'
-#' The function \code{momentsCauchy} implements a maximum likelihood estimation (MLE) of the mean and covariance matrix
-#' to fit the data to a Cauchy distribution (Student-t with nu=1).
+#' @description Estimate parameters of a multivariate elliptical distribution, namely, the mean vector
+#' and the covariance matrix, to fit data. Any data sample with NAs will be simply dropped.
+#' The estimation is based on the maximum likelihood estimation (MLE) under a Cauchy distribution and
+#' the algorithm is obtained from the majorization-minimization (MM) optimization framework.
+#' The Cauchy distribution does not have second-order moments and the algorithm actually estimates
+#' the scatter matrix. Nevertheless, assuming that the observed data has second-order moments, the
+#' covariance matrix is returned by computing the missing scaling factor with a very effective method.
 #'
-#' @param X Data matrix containing the multivariate time series (each column is one time series).
-#' @param verbose If \code{TRUE}, info about iterations for convergence will be output.
-#' @return A list with the following components:
-#' \item{\code{mu}}{mean estimate}
-#' \item{\code{cov}}{covariance matrix estimate}
-#' \item{\code{obj_value_record}}{convergence of objective value vs iterations}
+#' @inheritParams fit_mvt
+#' @param initial List of initial values of the parameters for the iterative estimation method.
+#'                Possible elements include:
+#'                \itemize{\item{\code{mu}: default is the data sample mean,}
+#'                         \item{\code{cov}: default is the data sample covariance matrix,}
+#'                         \item{\code{scatter}: default follows from the scaled sample covariance matrix.}}
+#'
+#' @return A list containing possibly the following elements:
+#'         \item{\code{mu}}{Mean vector estimate.}
+#'         \item{\code{cov}}{Covariance matrix estimate.}
+#'         \item{\code{scatter}}{Scatter matrix estimate.}
+#'         \item{\code{log_likelihood}}{Value of log-likelihood after converge of the estimation algorithm
+#'                                      (only if \code{ftol < Inf}).}
+#'         \item{\code{iterates_record}}{Iterates of the parameters (\code{mu} and possibly
+#'                                       \code{log_likelihood} (if \code{ftol < Inf})) along the iterations
+#'                                       (only if \code{return_iterates = TRUE}).}
+#'         \item{\code{converged}}{Boolean denoting whether the algorithm has converged (\code{TRUE}) or the maximum number
+#'                                 of iterations \code{max_iter} has reached (\code{FALSE}).}
+#'
 #' @author Daniel P. Palomar
 #'
 #' @seealso \code{\link{fit_Tyler}} and \code{\link{fit_mvt}}
@@ -142,70 +158,92 @@ fit_Tyler <- function(X, initial = NULL, max_iter = 100, ptol = 1e-3, ftol = Inf
 #' @references
 #' Ying Sun, Prabhu Babu, and Daniel P. Palomar, “Regularized Robust Estimation of Mean and Covariance Matrix Under Heavy-Tailed Distributions,”
 #' IEEE Trans. on Signal Processing, vol. 63, no. 12, pp. 3096-3109, June 2015.
+#'
 #' @examples
-#' data(heavy_data)
-#' res <- momentsStudentt(heavy_data$X)
-#' norm(res$mu - heavy_data$mu, "2")
-#' norm(colMeans(heavy_data$X) - heavy_data$mu, "2")
-#' norm(res$cov - heavy_data$cov, "F")
-#' norm(cov(heavy_data$X) - heavy_data$cov, "F")
-#' @export
+#' library(mvtnorm)       # to generate heavy-tailed data
+#' library(fitHeavyTail)
+#'
+#' X <- rmvt(n = 1000, df = 6)  # generate Student's t data
+#' fit_Cauchy(X)
+#'
 #' @importFrom stats cov var
 #' @importFrom utils tail
-fit_Cauchy <- function(X, verbose = FALSE) {
-  max_iter <- 100
-  error_th_mu <- 1e-3
-  error_th_Sigma <- 1e-3
+#' @export
+fit_Cauchy <- function(X, initial = NULL, max_iter = 100, ptol = 1e-3, ftol = Inf, return_iterates = FALSE, verbose = FALSE) {
+  ####### error control ########
+  X <- try(as.matrix(X), silent = TRUE)
+  if (!is.matrix(X)) stop("\"X\" must be a matrix or coercible to a matrix.")
+  if (is.null(colnames(X))) colnames(X) <- paste0("Var", 1:ncol(X))
+  if (!all(is.na(X) | is.numeric(X))) stop("\"X\" only allows numerical or NA values.")
+  if (anyNA(X)) {
+    if (verbose) message("X contains NAs, dropping those observations.")
+    mask_NA <- apply(X, 1, anyNA)
+    X <- X[!mask_NA, , drop = FALSE]
+  }
+  if (nrow(X) <= 1) stop("Only T=1 sample!!")
+  max_iter <- round(max_iter)
+  if (max_iter < 1) stop("\"max_iter\" must be greater than 1.")
+  ##############################
 
-  #error control
-  if (anyNA(X)) stop("This function cannot handle NAs.")
-  X <- as.matrix(X)
   T <- nrow(X)
   N <- ncol(X)
-  if (T == 1) stop("Only T=1 sample!!")
-  if (N == 1) stop("Data is univariate!")
+
+  # initialize all parameters
+  mu <- if (is.null(initial$mu)) colMeans(X) else initial$mu
+  Sigma <- if (is.null(initial$cov)) cov(X) else initial$cov
+  X_ <- X_ <- X - matrix(mu, T, N, byrow = TRUE)  # demean data
+  weights <- 1/(1 + rowSums(X_ * (X_ %*% inv(Sigma))))   # 1/( 1 + diag( X_ %*% inv(Sigma) %*% t(X_) ) )
+  if (ftol < Inf)
+    log_likelihood <- ((N+1)/2)*sum(log(weights)) - (T/2)*log(det(Sigma))
+
+  # aux function to save iterates
+  snapshot <- function() {
+    if (ftol < Inf) list(mu = mu, scatter = Sigma, log_likelihood = log_likelihood)
+    else list(mu = mu, scatter = Sigma)
+  }
 
 
-  #initial point based on Gaussian
-  mu <- colMeans(X)
-  Sigma <- cov(X)
-
-  #loop
-  obj_value_record <- mu_diff_record <- Sigma_diff_record <- rep(NA, max_iter)
-  for (k in 1:max_iter) {
+  # loop
+  if (return_iterates) iterates_record <- list(snapshot())
+  for (iter in 1:max_iter) {
+    # record the current status
     mu_prev <- mu
     Sigma_prev <- Sigma
+    if (ftol < Inf) log_likelihood_prev <- log_likelihood
 
-    #update
-    X_ <- X - matrix(mu, T, N, byrow = TRUE)
-    weights <- 1/(1+rowSums(X_ * (X_ %*% inv(Sigma))))   # 1/( 1 + diag( X_ %*% inv(Sigma) %*% t(X_) ) )
-    obj_value_record[k] <- - ((N+1)/2)*sum(log(weights)) + (T/2)*log(det(Sigma))
+    # update
     mu <- as.vector(weights %*% X)/sum(weights)
-    X_ <- X - matrix(mu, T, N, byrow = TRUE)  #this could be removed...
-    beta <- T/(N+1)/sum(weights)  #acceleration
-    Sigma <- beta*((N+1)/T) * crossprod( sqrt(weights)*X_ )  # (N/T) * t(X_) %*% diag(weights) %*% X_
+    X_ <- X - matrix(mu, T, N, byrow = TRUE)
+    beta <- T/(N+1)/sum(weights)  # acceleration
+    Sigma <- beta*((N+1)/T) * crossprod(sqrt(weights)*X_)  # (N/T) * t(X_) %*% diag(weights) %*% X_
+    weights <- 1/(1 + rowSums(X_ * (X_ %*% inv(Sigma))))   # 1/( 1 + diag( X_ %*% inv(Sigma) %*% t(X_) ) )
 
-    #stopping criterion
-    mu_diff_record[k] <- norm(mu - mu_prev, "2")/norm(mu_prev, "2")
-    Sigma_diff_record[k] <- norm(Sigma - Sigma_prev, "F")/norm(Sigma_prev, "F")
-    if (mu_diff_record[k] < error_th_mu &&
-        Sigma_diff_record[k] < error_th_Sigma)
-      break
+    # stopping criterion
+    have_params_converged <-
+      all(abs(mu - mu_prev)       <= .5 * ptol * (abs(mu) + abs(mu_prev))) &&
+      all(abs(Sigma - Sigma_prev) <= .5 * ptol * (abs(Sigma) + abs(Sigma_prev)))
+    if (ftol < Inf) {
+      log_likelihood <- ((N+1)/2)*sum(log(weights)) - (T/2)*log(det(Sigma))
+      has_fun_converged <- abs(log_likelihood - log_likelihood_prev) <= .5 * ftol * (abs(log_likelihood) + abs(log_likelihood_prev))
+    } else has_fun_converged <- TRUE
+    if (return_iterates) iterates_record[[iter + 1]] <- snapshot()
+    if (have_params_converged && has_fun_converged) break
   }
-  if (verbose)
-    cat(sprintf("Number of iterations for Cauchy estimator = %d\n", k))
-  # print( figure(width=700, title="Convergence of parameters", xlab="t", ylab="param diff") %>%
-  #          ly_lines(na.omit(mu_diff_record), color="blue", legend="mu") %>%
-  #          ly_lines(na.omit(Sigma_diff_record), color="green", legend="Sigma") )
-  # print( figure(width=700, title="Convergence of objective value", xlab="t", ylab="obj value") %>%
-  #          ly_lines(na.omit(obj_value_record), color="blue") )
+  if (verbose) message(sprintf("Number of iterations for Cauchy estimator = %d\n", iter))
 
-  #finally, recover missing scaling factor (since we are imposing nu=1 rather than estimating it)
+  # finally, recover missing scaling factor for covmat
   kappa <- scaling_fitting_ka_with_b(a = diag(Sigma), b = apply(X^2, 2, mean, trim = max(1/T, 0.03)))
-  Sigma <- kappa * Sigma
 
-  return( list(mu = mu, cov = Sigma,
-               obj_value_record = na.omit(obj_value_record)) )
+  # return variables
+  vars_to_be_returned <- list("mu"  = mu, "cov" = kappa * Sigma, "scatter" = Sigma)
+  if (ftol < Inf)
+    vars_to_be_returned$log_likelihood <- log_likelihood
+  if (return_iterates) {
+    names(iterates_record) <- paste("iter", 0:(length(iterates_record)-1))
+    vars_to_be_returned$iterates_record <- iterates_record
+  }
+  vars_to_be_returned$converged <- (iter < max_iter)
+  return(vars_to_be_returned)
 }
 
 

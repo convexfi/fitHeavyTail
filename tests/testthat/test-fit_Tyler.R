@@ -20,7 +20,7 @@ test_that("cov estimate works", {
 
   # # plotting convergence
   # fitted_Tyler <- fit_Tyler(X, ftol = 1, verbose = TRUE, return_iterates = TRUE)
-  # plotConvergence(fitted_Tyler)
+  # fitHeavyTail:::plotConvergence(fitted_Tyler)
 
   # test agains saved results
   # fitted_Tyler_check <- fit_Tyler(X)
