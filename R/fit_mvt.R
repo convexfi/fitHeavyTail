@@ -95,7 +95,7 @@ fit_mvt <- function(X, initial = NULL, factors = ncol(X),
   ####### error control ########
   X <- try(as.matrix(X), silent = TRUE)
   if (!is.matrix(X)) stop("\"X\" must be a matrix or coercible to a matrix.")
-  if (is.null(colnames(X))) colnames(X) <- 1:ncol(X)
+  if (is.null(colnames(X))) colnames(X) <- paste0("Var", 1:ncol(X))
   if (!all(is.na(X) | is.numeric(X))) stop("\"X\" only allows numerical or NA values.")
   if (ncol(X) <= 1) X <- X[!is.na(X), , drop = FALSE]
   if (nrow(X) <= 1) stop("Only T=1 sample!!")
@@ -141,14 +141,16 @@ fit_mvt <- function(X, initial = NULL, factors = ncol(X),
   } else {
     Sigma <- (nu-2)/nu * SCM
   }
-
   if (ftol < Inf) log_likelihood <- ifelse(X_has_NA,
                                            dmvt_withNA(X = X, delta = mu, sigma = Sigma / alpha, df = nu),
                                            sum(mvtnorm::dmvt(X, delta = mu, sigma = Sigma, df = nu, log = TRUE, type = "shifted")))
+
+  # aux function to save iterates
   snapshot <- function() {
     if (ftol < Inf) list(mu = mu, scatter = Sigma, nu = nu, log_likelihood = log_likelihood)
     else list(mu = mu, scatter = Sigma, nu = nu)
   }
+
 
   # loop
   if (return_iterates) iterates_record <- list(snapshot())
@@ -239,7 +241,7 @@ fit_mvt <- function(X, initial = NULL, factors = ncol(X),
     names(iterates_record) <- paste("iter", 0:(length(iterates_record)-1))
     vars_to_be_returned$iterates_record <- iterates_record
   }
-  vars_to_be_returned$converged <- iter < max_iter
+  vars_to_be_returned$converged <- (iter < max_iter)
   return(vars_to_be_returned)
 }
 
@@ -382,6 +384,5 @@ est_nu_kurtosis <- function(X) {
   # in case of some funny results
   if (nu < 2) nu <- 2
   if (nu > 100) nu <- 100
-
   return(nu)
 }
