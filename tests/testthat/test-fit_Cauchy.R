@@ -8,6 +8,7 @@ test_that("error control works", {
   expect_error(fit_Cauchy(X = median), "\"X\" must be a matrix or coercible to a matrix.")
   expect_error(fit_Cauchy(X = "HongKong"), "\"X\" only allows numerical or NA values.")
   expect_error(fit_Cauchy(X = 1), "Only T=1 sample!!")
+  expect_error(fit_Cauchy(X[1:4, ]), "Cannot deal with T < N, too few samples.")
   expect_error(fit_Cauchy(X = X, max_iter = -1), "\"max_iter\" must be greater than 1.")
 })
 

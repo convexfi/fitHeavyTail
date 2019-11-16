@@ -71,7 +71,7 @@
 #'         \item{\code{converged}}{Boolean denoting whether the algorithm has converged (\code{TRUE}) or the maximum number
 #'                                 of iterations \code{max_iter} has reached (\code{FALSE}).}
 #'
-#' @author Rui Zhou and Daniel P. Palomar
+#' @author Daniel P. Palomar and Rui Zhou
 #'
 #' @seealso \code{\link{fit_Tyler}} and \code{\link{fit_Cauchy}}
 #'
@@ -101,7 +101,8 @@ fit_mvt <- function(X, initial = NULL, factors = ncol(X),
   if (is.null(colnames(X))) colnames(X) <- paste0("Var", 1:ncol(X))
   if (!all(is.na(X) | is.numeric(X))) stop("\"X\" only allows numerical or NA values.")
   if (ncol(X) <= 1) X <- X[!is.na(X), , drop = FALSE]
-  if (nrow(X) <= 1) stop("Only T=1 sample!!")
+  if (nrow(X) == 1) stop("Only T=1 sample!!")
+  if (nrow(X) < ncol(X)) stop("Cannot deal with T < N, too few samples.")
   factors <- round(factors)
   max_iter <- round(max_iter)
   if (factors < 1 || factors > ncol(X)) stop("\"factors\" must be no less than 1 and no more than column number of \"X\".")
@@ -233,10 +234,10 @@ fit_mvt <- function(X, initial = NULL, factors = ncol(X),
                               "cov"         = nu/(nu-2) * Sigma,
                               "scatter"     = Sigma,
                               "nu"          = nu)
-  if (!optimize_nu) {
-    kappa <- scaling_fitting_ka_with_b(a = diag(Sigma), b = apply(X^2, 2, mean, trim = max(1/T, 0.03)))
-    vars_to_be_returned$cov <- kappa * Sigma
-  }
+  # if (!optimize_nu) {
+  #   kappa <- scaling_fitting_ka_with_b(a = diag(Sigma), b = apply(X^2, 2, mean, trim = max(1/T, 0.03)))
+  #   vars_to_be_returned$cov <- kappa * Sigma
+  # }
   if (FA_struct) {
     rownames(B) <- names(psi) <- colnames(X)
     colnames(B) <- paste0("factor-", 1:ncol(B))
@@ -256,9 +257,9 @@ fit_mvt <- function(X, initial = NULL, factors = ncol(X),
 
 
 
-
-
-
+##
+## -------- Auxiliary functions --------
+##
 
 
 fnu <- function(nu) {nu/(nu-2)}

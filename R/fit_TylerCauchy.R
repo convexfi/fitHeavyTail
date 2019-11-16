@@ -55,7 +55,8 @@ fit_Tyler <- function(X, initial = NULL, max_iter = 100, ptol = 1e-3, ftol = Inf
     mask_NA <- apply(X, 1, anyNA)
     X <- X[!mask_NA, , drop = FALSE]
   }
-  if (nrow(X) <= 1) stop("Only T=1 sample!!")
+  if (nrow(X) == 1) stop("Only T=1 sample!!")
+  if (nrow(X) < ncol(X)) stop("Cannot deal with T < N, too few samples.")
   max_iter <- round(max_iter)
   if (max_iter < 1) stop("\"max_iter\" must be greater than 1.")
   ##############################
@@ -181,7 +182,8 @@ fit_Cauchy <- function(X, initial = NULL, max_iter = 100, ptol = 1e-3, ftol = In
     mask_NA <- apply(X, 1, anyNA)
     X <- X[!mask_NA, , drop = FALSE]
   }
-  if (nrow(X) <= 1) stop("Only T=1 sample!!")
+  if (nrow(X) == 1) stop("Only T=1 sample!!")
+  if (nrow(X) < ncol(X)) stop("Cannot deal with T < N, too few samples.")
   max_iter <- round(max_iter)
   if (max_iter < 1) stop("\"max_iter\" must be greater than 1.")
   ##############################
