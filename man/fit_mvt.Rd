@@ -114,5 +114,5 @@ Lecture Notes in Computer Science (LNCS), 2019. <https://arxiv.org/abs/1909.1253
 \code{\link{fit_Tyler}} and \code{\link{fit_Cauchy}}
 }
 \author{
-Rui Zhou and Daniel P. Palomar
+Daniel P. Palomar and Rui Zhou
 }

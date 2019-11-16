@@ -18,8 +18,8 @@ output:
 csl: ieee.csl
 bibliography: refs.bib
 vignette: >
-  %\VignetteIndexEntry{Comparison of Covariance Matrix Estimation under Heavy Tails}
-  %\VignetteKeyword{covariance matrix, heavy tails, non Gaussian}
+  %\VignetteIndexEntry{Mean Vector and Covariance Matrix Estimation under Heavy Tails}
+  %\VignetteKeyword{covariance matrix, heavy tail, non Gaussian, Student t, Cauchy, Tyler}
   %\VignetteEncoding{UTF-8}
   %\VignetteEngine{knitr::rmarkdown}
 ---

@@ -1,7 +1,7 @@
 Package: fitHeavyTail
 Title: Mean and Covariance Matrix Estimation under Heavy Tails
-Version: 0.1.0.9000
-Date: 2019-11-15
+Version: 0.1.1
+Date: 2019-11-16
 Description: Robust estimation methods for the mean vector and covariance matrix 
     from data (possibly containing NAs) under multivariate heavy-tailed 
     distributions such as angular Gaussian, Cauchy, and Student's t. Additionally,
@@ -21,12 +21,12 @@ Depends:
 Imports:
     ICSNP,
     mvtnorm,
-    stats,
-    ggplot2,
-    reshape2
+    stats
 Suggests:
     knitr,
+    ggplot2,
     prettydoc,
+    reshape2,
     rmarkdown,
     R.rsp,
     testthat

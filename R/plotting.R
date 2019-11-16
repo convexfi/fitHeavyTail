@@ -13,6 +13,8 @@ plotConvergence <- function(res_fit) {
   if (!requireNamespace("reshape2", quietly = TRUE))
     stop("Please install package \"reshape2\"", call. = FALSE)
 
+  iteration <- NULL
+
   p_all <- list()
   data <- data.frame(iteration = 0:(length(res_fit$iterates_record)-1))
   if (!is.null(res_fit$iterates_record[[1]]$nu)) {

@@ -1,8 +1,14 @@
-## Changes in fitHeavyTail version 0.1.0.9000 (2019-XX-XX)
+## Changes in fitHeavyTail version 0.1.1 (2019-11-16)
 
 * Initial release is on CRAN.
 
-* TBD
+* It includes three functions for heavy tails fitting: fit_mvt(), fit_Tyler(), and fit_Cauchy().
+
+* Vignette illustrates its use and comparison with existing packages.
+
+* Tests are included.
+
+* fit_mvt() can deal with NAs and a factor model structure on the covariance matrix.
 
 
 ## Changes in fitHeavyTail version 0.1.0 (2017-11-04)
