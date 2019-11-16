@@ -32,7 +32,7 @@ test_that("default mode works", {
   mvt_model <- fit_mvt(X)
 
   load("fitted_mvt_check.RData")
-  expect_identical(mvt_model, mvt_model_check)
+  expect_equal(mvt_model, mvt_model_check)
 
   # test for xts
   fitted_xts <- fit_mvt(X_xts)
@@ -57,7 +57,7 @@ test_that("factor structure constraint on scatter matrix works", {
   # save(mvt_model_factor_check, file = "fitted_mvt_factor_check.RData", version = 2, compress = "xz")
   mvt_model_factor <- fit_mvt(X, factors = 3)
   load("fitted_mvt_factor_check.RData")
-  expect_identical(mvt_model_factor, mvt_model_factor_check)
+  expect_equal(mvt_model_factor, mvt_model_factor_check)
 })
 
 
@@ -68,7 +68,7 @@ test_that("X with NAs works", {
   # save(mvt_model_wNA_check, file = "fitted_mvt_wNA_check.RData", version = 2, compress = "xz")
   mvt_model_wNA <- fit_mvt(X_wNA)
   load("fitted_mvt_wNA_check.RData")
-  expect_identical(mvt_model_wNA, mvt_model_wNA_check)
+  expect_equal(mvt_model_wNA, mvt_model_wNA_check)
 })
 
 
@@ -78,7 +78,7 @@ test_that("fixed nu works", {
   # save(mvt_model_fixednu_check, file = "fitted_mvt_fixednu_check.RData", version = 2, compress = "xz")
   load("fitted_mvt_fixednu_check.RData")
   mvt_model_fixednu <- fit_mvt(X, nu = "kurtosis")
-  expect_identical(mvt_model_fixednu, mvt_model_fixednu_check)
+  expect_equal(mvt_model_fixednu, mvt_model_fixednu_check)
 })
 
 
@@ -88,5 +88,5 @@ test_that("regularized nu works", {
   # save(mvt_model_regnu_check, file = "fitted_mvt_regnu_check.RData", version = 2, compress = "xz")
   load("fitted_mvt_regnu_check.RData")
   mvt_model_regnu <- fit_mvt(X, nu_regcoef = 1)
-  expect_identical(mvt_model_regnu, mvt_model_regnu_check)
+  expect_equal(mvt_model_regnu, mvt_model_regnu_check)
 })

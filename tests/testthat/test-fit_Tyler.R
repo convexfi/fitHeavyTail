@@ -27,7 +27,7 @@ test_that("cov estimate works", {
   # fitted_Tyler_check <- fit_Tyler(X)
   # save(fitted_Tyler_check, file = "fitted_Tyler_check.RData", version = 2, compress = "xz")
   load("fitted_Tyler_check.RData")
-  expect_identical(fitted_Tyler, fitted_Tyler_check)
+  expect_equal(fitted_Tyler, fitted_Tyler_check)
 
   # test for xts
   fitted_xts <- fit_Tyler(X_xts)
