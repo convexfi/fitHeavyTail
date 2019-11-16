@@ -13,7 +13,7 @@ plotConvergence <- function(res_fit) {
   if (!requireNamespace("reshape2", quietly = TRUE))
     stop("Please install package \"reshape2\"", call. = FALSE)
 
-  iteration <- nu <- nu_div_nu_2 <- value <- variable <- log_likelihood <- NULL
+  iteration <- nu <- nu_div_nu_2 <- value <- variable <- log_likelihood <- NULL  # hack to avoid problems with checks
 
   p_all <- list()
   data <- data.frame(iteration = 0:(length(res_fit$iterates_record)-1))
