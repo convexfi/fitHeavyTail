@@ -99,7 +99,7 @@ To get a visual idea of the robustness, we can plot the shapes of the
 covariance matrices (true and estimated ones) projected on two
 dimensions. Observe how the heavy-tailed estimation follows the true one
 more closely than the sample covariance matrix:
-<img src="man/figures/README-unnamed-chunk-9-1.png" width="80%" style="display: block; margin: auto;" />
+<img src="man/figures/README-ellipses-1.png" width="80%" style="display: block; margin: auto;" />
 
 <!---
 ## Documentation

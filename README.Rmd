@@ -100,11 +100,12 @@ sum((fitted$cov - Sigma)^2)
 ```
 
 To get a visual idea of the robustness, we can plot the shapes of the covariance matrices (true and estimated ones) projected on two dimensions. Observe how the heavy-tailed estimation follows the true one more closely than the sample covariance matrix:
-```{r, echo=FALSE, message=FALSE, fig.width = 9, fig.height = 5, out.width = "80%"}
+```{r ellipses, echo=FALSE, message=FALSE, fig.width = 9, fig.height = 5, out.width = "80%"}
 library(ggplot2)
 library(ellipse)
 
 i1 <- 7; i2 <- 5
+colnames(fitted$cov) <- rownames(fitted$cov) <- NULL
 ggplot(data.frame(x = X[, i1], y = X[, i2]), aes(x, y)) +
   geom_point(alpha = 0.7, size = 3) +
   geom_path(data = data.frame(ellipse(Sigma[c(i1, i2), c(i1, i2)])), 
