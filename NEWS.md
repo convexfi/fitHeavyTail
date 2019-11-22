@@ -1,4 +1,4 @@
-## Changes in fitHeavyTail version 0.1.1 (2019-11-16)
+## Changes in fitHeavyTail version 0.1.1 (2019-11-22)
 
 * Initial release is on CRAN.
 

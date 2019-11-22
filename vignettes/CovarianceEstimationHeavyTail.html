@@ -11,7 +11,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 
 
-<meta name="date" content="2019-11-15" />
+<meta name="date" content="2019-11-22" />
 
 <title>Mean Vector and Covariance Matrix Estimation under Heavy Tails</title>
 
@@ -113,7 +113,7 @@ code > span.er { color: #a61717; background-color: #e3d2d2; }
 <h1 class="title toc-ignore">Mean Vector and Covariance Matrix Estimation under Heavy Tails</h1>
 <h3 class="author"><div class="line-block">Daniel P. Palomar and Rui ZHOU<br />
 The Hong Kong University of Science and Technology (HKUST)</div></h3>
-<h3 class="date">2019-11-15</h3>
+<h3 class="date">2019-11-22</h3>
 </header>
 
 <hr>
@@ -131,7 +131,7 @@ The Hong Kong University of Science and Technology (HKUST)</div></h3>
 
 <hr />
 <blockquote>
-<p>This vignette illustrates the usage of the package <a href="https://CRAN.R-project.org/package=fitHeavyTail"><code>portfolioBacktest</code></a> to estimate the mean vector and covariance matrix of heavy-tailed multivariate distributions such as the angular Gaussian, Cauchy, or Student’s <span class="math inline">\(t\)</span> distribution. The results are compared against existing benchmark functions from different packages.</p>
+<p>This vignette illustrates the usage of the package <a href="https://CRAN.R-project.org/package=fitHeavyTail"><code>fitHeavyTail</code></a> to estimate the mean vector and covariance matrix of heavy-tailed multivariate distributions such as the angular Gaussian, Cauchy, or Student’s <span class="math inline">\(t\)</span> distribution. The results are compared against existing benchmark functions from different packages.</p>
 </blockquote>
 <div id="installation" class="section level1">
 <h1>Installation</h1>
@@ -166,8 +166,7 @@ The Hong Kong University of Science and Technology (HKUST)</div></h3>
 <a class="sourceLine" id="cb3-2" title="2">Sigma_scm &lt;-<span class="st"> </span><span class="kw">cov</span>(X)</a></code></pre></div>
 <p>Then we can compute the robust estimates via the package <code>fitHeavyTail</code>:</p>
 <div class="sourceCode" id="cb4"><pre class="sourceCode r"><code class="sourceCode r"><a class="sourceLine" id="cb4-1" title="1"><span class="kw">library</span>(fitHeavyTail)</a>
-<a class="sourceLine" id="cb4-2" title="2"></a>
-<a class="sourceLine" id="cb4-3" title="3">fitted &lt;-<span class="st"> </span><span class="kw">fit_mvt</span>(X)</a></code></pre></div>
+<a class="sourceLine" id="cb4-2" title="2">fitted &lt;-<span class="st"> </span><span class="kw">fit_mvt</span>(X)</a></code></pre></div>
 <p>We can now compute the estimation errors and see the big improvement:</p>
 <div class="sourceCode" id="cb5"><pre class="sourceCode r"><code class="sourceCode r"><a class="sourceLine" id="cb5-1" title="1"><span class="kw">sum</span>((mu_sm <span class="op">-</span><span class="st"> </span>mu)<span class="op">^</span><span class="dv">2</span>)</a>
 <a class="sourceLine" id="cb5-2" title="2"><span class="co">#&gt; [1] 0.2857323</span></a>

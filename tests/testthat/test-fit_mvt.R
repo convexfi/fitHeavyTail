@@ -57,7 +57,10 @@ test_that("factor structure constraint on scatter matrix works", {
   # save(mvt_model_factor_check, file = "fitted_mvt_factor_check.RData", version = 2, compress = "xz")
   mvt_model_factor <- fit_mvt(X, factors = 3)
   load("fitted_mvt_factor_check.RData")
-  expect_equal(mvt_model_factor, mvt_model_factor_check)
+  expect_equal(mvt_model_factor[c("mu", "cov", "scatter", "nu", "psi", "converged")],
+               mvt_model_factor_check[c("mu", "cov", "scatter", "nu", "psi", "converged")])
+  expect_equal(mvt_model_factor$B %*% t(mvt_model_factor$B),
+               mvt_model_factor_check$B %*% t(mvt_model_factor_check$B))
 })
 
 

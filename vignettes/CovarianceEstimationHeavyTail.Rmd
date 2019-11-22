@@ -41,7 +41,7 @@ knit_hooks$set(pngquant = hook_pngquant)
 ```
 
 -----------
-> This vignette illustrates the usage of the package [`portfolioBacktest`](https://CRAN.R-project.org/package=fitHeavyTail) 
+> This vignette illustrates the usage of the package [`fitHeavyTail`](https://CRAN.R-project.org/package=fitHeavyTail) 
 to estimate the mean vector and covariance matrix of heavy-tailed multivariate distributions such as the angular Gaussian, Cauchy, or Student's $t$ distribution. The results are compared against existing benchmark functions from different packages.
 
 
@@ -87,7 +87,6 @@ Sigma_scm <- cov(X)
 Then we can compute the robust estimates via the package `fitHeavyTail`:
 ```{r}
 library(fitHeavyTail)
-
 fitted <- fit_mvt(X)
 ```
 
