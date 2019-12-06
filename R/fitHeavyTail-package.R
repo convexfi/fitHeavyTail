@@ -13,6 +13,9 @@
 #' For a quick help see the README file:
 #' \href{https://github.com/dppalomar/fitHeavyTail/blob/master/README.md}{GitHub-README}.
 #'
+#' For more details see the vignette:
+#' \href{https://CRAN.R-project.org/package=fitHeavyTail/vignettes/CovarianceEstimationHeavyTail.html}{CRAN-vignette}.
+#'
 #' @author Daniel P. Palomar and Rui Zhou
 #'
 #' @references
