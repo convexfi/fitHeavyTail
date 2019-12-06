@@ -17,7 +17,7 @@ Description: Robust estimation methods for the mean vector and covariance matrix
     ML estimation of the t-distribution using EM and its extensions, ECM and ECME.
     Statistica Sinica (5), pp. 19-39.
     <https:www3.stat.sinica.edu.tw/statistica/oldpdf/A5n12.pdf>.
-    R. Zhou, J. Liu, S. Kumar, and D. P. Palomar (2015).
+    R. Zhou, J. Liu, S. Kumar, and D. P. Palomar (2019).
     Robust factor analysis parameter estimation.
     Lecture Notes in Computer Science (LNCS). <arXiv:1909.12530>.
 Authors@R: c(
