@@ -1,16 +1,15 @@
 ---
-always_allow_html: yes
 output:
   html_document:
-    keep_md: yes
     variant: markdown_github
+    keep_md: true
   md_document:
     variant: markdown_github
 ---
 
 <!-- README.md is generated from README.Rmd. Please edit that file -->
 
-```{r, echo = FALSE}
+```{r, echo=FALSE}
 library(knitr)
 opts_chunk$set(
   collapse = TRUE,
