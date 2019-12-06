@@ -21,7 +21,7 @@ output:
 
 Robust estimation methods for the mean vector and covariance matrix 
 from data (possibly containing NAs) under multivariate heavy-tailed 
-distributions such as angular Gaussian, Cauchy, and Student's $t$. Additionally,
+distributions such as angular Gaussian, Cauchy, and Student's _t_. Additionally,
 a factor model structure can be specified for the covariance matrix.
     
 
@@ -52,7 +52,7 @@ citation("fitHeavyTail")
 
 
 ## Quick Start
-To illustrate the simple usage of the package `fitHeavyTail`, let's start by generating some multivariate data under a Student's $t$ distribution with significant heavy tails ($\nu=4$):
+To illustrate the simple usage of the package `fitHeavyTail`, let's start by generating some multivariate data under a Student's _t_ distribution with significant heavy tails:
 
 ```r
 library(mvtnorm)  # package for multivariate t distribution
@@ -114,4 +114,3 @@ Package: [CRAN](https://CRAN.R-project.org/package=fitHeavyTail) and [GitHub](ht
 README file: [GitHub-readme](https://github.com/dppalomar/fitHeavyTail/blob/master/README.md).
 
 Vignette: [CRAN-vignette](https://CRAN.R-project.org/package=fitHeavyTail/vignettes/CovarianceEstimationHeavyTail.html).
-
