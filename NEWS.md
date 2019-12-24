@@ -1,5 +1,9 @@
 ## Changes in fitHeavyTail version 0.1.1.9000 (XXXX-XX-XX)
 
+* Vignette revised: detailed descriptions of the algorithms included.
+
+* Comparison with sn::selm() included.
+
 
 
 ## Changes in fitHeavyTail version 0.1.1 (2019-11-22)

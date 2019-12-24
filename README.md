@@ -3,8 +3,6 @@
 
 
 
-
-
 # fitHeavyTail
 [![CRAN_Status_Badge](https://www.r-pkg.org/badges/version/fitHeavyTail)](https://CRAN.R-project.org/package=fitHeavyTail)
 [![CRAN Downloads](https://cranlogs.r-pkg.org/badges/fitHeavyTail)](https://CRAN.R-project.org/package=fitHeavyTail)
