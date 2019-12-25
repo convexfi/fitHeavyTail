@@ -380,10 +380,12 @@ In particular:
 - The function `fitHeavyTail::fit_Tyler()` normalizes the centered samples $\bar{\mathbf{x}}_t = \mathbf{x}_t - \boldsymbol{\mu}$ (where $\boldsymbol{\mu}$ has been previously estimated), which then have an angular Gaussian distribution on the sphere, and performs an MLE based on the MM algorithm [@SunBabPal2014]. The formulation including a regularization term is
 $$
 \begin{array}{ll}
-\underset{\boldsymbol{\Sigma}}{\textsf{minimize}} & 
+\underset{\boldsymbol{\Sigma}}{\textsf{minimize}} &
+  \begin{aligned}[t]
   \frac{T}{2}\log\det(\boldsymbol{\Sigma}) +
-  \frac{N}{2}\sum\limits_{t=1}^{T}\log{\left(\bar{\mathbf{x}}_t^T\boldsymbol{\Sigma}^{-1}\bar{\mathbf{x}}_t\right)}\\
-  & \qquad \color{darkred}{+ \;\alpha \left(N\log\left(\textsf{Tr}\left(\boldsymbol{\Sigma}^{-1}\mathbf{T}\right)\right) + \log\det(\boldsymbol{\Sigma})\right)}
+  \frac{N}{2}\sum\limits_{t=1}^{T}\log{\left(\bar{\mathbf{x}}_t^T\boldsymbol{\Sigma}^{-1}\bar{\mathbf{x}}_t\right)}\hspace{2cm}\\
+  \color{darkred}{+ \;\alpha \left(N\log\left(\textsf{Tr}\left(\boldsymbol{\Sigma}^{-1}\mathbf{T}\right)\right) + \log\det(\boldsymbol{\Sigma})\right)}
+  \end{aligned}
 \end{array}
 $$
 where $\mathbf{T}$ is the target matrix (e.g., $\mathbf{T} = \mathbf{I}$ or $\mathbf{T} = \frac{1}{N}\textsf{Tr}(\mathbf{S})\times\mathbf{I}$, with $\mathbf{S}$ being the sample covariance matrix).
@@ -392,7 +394,7 @@ $$
 \boldsymbol{\Sigma}_{k+1} = 
 (1 - \rho)\frac{N}{T}\sum\limits_{t=1}^{T}\frac{\bar{\mathbf{x}}_t\bar{\mathbf{x}}_t^T}{\bar{\mathbf{x}}_t^T\boldsymbol{\Sigma}_k^{-1}\bar{\mathbf{x}}_t} + \rho\frac{N}{\textsf{Tr}\left(\boldsymbol{\Sigma}_k^{-1}\mathbf{T}\right)}\mathbf{T},
 $$
-where $\rho = \frac{\alpha}{T/2 + \alpha}$ or $\alpha = \frac{T}{2}\frac{\rho}{1 - \rho}$. For better numerical stability, one can further normalize the estimate at each iteration: $\boldsymbol{\Sigma}_{k+1} \leftarrow \boldsymbol{\Sigma}_{k+1}/\textsf{Tr}\left(\boldsymbol{\Sigma}_{k+1}\right)$. The iterations converge to the solution up to a scaling factor if and only if $1 + \frac{2}{T}\alpha > \frac{N}{T}$ or, equivalently, $\rho > 1 - \frac{T}{N}$ [@SunBabPal2014] (the correct scaling factor is later obtained via a robust fitting method).
+where $\rho = \frac{\alpha}{T/2 + \alpha}$ or $\alpha = \frac{T}{2}\frac{\rho}{1 - \rho}$, and initial point $\boldsymbol{\Sigma}_{0} = \mathbf{S}$. For better numerical stability, one can further normalize the estimate at each iteration: $\boldsymbol{\Sigma}_{k+1} \leftarrow \boldsymbol{\Sigma}_{k+1}/\textsf{Tr}\left(\boldsymbol{\Sigma}_{k+1}\right)$. The iterations converge to the solution up to a scaling factor if and only if $1 + \frac{2}{T}\alpha > \frac{N}{T}$ or, equivalently, $\rho > 1 - \frac{T}{N}$ [@SunBabPal2014] (the correct scaling factor is later obtained via a robust fitting method).
 If instead the regularization term $\color{darkred}{\textsf{Tr}\left(\boldsymbol{\Sigma}^{-1}\mathbf{T}\right) + \log\det(\boldsymbol{\Sigma})}$ is used, the iteration step becomes
 $$
 \boldsymbol{\Sigma}_{k+1} = 
@@ -403,13 +405,15 @@ $$
 - The function `fitHeavyTail::fit_Cauchy()` assumes that the data follows a multivariate Cauchy distribution ($t$ distribution with $\nu=1$) and performs an MLE based on the MM algorithm [@SunBabPal2015]. The formulation including a regularization term is
 $$
 \begin{array}{ll}
-\underset{\boldsymbol{\mu},\boldsymbol{\Sigma}}{\textsf{minimize}} 
-& \frac{T}{2}\log\det(\boldsymbol{\Sigma}) + \frac{N+1}{2}\sum\limits_{t=1}^{T}\log{\left(1+(\mathbf{x}_t - \boldsymbol{\mu})^T\boldsymbol{\Sigma}^{-1}(\mathbf{x}_t - \boldsymbol{\mu})\right)}\\
-& \qquad \color{darkred}{+\;\alpha \left(N\log\left(\textsf{Tr}\left(\boldsymbol{\Sigma}^{-1}\mathbf{T}\right)\right) + \log\det(\boldsymbol{\Sigma})\right) + \gamma \log{\left(1 + (\boldsymbol{\mu} - \mathbf{t})^T\boldsymbol{\Sigma}^{-1}(\boldsymbol{\mu} - \mathbf{t})\right)}}
+\underset{\boldsymbol{\mu},\boldsymbol{\Sigma}}{\textsf{minimize}} &
+  \begin{aligned}[t]
+  & \frac{T}{2}\log\det(\boldsymbol{\Sigma}) + \frac{N+1}{2}\sum\limits_{t=1}^{T}\log{\left(1+(\mathbf{x}_t - \boldsymbol{\mu})^T\boldsymbol{\Sigma}^{-1}(\mathbf{x}_t - \boldsymbol{\mu})\right)}\\
+  & \color{darkred}{+\;\alpha \left(N\log\left(\textsf{Tr}\left(\boldsymbol{\Sigma}^{-1}\mathbf{T}\right)\right) + \log\det(\boldsymbol{\Sigma})\right) + \gamma \log{\left(1 + (\boldsymbol{\mu} - \mathbf{t})^T\boldsymbol{\Sigma}^{-1}(\boldsymbol{\mu} - \mathbf{t})\right)}}
+  \end{aligned}
 \end{array}
 $$
 where $\mathbf{t}$ and $\mathbf{T}$ are the targets for  $\boldsymbol{\mu}$ and $\boldsymbol{\Sigma}$, respectively.
-This leads to the following (accelerated) iteration step [@SunBabPal2015, Alg. 4]:
+This leads to the following (accelerated) iteration step (Algorithm 4 in [@SunBabPal2015]):
 $$
 \boldsymbol{\mu}_{k+1} = \frac{(N+1)\sum_{t=1}^Tw_t\left(\boldsymbol{\mu}_k,\boldsymbol{\Sigma}_k\right)\mathbf{x}_t + 2\gamma w_{\textsf{tgt}}\left(\boldsymbol{\mu}_k,\boldsymbol{\Sigma}_k\right)\mathbf{t}}{(N+1)\sum_{t=1}^Tw_t\left(\boldsymbol{\mu}_k,\boldsymbol{\Sigma}_k\right) + 2\gamma w_{\textsf{tgt}}\left(\boldsymbol{\mu}_k,\boldsymbol{\Sigma}_k\right)}
 $$
@@ -417,29 +421,24 @@ and
 $$
 \boldsymbol{\Sigma}_{k+1} = \beta_k 
 \left\{
-\frac{N+1}{T+2\alpha}\sum\limits_{t=1}^{T}w_t\left(\boldsymbol{\mu}_k,\boldsymbol{\Sigma}_k\right)\left(\mathbf{x}_t - \boldsymbol{\mu}_{k+1}\right)\left(\mathbf{x}_t - \boldsymbol{\mu}_{k+1}\right)^T \\\hspace{5cm}+
-\frac{2\gamma}{T+2\alpha}w_\textsf{tgt}\left(\boldsymbol{\mu}_k,\boldsymbol{\Sigma}_k\right)\left(\mathbf{t} - \boldsymbol{\mu}_{k+1}\right)\left(\mathbf{t} - \boldsymbol{\mu}_{k+1}\right)^T \\\hspace{1cm}+
-\frac{2\alpha}{T+2\alpha}\frac{N}{\textsf{Tr}\left(\boldsymbol{\Sigma}_k^{-1}\mathbf{T}\right)}\mathbf{T}
+(1 - \rho)\frac{N+1}{T}\sum\limits_{t=1}^{T}w_t\left(\boldsymbol{\mu}_k,\boldsymbol{\Sigma}_k\right)\left(\mathbf{x}_t - \boldsymbol{\mu}_{k+1}\right)\left(\mathbf{x}_t - \boldsymbol{\mu}_{k+1}\right)^T\\\hspace{6cm} +
+\rho\left(\frac{N}{\textsf{Tr}\left(\boldsymbol{\Sigma}_k^{-1}\mathbf{T}\right)}\mathbf{T} +
+\frac{\gamma}{\alpha}w_\textsf{tgt}\left(\boldsymbol{\mu}_k,\boldsymbol{\Sigma}_k\right)\left(\mathbf{t} - \boldsymbol{\mu}_{k+1}\right)\left(\mathbf{t} - \boldsymbol{\mu}_{k+1}\right)^T\right)
 \right\}
 $$
-where
+where $\rho = \frac{\alpha}{T/2 + \alpha}$,
 $$
 \begin{aligned}
-w_t\left(\boldsymbol{\mu},\boldsymbol{\Sigma}\right) &= \frac{1}{1 + \left(\mathbf{x}_t - \boldsymbol{\mu}\right)^T\boldsymbol{\Sigma}^{-1}\left(\mathbf{x}_t - \boldsymbol{\mu}\right)}\\
-w_\textsf{tgt}\left(\boldsymbol{\mu},\boldsymbol{\Sigma}\right) &= \frac{1}{1 + \left(\mathbf{t} - \boldsymbol{\mu}\right)^T\boldsymbol{\Sigma}^{-1}\left(\mathbf{t} - \boldsymbol{\mu}\right)}\\
-\beta_k &= \frac{T+2\gamma}{(N+1)\sum_{t=1}^{T}w_t\left(\boldsymbol{\mu}_k,\boldsymbol{\Sigma}_k\right) + 2\gamma w_\textsf{tgt}\left(\boldsymbol{\mu}_k,\boldsymbol{\Sigma}_k\right)}.
+w_t\left(\boldsymbol{\mu},\boldsymbol{\Sigma}\right) &= \frac{1}{1 + \left(\mathbf{x}_t - \boldsymbol{\mu}\right)^T\boldsymbol{\Sigma}^{-1}\left(\mathbf{x}_t - \boldsymbol{\mu}\right)},\\
+w_\textsf{tgt}\left(\boldsymbol{\mu},\boldsymbol{\Sigma}\right) &= \frac{1}{1 + \left(\mathbf{t} - \boldsymbol{\mu}\right)^T\boldsymbol{\Sigma}^{-1}\left(\mathbf{t} - \boldsymbol{\mu}\right)},\\
+\beta_k &= \frac{T+2\gamma}{(N+1)\sum_{t=1}^{T}w_t\left(\boldsymbol{\mu}_k,\boldsymbol{\Sigma}_k\right) + 2\gamma w_\textsf{tgt}\left(\boldsymbol{\mu}_k,\boldsymbol{\Sigma}_k\right)},
 \end{aligned}
 $$
-The iterations converge to the solution if and only if the conditions in Corollary 3 in [@SunBabPal2015] are satisfied.
+and initial point $\boldsymbol{\mu}_{0} = \frac{1}{T}\sum_{t=1}^{T}\mathbf{x}_t$ and $\boldsymbol{\Sigma}_{0} = \mathbf{S}$ (note that this initial point is not totally correct due to a scaling factor).
+The iterations converge to the solution if and only if the conditions of Corollary 3 in [@SunBabPal2015] are satisfied.
 
 
-
-
-
-
-
-
-- The function `fitHeavyTail::fit_mvt()` assumes the the data follows a multivariate Student's $t$ distribution and performs an MLE based on the EM algorithm [@LiuRubin95]. The formulation is
+- The function `fitHeavyTail::fit_mvt()` assumes the the data follows a multivariate Student's $t$ distribution and performs an MLE based on the EM algorithm [@LiuRubin95]. The MLE formulation is
 $$
 \begin{array}{ll}
 \underset{\boldsymbol{\mu},\boldsymbol{\Sigma},\nu}{\textsf{minimize}} & 
@@ -452,6 +451,34 @@ $$
   \end{aligned}
 \end{array}
 $$
+Since its direct minimization is complicated, the EM algorithm instead iteratively solves the following problem at iteration $k$:
+$$
+\begin{array}{ll}
+\underset{\boldsymbol{\mu},\boldsymbol{\Sigma},\nu}{\textsf{minimize}} & 
+  \begin{aligned}[t]
+  \frac{T}{2}\log\det(\boldsymbol{\Sigma}) +
+  \sum\limits_{t=1}^{T}\left\{\frac{\textsf{E}_k[\tau_t]}{2}(\mathbf{x}_t - \boldsymbol{\mu})^T\boldsymbol{\Sigma}^{-1}(\mathbf{x}_t - \boldsymbol{\mu}) + \frac{\nu}{2}\textsf{E}_k[\tau_t] - \frac{\nu}{2}\textsf{E}_k[\log{\tau_t]}\right\}\\
+  -\; \frac{T\nu}{2}\log{\frac{\nu}{2}} + T\log{\Gamma\left(\frac{\nu}{2}\right)}
+  \end{aligned}
+\end{array}
+$$
+where
+$$
+\textsf{E}_k[\tau_t] = \frac{\nu_k + N}{\nu_k + \left(\mathbf{x}_t - \boldsymbol{\mu}_k\right)^T\boldsymbol{\Sigma}_k^{-1}\left(\mathbf{x}_t - \boldsymbol{\mu}_k\right)}.
+$$
+The (accelerated) solution is given by
+$$
+\boldsymbol{\mu}_{k+1} = \frac{\sum_{t=1}^T\textsf{E}_k[\tau_t]\mathbf{x}_t}{\sum_{t=1}^T\textsf{E}_k[\tau_t]},
+$$
+$$
+\boldsymbol{\Sigma}_{k+1} = \frac{1}{\alpha_k}\frac{1}{T}\sum_{t=1}^{T}\textsf{E}_k[\tau_t]\left(\mathbf{x}_t - \boldsymbol{\mu}_{k+1}\right)\left(\mathbf{x}_t - \boldsymbol{\mu}_{k+1}\right)^T,
+$$
+with $\alpha_k = \frac{1}{T}\sum_{t=1}^T\textsf{E}_k[\tau_t]$, and $\nu_{k+1}$ can be found by a one-dimensional search:
+$$
+\nu_{k+1} = \arg\min_\nu \left\{\frac{\nu}{2}\sum_{t=1}^{T}\left(\textsf{E}_k[\tau_t] - \textsf{E}_k[\log{\tau_t]}\right) - \frac{\nu}{2}T\log{\frac{\nu}{2}} + T\log{\Gamma\left(\frac{\nu}{2}\right)}\right\}.
+$$
+The initial point is $\boldsymbol{\mu}_{0} = \frac{1}{T}\sum_{t=1}^{T}\mathbf{x}_t$, $\boldsymbol{\Sigma}_{0} = \frac{\nu_0-2}{\nu_0}\mathbf{S}$, and $\nu_0 = 2/\kappa + 4$, with $\kappa = \left[\frac{1}{3}\frac{1}{N}\sum_{i=1}^N \textsf{kurt}_i\right]^+$ and 
+$$\textsf{kurt}_i = \frac{(T+1)(T-1)}{(T-2)(T-3)}\left(\frac{\textsf{mean}(\mathbf{x}_i^4)}{\textsf{mean}(\mathbf{x}_i^2)^2} - 3\frac{T-1}{T+1}\right).$$
 This function can also incorporate a factor model structure on the covariance matrix $\boldsymbol{\Sigma} = \mathbf{B}\mathbf{B}^T + {\sf Diag}(\boldsymbol{\psi})$, which requires a more sophisticated algorithm [@ZhouLiuKumarPalomar2019] (available in [arXiv](https://arxiv.org/abs/1909.12530)).
 
 

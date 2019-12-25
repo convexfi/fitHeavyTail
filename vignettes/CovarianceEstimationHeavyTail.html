@@ -220,41 +220,45 @@ The Hong Kong University of Science and Technology (HKUST)</div></h3>
 <ul>
 <li><p>The function <code>fitHeavyTail::fit_Tyler()</code> normalizes the centered samples <span class="math inline">\(\bar{\mathbf{x}}_t = \mathbf{x}_t - \boldsymbol{\mu}\)</span> (where <span class="math inline">\(\boldsymbol{\mu}\)</span> has been previously estimated), which then have an angular Gaussian distribution on the sphere, and performs an MLE based on the MM algorithm <span class="citation">[2]</span>. The formulation including a regularization term is <span class="math display">\[
 \begin{array}{ll}
-\underset{\boldsymbol{\Sigma}}{\textsf{minimize}} &amp; 
+\underset{\boldsymbol{\Sigma}}{\textsf{minimize}} &amp;
+\begin{aligned}[t]
 \frac{T}{2}\log\det(\boldsymbol{\Sigma}) +
-\frac{N}{2}\sum\limits_{t=1}^{T}\log{\left(\bar{\mathbf{x}}_t^T\boldsymbol{\Sigma}^{-1}\bar{\mathbf{x}}_t\right)}\\
-&amp; \qquad \color{darkred}{+ \;\alpha \left(N\log\left(\textsf{Tr}\left(\boldsymbol{\Sigma}^{-1}\mathbf{T}\right)\right) + \log\det(\boldsymbol{\Sigma})\right)}
+\frac{N}{2}\sum\limits_{t=1}^{T}\log{\left(\bar{\mathbf{x}}_t^T\boldsymbol{\Sigma}^{-1}\bar{\mathbf{x}}_t\right)}\hspace{2cm}\\
+\color{darkred}{+ \;\alpha \left(N\log\left(\textsf{Tr}\left(\boldsymbol{\Sigma}^{-1}\mathbf{T}\right)\right) + \log\det(\boldsymbol{\Sigma})\right)}
+\end{aligned}
 \end{array}
 \]</span> where <span class="math inline">\(\mathbf{T}\)</span> is the target matrix (e.g., <span class="math inline">\(\mathbf{T} = \mathbf{I}\)</span> or <span class="math inline">\(\mathbf{T} = \frac{1}{N}\textsf{Tr}(\mathbf{S})\times\mathbf{I}\)</span>, with <span class="math inline">\(\mathbf{S}\)</span> being the sample covariance matrix). This leads to the iteration step <span class="math display">\[
 \boldsymbol{\Sigma}_{k+1} = 
 (1 - \rho)\frac{N}{T}\sum\limits_{t=1}^{T}\frac{\bar{\mathbf{x}}_t\bar{\mathbf{x}}_t^T}{\bar{\mathbf{x}}_t^T\boldsymbol{\Sigma}_k^{-1}\bar{\mathbf{x}}_t} + \rho\frac{N}{\textsf{Tr}\left(\boldsymbol{\Sigma}_k^{-1}\mathbf{T}\right)}\mathbf{T},
-\]</span> where <span class="math inline">\(\rho = \frac{\alpha}{T/2 + \alpha}\)</span> or <span class="math inline">\(\alpha = \frac{T}{2}\frac{\rho}{1 - \rho}\)</span>. For better numerical stability, one can further normalize the estimate at each iteration: <span class="math inline">\(\boldsymbol{\Sigma}_{k+1} \leftarrow \boldsymbol{\Sigma}_{k+1}/\textsf{Tr}\left(\boldsymbol{\Sigma}_{k+1}\right)\)</span>. The iterations converge to the solution up to a scaling factor if and only if <span class="math inline">\(1 + \frac{2}{T}\alpha &gt; \frac{N}{T}\)</span> or, equivalently, <span class="math inline">\(\rho &gt; 1 - \frac{T}{N}\)</span> <span class="citation">[2]</span> (the correct scaling factor is later obtained via a robust fitting method). If instead the regularization term <span class="math inline">\(\color{darkred}{\textsf{Tr}\left(\boldsymbol{\Sigma}^{-1}\mathbf{T}\right) + \log\det(\boldsymbol{\Sigma})}\)</span> is used, the iteration step becomes <span class="math display">\[
+\]</span> where <span class="math inline">\(\rho = \frac{\alpha}{T/2 + \alpha}\)</span> or <span class="math inline">\(\alpha = \frac{T}{2}\frac{\rho}{1 - \rho}\)</span>, and initial point <span class="math inline">\(\boldsymbol{\Sigma}_{0} = \mathbf{S}\)</span>. For better numerical stability, one can further normalize the estimate at each iteration: <span class="math inline">\(\boldsymbol{\Sigma}_{k+1} \leftarrow \boldsymbol{\Sigma}_{k+1}/\textsf{Tr}\left(\boldsymbol{\Sigma}_{k+1}\right)\)</span>. The iterations converge to the solution up to a scaling factor if and only if <span class="math inline">\(1 + \frac{2}{T}\alpha &gt; \frac{N}{T}\)</span> or, equivalently, <span class="math inline">\(\rho &gt; 1 - \frac{T}{N}\)</span> <span class="citation">[2]</span> (the correct scaling factor is later obtained via a robust fitting method). If instead the regularization term <span class="math inline">\(\color{darkred}{\textsf{Tr}\left(\boldsymbol{\Sigma}^{-1}\mathbf{T}\right) + \log\det(\boldsymbol{\Sigma})}\)</span> is used, the iteration step becomes <span class="math display">\[
 \boldsymbol{\Sigma}_{k+1} = 
 (1 - \rho)\frac{N}{T}\sum\limits_{t=1}^{T}\frac{\bar{\mathbf{x}}_t\bar{\mathbf{x}}_t^T}{\bar{\mathbf{x}}_t^T\boldsymbol{\Sigma}_k^{-1}\bar{\mathbf{x}}_t} + \rho\mathbf{T}.
 \]</span></p></li>
 <li><p>The function <code>fitHeavyTail::fit_Cauchy()</code> assumes that the data follows a multivariate Cauchy distribution (<span class="math inline">\(t\)</span> distribution with <span class="math inline">\(\nu=1\)</span>) and performs an MLE based on the MM algorithm <span class="citation">[3]</span>. The formulation including a regularization term is <span class="math display">\[
 \begin{array}{ll}
-\underset{\boldsymbol{\mu},\boldsymbol{\Sigma}}{\textsf{minimize}} 
+\underset{\boldsymbol{\mu},\boldsymbol{\Sigma}}{\textsf{minimize}} &amp;
+\begin{aligned}[t]
 &amp; \frac{T}{2}\log\det(\boldsymbol{\Sigma}) + \frac{N+1}{2}\sum\limits_{t=1}^{T}\log{\left(1+(\mathbf{x}_t - \boldsymbol{\mu})^T\boldsymbol{\Sigma}^{-1}(\mathbf{x}_t - \boldsymbol{\mu})\right)}\\
-&amp; \qquad \color{darkred}{+\;\alpha \left(N\log\left(\textsf{Tr}\left(\boldsymbol{\Sigma}^{-1}\mathbf{T}\right)\right) + \log\det(\boldsymbol{\Sigma})\right) + \gamma \log{\left(1 + (\boldsymbol{\mu} - \mathbf{t})^T\boldsymbol{\Sigma}^{-1}(\boldsymbol{\mu} - \mathbf{t})\right)}}
+&amp; \color{darkred}{+\;\alpha \left(N\log\left(\textsf{Tr}\left(\boldsymbol{\Sigma}^{-1}\mathbf{T}\right)\right) + \log\det(\boldsymbol{\Sigma})\right) + \gamma \log{\left(1 + (\boldsymbol{\mu} - \mathbf{t})^T\boldsymbol{\Sigma}^{-1}(\boldsymbol{\mu} - \mathbf{t})\right)}}
+\end{aligned}
 \end{array}
-\]</span> where <span class="math inline">\(\mathbf{t}\)</span> and <span class="math inline">\(\mathbf{T}\)</span> are the targets for <span class="math inline">\(\boldsymbol{\mu}\)</span> and <span class="math inline">\(\boldsymbol{\Sigma}\)</span>, respectively. This leads to the following (accelerated) iteration step <span class="citation">[3]</span>: <span class="math display">\[
+\]</span> where <span class="math inline">\(\mathbf{t}\)</span> and <span class="math inline">\(\mathbf{T}\)</span> are the targets for <span class="math inline">\(\boldsymbol{\mu}\)</span> and <span class="math inline">\(\boldsymbol{\Sigma}\)</span>, respectively. This leads to the following (accelerated) iteration step (Algorithm 4 in <span class="citation">[3]</span>): <span class="math display">\[
 \boldsymbol{\mu}_{k+1} = \frac{(N+1)\sum_{t=1}^Tw_t\left(\boldsymbol{\mu}_k,\boldsymbol{\Sigma}_k\right)\mathbf{x}_t + 2\gamma w_{\textsf{tgt}}\left(\boldsymbol{\mu}_k,\boldsymbol{\Sigma}_k\right)\mathbf{t}}{(N+1)\sum_{t=1}^Tw_t\left(\boldsymbol{\mu}_k,\boldsymbol{\Sigma}_k\right) + 2\gamma w_{\textsf{tgt}}\left(\boldsymbol{\mu}_k,\boldsymbol{\Sigma}_k\right)}
 \]</span> and <span class="math display">\[
 \boldsymbol{\Sigma}_{k+1} = \beta_k 
 \left\{
-\frac{N+1}{T+2\alpha}\sum\limits_{t=1}^{T}w_t\left(\boldsymbol{\mu}_k,\boldsymbol{\Sigma}_k\right)\left(\mathbf{x}_t - \boldsymbol{\mu}_{k+1}\right)\left(\mathbf{x}_t - \boldsymbol{\mu}_{k+1}\right)^T \\\hspace{5cm}+
-\frac{2\gamma}{T+2\alpha}w_\textsf{tgt}\left(\boldsymbol{\mu}_k,\boldsymbol{\Sigma}_k\right)\left(\mathbf{t} - \boldsymbol{\mu}_{k+1}\right)\left(\mathbf{t} - \boldsymbol{\mu}_{k+1}\right)^T \\\hspace{1cm}+
-\frac{2\alpha}{T+2\alpha}\frac{N}{\textsf{Tr}\left(\boldsymbol{\Sigma}_k^{-1}\mathbf{T}\right)}\mathbf{T}
+(1 - \rho)\frac{N+1}{T}\sum\limits_{t=1}^{T}w_t\left(\boldsymbol{\mu}_k,\boldsymbol{\Sigma}_k\right)\left(\mathbf{x}_t - \boldsymbol{\mu}_{k+1}\right)\left(\mathbf{x}_t - \boldsymbol{\mu}_{k+1}\right)^T\\\hspace{6cm} +
+\rho\left(\frac{N}{\textsf{Tr}\left(\boldsymbol{\Sigma}_k^{-1}\mathbf{T}\right)}\mathbf{T} +
+\frac{\gamma}{\alpha}w_\textsf{tgt}\left(\boldsymbol{\mu}_k,\boldsymbol{\Sigma}_k\right)\left(\mathbf{t} - \boldsymbol{\mu}_{k+1}\right)\left(\mathbf{t} - \boldsymbol{\mu}_{k+1}\right)^T\right)
 \right\}
-\]</span> where <span class="math display">\[
+\]</span> where <span class="math inline">\(\rho = \frac{\alpha}{T/2 + \alpha}\)</span>, <span class="math display">\[
 \begin{aligned}
-w_t\left(\boldsymbol{\mu},\boldsymbol{\Sigma}\right) &amp;= \frac{1}{1 + \left(\mathbf{x}_t - \boldsymbol{\mu}\right)^T\boldsymbol{\Sigma}^{-1}\left(\mathbf{x}_t - \boldsymbol{\mu}\right)}\\
-w_\textsf{tgt}\left(\boldsymbol{\mu},\boldsymbol{\Sigma}\right) &amp;= \frac{1}{1 + \left(\mathbf{t} - \boldsymbol{\mu}\right)^T\boldsymbol{\Sigma}^{-1}\left(\mathbf{t} - \boldsymbol{\mu}\right)}\\
-\beta_k &amp;= \frac{T+2\gamma}{(N+1)\sum_{t=1}^{T}w_t\left(\boldsymbol{\mu}_k,\boldsymbol{\Sigma}_k\right) + 2\gamma w_\textsf{tgt}\left(\boldsymbol{\mu}_k,\boldsymbol{\Sigma}_k\right)}.
+w_t\left(\boldsymbol{\mu},\boldsymbol{\Sigma}\right) &amp;= \frac{1}{1 + \left(\mathbf{x}_t - \boldsymbol{\mu}\right)^T\boldsymbol{\Sigma}^{-1}\left(\mathbf{x}_t - \boldsymbol{\mu}\right)},\\
+w_\textsf{tgt}\left(\boldsymbol{\mu},\boldsymbol{\Sigma}\right) &amp;= \frac{1}{1 + \left(\mathbf{t} - \boldsymbol{\mu}\right)^T\boldsymbol{\Sigma}^{-1}\left(\mathbf{t} - \boldsymbol{\mu}\right)},\\
+\beta_k &amp;= \frac{T+2\gamma}{(N+1)\sum_{t=1}^{T}w_t\left(\boldsymbol{\mu}_k,\boldsymbol{\Sigma}_k\right) + 2\gamma w_\textsf{tgt}\left(\boldsymbol{\mu}_k,\boldsymbol{\Sigma}_k\right)},
 \end{aligned}
-\]</span> The iterations converge to the solution if and only if the conditions in Corollary 3 in <span class="citation">[3]</span> are satisfied.</p></li>
-<li><p>The function <code>fitHeavyTail::fit_mvt()</code> assumes the the data follows a multivariate Student’s <span class="math inline">\(t\)</span> distribution and performs an MLE based on the EM algorithm <span class="citation">[4]</span>. The formulation is <span class="math display">\[
+\]</span> and initial point <span class="math inline">\(\boldsymbol{\mu}_{0} = \frac{1}{T}\sum_{t=1}^{T}\mathbf{x}_t\)</span> and <span class="math inline">\(\boldsymbol{\Sigma}_{0} = \mathbf{S}\)</span> (note that this initial point is not totally correct due to a scaling factor). The iterations converge to the solution if and only if the conditions of Corollary 3 in <span class="citation">[3]</span> are satisfied.</p></li>
+<li><p>The function <code>fitHeavyTail::fit_mvt()</code> assumes the the data follows a multivariate Student’s <span class="math inline">\(t\)</span> distribution and performs an MLE based on the EM algorithm <span class="citation">[4]</span>. The MLE formulation is <span class="math display">\[
 \begin{array}{ll}
 \underset{\boldsymbol{\mu},\boldsymbol{\Sigma},\nu}{\textsf{minimize}} &amp; 
 \begin{aligned}[t]
@@ -265,7 +269,24 @@ w_\textsf{tgt}\left(\boldsymbol{\mu},\boldsymbol{\Sigma}\right) &amp;= \frac{1}{
 + \frac{TN}{2}\log{\nu}.
 \end{aligned}
 \end{array}
-\]</span> This function can also incorporate a factor model structure on the covariance matrix <span class="math inline">\(\boldsymbol{\Sigma} = \mathbf{B}\mathbf{B}^T + {\sf Diag}(\boldsymbol{\psi})\)</span>, which requires a more sophisticated algorithm <span class="citation">[5]</span> (available in <a href="https://arxiv.org/abs/1909.12530">arXiv</a>).</p></li>
+\]</span> Since its direct minimization is complicated, the EM algorithm instead iteratively solves the following problem at iteration <span class="math inline">\(k\)</span>: <span class="math display">\[
+\begin{array}{ll}
+\underset{\boldsymbol{\mu},\boldsymbol{\Sigma},\nu}{\textsf{minimize}} &amp; 
+\begin{aligned}[t]
+\frac{T}{2}\log\det(\boldsymbol{\Sigma}) +
+\sum\limits_{t=1}^{T}\left\{\frac{\textsf{E}_k[\tau_t]}{2}(\mathbf{x}_t - \boldsymbol{\mu})^T\boldsymbol{\Sigma}^{-1}(\mathbf{x}_t - \boldsymbol{\mu}) + \frac{\nu}{2}\textsf{E}_k[\tau_t] - \frac{\nu}{2}\textsf{E}_k[\log{\tau_t]}\right\}\\
+-\; \frac{T\nu}{2}\log{\frac{\nu}{2}} + T\log{\Gamma\left(\frac{\nu}{2}\right)}
+\end{aligned}
+\end{array}
+\]</span> where <span class="math display">\[
+\textsf{E}_k[\tau_t] = \frac{\nu_k + N}{\nu_k + \left(\mathbf{x}_t - \boldsymbol{\mu}_k\right)^T\boldsymbol{\Sigma}_k^{-1}\left(\mathbf{x}_t - \boldsymbol{\mu}_k\right)}.
+\]</span> The (accelerated) solution is given by <span class="math display">\[
+\boldsymbol{\mu}_{k+1} = \frac{\sum_{t=1}^T\textsf{E}_k[\tau_t]\mathbf{x}_t}{\sum_{t=1}^T\textsf{E}_k[\tau_t]},
+\]</span> <span class="math display">\[
+\boldsymbol{\Sigma}_{k+1} = \frac{1}{\alpha_k}\frac{1}{T}\sum_{t=1}^{T}\textsf{E}_k[\tau_t]\left(\mathbf{x}_t - \boldsymbol{\mu}_{k+1}\right)\left(\mathbf{x}_t - \boldsymbol{\mu}_{k+1}\right)^T,
+\]</span> with <span class="math inline">\(\alpha_k = \frac{1}{T}\sum_{t=1}^T\textsf{E}_k[\tau_t]\)</span>, and <span class="math inline">\(\nu_{k+1}\)</span> can be found by a one-dimensional search: <span class="math display">\[
+\nu_{k+1} = \arg\min_\nu \left\{\frac{\nu}{2}\sum_{t=1}^{T}\left(\textsf{E}_k[\tau_t] - \textsf{E}_k[\log{\tau_t]}\right) - \frac{\nu}{2}T\log{\frac{\nu}{2}} + T\log{\Gamma\left(\frac{\nu}{2}\right)}\right\}.
+\]</span> The initial point is <span class="math inline">\(\boldsymbol{\mu}_{0} = \frac{1}{T}\sum_{t=1}^{T}\mathbf{x}_t\)</span>, <span class="math inline">\(\boldsymbol{\Sigma}_{0} = \frac{\nu_0-2}{\nu_0}\mathbf{S}\)</span>, and <span class="math inline">\(\nu_0 = 2/\kappa + 4\)</span>, with <span class="math inline">\(\kappa = \left[\frac{1}{3}\frac{1}{N}\sum_{i=1}^N \textsf{kurt}_i\right]^+\)</span> and <span class="math display">\[\textsf{kurt}_i = \frac{(T+1)(T-1)}{(T-2)(T-3)}\left(\frac{\textsf{mean}(\mathbf{x}_i^4)}{\textsf{mean}(\mathbf{x}_i^2)^2} - 3\frac{T-1}{T+1}\right).\]</span> This function can also incorporate a factor model structure on the covariance matrix <span class="math inline">\(\boldsymbol{\Sigma} = \mathbf{B}\mathbf{B}^T + {\sf Diag}(\boldsymbol{\psi})\)</span>, which requires a more sophisticated algorithm <span class="citation">[5]</span> (available in <a href="https://arxiv.org/abs/1909.12530">arXiv</a>).</p></li>
 </ul>
 </div>
 <div id="references" class="section level1 unnumbered">
@@ -283,7 +304,7 @@ w_\textsf{tgt}\left(\boldsymbol{\mu},\boldsymbol{\Sigma}\right) &amp;= \frac{1}{
 <p>[3] Y. Sun, P. Babu, and D. P. Palomar, “Regularized robust estimation of mean and covariance matrix under heavy-tailed distributions,” <em>IEEE Trans. Signal Processing</em>, vol. 63, no. 12, pp. 3096–3109, 2015.</p>
 </div>
 <div id="ref-LiuRubin95">
-<p>[4] C. Liu and D. B. Rubin, “ML estimation of the t-distribution using EM and its extensions, ECM and ECME,” <em>Statistica Sinica</em>, vol. 5, pp. 19–39, 1995.</p>
+<p>[4] C. Liu and D. B. Rubin, “ML estimation of the t-distribution using EM and its extensions, ECM and ECME,” <em>Statistica Sinica</em>, vol. 5, no. 1, pp. 19–39, 1995.</p>
 </div>
 <div id="ref-ZhouLiuKumarPalomar2019">
 <p>[5] R. Zhou, J. Liu, S. Kumar, and D. P. Palomar, “Robust factor analysis parameter estimation,” <em>Lecture Notes in Computer Science (LNCS)</em>, 2019.</p>
