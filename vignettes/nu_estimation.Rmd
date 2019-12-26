@@ -1,0 +1,137 @@
+---
+title: "Estimation of nu"
+author: |
+  | Daniel P. Palomar
+  | The Hong Kong University of Science and Technology (HKUST)
+date: "`r Sys.Date()`"
+output:
+  prettydoc::html_pretty:
+    theme: tactile
+    highlight: vignette
+    toc: yes
+    toc_depth: 2
+  html_document:
+    theme: flatly
+    highlight: pygments  
+    toc: yes
+    toc_depth: 2
+params:
+  N_realiz: 50
+csl: ieee.csl
+bibliography: refs.bib
+---
+
+```{r, echo = FALSE}
+library(knitr)
+opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>",
+  fig.align = "center",
+  fig.retina = 2,
+  out.width = "85%",
+  dpi = 96,
+  pngquant = "--speed=1"
+)
+knitr_in_progress <- isTRUE(getOption('knitr.in.progress'))
+knit_hooks$set(pngquant = hook_pngquant)
+# rmarkdown::render("vignettes/nu_estimation.Rmd", "prettydoc::html_pretty", params = list(N_realiz = 500))
+```
+
+-----------
+
+
+Let's define the parameters for the generation of the multivariate Student's $t$ distribution:
+```{r}
+library(mvtnorm)  # package for multivariate t distribution
+set.seed(137)
+
+N <- 10   # number of variables
+T <- 80   # number of observations
+nu <- 4   # degrees of freedom for tail heavyness
+mu <- rep(0, N)
+U <- t(rmvnorm(n = round(0.3*N), sigma = 0.1*diag(N)))
+Sigma <- U %*% t(U) + diag(N)  # covariance matrix with factor model structure
+Sigma_scatter <- (nu-2)/nu * Sigma
+```
+
+
+To warm up, let's consider the following estimators for $\nu$:
+
+- based on the kurtosis directly
+- based on EM with initial value of 4
+- based on EM with initial value from kurtosis
+
+```{r}
+library(fitHeavyTail)
+
+X <- rmvt(n = T, delta = mu, sigma = Sigma_scatter, df = nu)  # generate data
+nu_kurtosis  <- fit_mvt(X, nu = fitHeavyTail:::est_nu_kurtosis(X))$nu
+nu0_4        <- fit_mvt(X, initial = list("nu" = 4))$nu
+nu0_kurtosis <- fit_mvt(X, initial = list("nu" = fitHeavyTail:::est_nu_kurtosis(X)))$nu
+rbind("true" = nu, nu_kurtosis, nu0_4, nu0_kurtosis)
+```
+
+
+We now run `r params$N_realiz` Monte Carlo simulations.
+```{r, echo=FALSE}
+eval_single <- function(X) {
+  nu <- list()
+  nu["nu = kurt"]  <- fit_mvt(X, nu = fitHeavyTail:::est_nu_kurtosis(X))$nu
+  nu["nu0 = 4"]    <- fit_mvt(X, initial = list("nu" = 4))$nu
+  nu["nu0 = kurt"] <- fit_mvt(X, initial = list("nu" = fitHeavyTail:::est_nu_kurtosis(X)))$nu
+  return(nu)
+}
+
+T_sweep <- round(seq(from = 25, to = 50, by = 5))
+if (!knitr_in_progress) pbar <- txtProgressBar(min = it <- 0, max = length(T_sweep), style = 3)
+nu_all_T <- list()
+for(T in T_sweep) {
+  if (!knitr_in_progress) setTxtProgressBar(pbar, it <- it + 1)
+  
+  # first, generate random heavy-tailed data sequentially for reproducibility
+  X <- replicate(params$N_realiz, rmvt(n = T, delta = mu, sigma = Sigma_scatter, df = nu), simplify = FALSE)
+  names(X) <- paste0("realiz ", 1:params$N_realiz)
+
+  # then, run estimations for all realizations
+  nu_all_T <- c(nu_all_T, list(lapply(X, eval_single)))
+}
+names(nu_all_T) <- paste0("T = ", T_sweep)
+```
+
+The results can be see in the following boxplots:
+```{r, echo=FALSE, fig.width = 9, fig.height = 5, out.width = "100%"}
+library(ggplot2)
+library(reshape2)
+
+nu_all_T_molten <- melt(nu_all_T)
+names(nu_all_T_molten) <- c("value", "method", "realization", "T")
+nu_all_T_molten$T <- factor(nu_all_T_molten$T, levels = names(nu_all_T))
+
+ggplot(nu_all_T_molten, aes(x = T, y = value, fill = method)) +
+  geom_boxplot(show.legend = FALSE) +  #show.legend = FALSE
+  geom_point(size = 0.5, alpha = 0.8, show.legend = FALSE) +
+  facet_wrap(~ method) +
+  scale_x_discrete(labels = T_sweep) +
+  labs(title = sprintf("Estimation of nu (nu = %d, N = %d)", nu, N), x = "T", y = NULL)
+```
+
+```{r, echo=FALSE, eval=FALSE, fig.width = 9, fig.height = 5, out.width = "100%"}
+ggplot(nu_all_T_molten, aes(x = method, y = value, fill = method)) +
+  geom_boxplot() + 
+  geom_point(size = 0.5, alpha = 0.8, show.legend = FALSE) +
+  facet_grid(~ T) +
+  scale_x_discrete(labels = element_blank()) +  #theme(axis.text.x = element_blank()) +
+  labs(title = sprintf("Estimation of nu (nu = %d, N = %d)", nu, N), x = NULL, y = NULL)
+```
+
+We can see that the EM algorithm generally gives an improvement with respect to the direct estimation based on the marginal kurtosis, but it is subject to unacceptable outliers. Perhaps with the usage of RMT techniques these outliers can be eliminated?
+
+
+
+
+
+
+
+
+
+
