@@ -438,7 +438,7 @@ and initial point $\boldsymbol{\mu}_{0} = \frac{1}{T}\sum_{t=1}^{T}\mathbf{x}_t$
 The iterations converge to the solution if and only if the conditions of Corollary 3 in [@SunBabPal2015] are satisfied.
 
 
-- The function `fitHeavyTail::fit_mvt()` assumes the the data follows a multivariate Student's $t$ distribution and performs an MLE based on the EM algorithm [@LiuRubin95]. The MLE formulation is
+- The function `fitHeavyTail::fit_mvt()` assumes the the data follows a multivariate Student's $t$ distribution and performs an MLE based on the EM algorithm [@LiuRubin95]. The MLE formulation (without missing values) is
 $$
 \begin{array}{ll}
 \underset{\boldsymbol{\mu},\boldsymbol{\Sigma},\nu}{\textsf{minimize}} & 
@@ -479,6 +479,7 @@ $$
 $$
 The initial point is $\boldsymbol{\mu}_{0} = \frac{1}{T}\sum_{t=1}^{T}\mathbf{x}_t$, $\boldsymbol{\Sigma}_{0} = \frac{\nu_0-2}{\nu_0}\mathbf{S}$, and $\nu_0 = 2/\kappa + 4$, with $\kappa = \left[\frac{1}{3}\frac{1}{N}\sum_{i=1}^N \textsf{kurt}_i\right]^+$ and 
 $$\textsf{kurt}_i = \frac{(T+1)(T-1)}{(T-2)(T-3)}\left(\frac{\textsf{mean}(\mathbf{x}_i^4)}{\textsf{mean}(\mathbf{x}_i^2)^2} - 3\frac{T-1}{T+1}\right).$$
+The algorithm with missing values in $\mathbf{x}_t$ becomes more cumbersome but it is essentially the same idea.
 This function can also incorporate a factor model structure on the covariance matrix $\boldsymbol{\Sigma} = \mathbf{B}\mathbf{B}^T + {\sf Diag}(\boldsymbol{\psi})$, which requires a more sophisticated algorithm [@ZhouLiuKumarPalomar2019] (available in [arXiv](https://arxiv.org/abs/1909.12530)).
 
 
