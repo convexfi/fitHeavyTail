@@ -199,13 +199,15 @@ fit_mvt <- function(X, initial = NULL, factors = ncol(X),
       if (optimize_nu)
         nu <- switch(method_nu,
                      "ECM" = {  # based on minus the Q function of nu
-                       S <- T*(digamma((N+nu)/2) - log((N+nu)/2)) + sum(log(E_tau) - E_tau)  # S is E_log_tau-E_tau
-                       Q_nu <- function(nu) { - T*(nu/2)*log(nu/2) + T*lgamma(nu/2) - (nu/2)*sum(S) + nu_regcoef * (nu/(nu-2) - nu_target/(nu_target-2))^2 }
+                       E_log_tau_minus_E_tau <- T*(digamma((N+nu)/2) - log((N+nu)/2)) + sum(log(E_tau) - E_tau)
+                       Q_nu <- function(nu) { - T*(nu/2)*log(nu/2) + T*lgamma(nu/2) - (nu/2)*E_log_tau_minus_E_tau +
+                                              nu_regcoef * (nu/(nu-2) - nu_target/(nu_target-2))^2 }
                        optimize(Q_nu, interval = c(2 + 1e-12, 100))$minimum
                        },
                      "ECME" = {  # based on minus log-likelihood of nu with mu and sigma fixed to mu[k+1] and sigma[k+1]
                        tmp <- rowSums(X_ * (X_ %*% inv(Sigma)))  # diag( X_ %*% inv(Sigma) %*% t(X_) )
-                       LL_nu <- function(nu) { - sum ( - ((nu+N)/2)*log(nu+tmp) + lgamma( (nu+N)/2 ) - lgamma(nu/2) + (nu/2)*log(nu) ) + nu_regcoef * (nu/(nu-2) - nu_target/(nu_target-2))^2 }
+                       LL_nu <- function(nu) { - sum(- ((nu+N)/2)*log(nu+tmp) + lgamma( (nu+N)/2 ) - lgamma(nu/2) + (nu/2)*log(nu)) +
+                                               nu_regcoef * (nu/(nu-2) - nu_target/(nu_target-2))^2 }
                        optimize(LL_nu, interval = c(2 + 1e-12, 100))$minimum
                        },
                      stop("Method unknown."))
