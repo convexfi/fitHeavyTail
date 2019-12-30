@@ -18,6 +18,10 @@
 #' @return A list containing possibly the following elements:
 #'         \item{\code{mu}}{Mean vector estimate.}
 #'         \item{\code{cov}}{Covariance matrix estimate.}
+#'         \item{\code{converged}}{Boolean denoting whether the algorithm has converged (\code{TRUE}) or the maximum number
+#'                                 of iterations \code{max_iter} has reached (\code{FALSE}).}
+#'         \item{\code{num_iterations}}{Number of iterations executed.}
+#'         \item{\code{cpu_time}}{Elapsed CPU time.}
 #'         \item{\code{log_likelihood}}{Value of log-likelihood after converge of the estimation algorithm
 #'                                      (only if \code{ftol < Inf}).}
 #'         \item{\code{iterates_record}}{Iterates of the parameters (\code{mu} and possibly
@@ -49,14 +53,13 @@ fit_Tyler <- function(X, initial = NULL, max_iter = 100, ptol = 1e-3, ftol = Inf
   X <- try(as.matrix(X), silent = TRUE)
   if (!is.matrix(X)) stop("\"X\" must be a matrix or coercible to a matrix.")
   if (is.null(colnames(X))) colnames(X) <- paste0("Var", 1:ncol(X))
-  if (!all(is.na(X) | is.numeric(X))) stop("\"X\" only allows numerical or NA values.")
+  if (!is.numeric(X)) stop("\"X\" only allows numerical or NA values.")
   if (anyNA(X)) {
     if (verbose) message("X contains NAs, dropping those observations.")
     mask_NA <- apply(X, 1, anyNA)
     X <- X[!mask_NA, , drop = FALSE]
   }
-  if (nrow(X) == 1) stop("Only T=1 sample!!")
-  if (nrow(X) < ncol(X)) stop("Cannot deal with T < N, too few samples.")
+  if (nrow(X) <= ncol(X)) stop("Cannot deal with T <= N (after removing NAs), too few samples.")
   max_iter <- round(max_iter)
   if (max_iter < 1) stop("\"max_iter\" must be greater than 1.")
   ##############################
@@ -65,6 +68,7 @@ fit_Tyler <- function(X, initial = NULL, max_iter = 100, ptol = 1e-3, ftol = Inf
   N <- ncol(X)
 
   # initialize all parameters
+  start_time <- proc.time()[3]
   mu <- if (is.null(initial$mu)) gmean(X, "Gmedian", k = 10) else initial$mu
   if (is.null(initial$cov)) {
     Sigma <- cov(X)
@@ -102,6 +106,7 @@ fit_Tyler <- function(X, initial = NULL, max_iter = 100, ptol = 1e-3, ftol = Inf
     if (return_iterates) iterates_record[[iter + 1]] <- snapshot()
     if (has_param_converged && has_fun_converged) break
   }
+  elapsed_time <- proc.time()[3] - start_time
   if (verbose) message(sprintf("Number of iterations for Tyler estimator = %d\n", iter))
 
   # finally, recover missing scaling factor
@@ -110,7 +115,11 @@ fit_Tyler <- function(X, initial = NULL, max_iter = 100, ptol = 1e-3, ftol = Inf
 
   # return variables
   #Sigma <- T/(T-1) * Sigma  # unbiased estimator
-  vars_to_be_returned <- list("mu"  = mu, "cov" = Sigma)
+  vars_to_be_returned <- list("mu"             = mu,
+                              "cov"            = Sigma,
+                              "converged"      = (iter < max_iter),
+                              "num_iterations" = iter,
+                              "cpu_time"       = elapsed_time)
   if (ftol < Inf)
     vars_to_be_returned$log_likelihood <- log_likelihood
   if (return_iterates) {
@@ -145,6 +154,10 @@ fit_Tyler <- function(X, initial = NULL, max_iter = 100, ptol = 1e-3, ftol = Inf
 #'         \item{\code{mu}}{Mean vector estimate.}
 #'         \item{\code{cov}}{Covariance matrix estimate.}
 #'         \item{\code{scatter}}{Scatter matrix estimate.}
+#'         \item{\code{converged}}{Boolean denoting whether the algorithm has converged (\code{TRUE}) or the maximum number
+#'                                 of iterations \code{max_iter} has reached (\code{FALSE}).}
+#'         \item{\code{num_iterations}}{Number of iterations executed.}
+#'         \item{\code{cpu_time}}{Elapsed CPU time.}
 #'         \item{\code{log_likelihood}}{Value of log-likelihood after converge of the estimation algorithm
 #'                                      (only if \code{ftol < Inf}).}
 #'         \item{\code{iterates_record}}{Iterates of the parameters (\code{mu} and possibly
@@ -176,14 +189,13 @@ fit_Cauchy <- function(X, initial = NULL, max_iter = 100, ptol = 1e-3, ftol = In
   X <- try(as.matrix(X), silent = TRUE)
   if (!is.matrix(X)) stop("\"X\" must be a matrix or coercible to a matrix.")
   if (is.null(colnames(X))) colnames(X) <- paste0("Var", 1:ncol(X))
-  if (!all(is.na(X) | is.numeric(X))) stop("\"X\" only allows numerical or NA values.")
+  if (!is.numeric(X)) stop("\"X\" only allows numerical or NA values.")
   if (anyNA(X)) {
     if (verbose) message("X contains NAs, dropping those observations.")
     mask_NA <- apply(X, 1, anyNA)
     X <- X[!mask_NA, , drop = FALSE]
   }
-  if (nrow(X) == 1) stop("Only T=1 sample!!")
-  if (nrow(X) < ncol(X)) stop("Cannot deal with T < N, too few samples.")
+  if (nrow(X) <= ncol(X)) stop("Cannot deal with T <= N (after removing NAs), too few samples.")
   max_iter <- round(max_iter)
   if (max_iter < 1) stop("\"max_iter\" must be greater than 1.")
   ##############################
@@ -192,6 +204,7 @@ fit_Cauchy <- function(X, initial = NULL, max_iter = 100, ptol = 1e-3, ftol = In
   N <- ncol(X)
 
   # initialize all parameters
+  start_time <- proc.time()[3]
   mu <- if (is.null(initial$mu)) colMeans(X) else initial$mu
   Sigma <- if (is.null(initial$cov)) cov(X) else initial$cov
   X_ <- X_ <- X - matrix(mu, T, N, byrow = TRUE)  # demean data
@@ -231,13 +244,19 @@ fit_Cauchy <- function(X, initial = NULL, max_iter = 100, ptol = 1e-3, ftol = In
     if (return_iterates) iterates_record[[iter + 1]] <- snapshot()
     if (have_params_converged && has_fun_converged) break
   }
+  elapsed_time <- proc.time()[3] - start_time
   if (verbose) message(sprintf("Number of iterations for Cauchy estimator = %d\n", iter))
 
   # finally, recover missing scaling factor for covmat
   kappa <- scaling_fitting_ka_with_b(a = diag(Sigma), b = apply(X^2, 2, mean, trim = max(1/T, 0.03)))
 
   # return variables
-  vars_to_be_returned <- list("mu"  = mu, "cov" = kappa * Sigma, "scatter" = Sigma)
+  vars_to_be_returned <- list("mu"             = mu,
+                              "cov"            = kappa * Sigma,
+                              "scatter"        = Sigma,
+                              "converged"      = (iter < max_iter),
+                              "num_iterations" = iter,
+                              "cpu_time"       = elapsed_time)
   if (ftol < Inf)
     vars_to_be_returned$log_likelihood <- log_likelihood
   if (return_iterates) {

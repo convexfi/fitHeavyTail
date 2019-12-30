@@ -17,12 +17,22 @@
 #'          \code{nu_regcoef * (nu - nu_target)^2}).
 #'
 #' @param X Data matrix containing the multivariate time series (each column is one time series).
+#' @param na_rm Logical value to indicate whether to remove observations with some NAs (default) or not, in which
+#'              case they will be imputed at a higher computational cost.
+#' @param nu Degrees of freedom of the \eqn{t} distribution. If passed, then \code{nu} will be fixed
+#'           and will not be further optimized. Possible values: directly a number (\code{>2}) or
+#'           a method to compute it among:
+#'           \itemize{\item{\code{"kurtosis"}: based on the kurtosis obtained from the sampled moemnts}
+#'                    \item{\code{"MLE-diag"}: based on the MLE assuming a diagonal sample covariance matrix w.r.t. \code{nu}}
+#'                    \item{\code{"MLE-diag-resampled"}: method "MLE-diag" resampled for better stability.}}
+#'           If \code{nu} is not passed, then it will be iteratively optimized via the EM algorithm, with initial value
+#'           specified by the argument \code{initial$nu}, which can take the same values as \code{nu} (default is \code{4}).
 #' @param initial List of initial values of the parameters for the iterative estimation method.
 #'                Possible elements include:
 #'                \itemize{\item{\code{mu}: default is the data sample mean,}
 #'                         \item{\code{cov}: default is the data sample covariance matrix,}
 #'                         \item{\code{scatter}: default follows from the scaled sample covariance matrix,}
-#'                         \item{\code{nu}: default is \code{4},}
+#'                         \item{\code{nu}: can take the same values as argument \code{nu}, default is \code{4},}
 #'                         \item{\code{B}: default is the top eigenvectors of \code{initial$cov}
 #'                                                   multiplied by the sqrt of the eigenvalues,}
 #'                         \item{\code{psi}: default is
@@ -36,19 +46,11 @@
 #'             value to determine convergence of the iterative method (default is \code{Inf}, so it is
 #'             not active). Note that using this argument might have a computational cost as a convergence
 #'             criterion due to the computation of the log-likelihood (especially when \code{X} is high-dimensional).
-#' @param nu Degrees of freedom (\code{>2}) of the \eqn{t} distribution. If a number is passed,
-#'           then \code{nu} will be fixed to this number and will not be further optimized;
-#'           if \code{"kurtosis"} is passed, then \code{nu} will be computed from the marginal
-#'           kurtosis of the time series; otherwise (default option), \code{nu} will be
-#'           estimated via the EM method.
 #' @param method_nu String indicating the method for estimating \code{nu} (in case \code{nu} was not passed):
-#'                  \itemize{\item{\code{"ECM"}: maximize the Q function w.r.t. \code{nu}}
-#'                           \item{\code{"ECME"}: maximize the L function w.r.t. \code{nu}.}}
+#'                  \itemize{\item{\code{"ECM"}: maximization of the Q function}
+#'                           \item{\code{"ECME"}: maximization of the log-likelihood function}
+#'                           \item{\code{"ECME-diag"}: maximization of the log-likelihood function assuming a digonal scatter matrix (default method).}}
 #'                  This argument is used only when there are no NAs in the data and no factor model is chosen.
-#' @param nu_target Number (\code{>=2}) indicating the target for the regularization term for \code{nu}
-#'                  in case it is estimated (by default it is obtained via the marginal kurtosis).
-#' @param nu_regcoef Number (\code{>=0}) indicating the weight of the regularization term for \code{nu}
-#'                   in case it is estimated (default is \code{0}, so no regularion is used).
 #' @param return_iterates Logical value indicating whether to record the values of the parameters \code{mu},
 #'                        \code{scatter}, and \code{nu} (and possibly the log-likelihood if \code{ftol} is used)
 #'                        at each iteration (default is \code{FALSE}).
@@ -59,6 +61,10 @@
 #'         \item{\code{cov}}{Covariance matrix estimate.}
 #'         \item{\code{scatter}}{Scatter matrix estimate.}
 #'         \item{\code{nu}}{Degrees of freedom estimate.}
+#'         \item{\code{converged}}{Boolean denoting whether the algorithm has converged (\code{TRUE}) or the maximum number
+#'                                 of iterations \code{max_iter} has reached (\code{FALSE}).}
+#'         \item{\code{num_iterations}}{Number of iterations executed.}
+#'         \item{\code{cpu_time}}{Elapsed CPU time.}
 #'         \item{\code{B}}{Factor model loading matrix estimate according to \code{cov = (B \%*\% t(B) + diag(psi)}
 #'                         (only if factor model requested).}
 #'         \item{\code{psi}}{Factor model idiosynchratic variances estimates according to \code{cov = (B \%*\% t(B) + diag(psi)}
@@ -68,8 +74,6 @@
 #'         \item{\code{iterates_record}}{Iterates of the parameters (\code{mu}, \code{scatter}, \code{nu},
 #'                                       and possibly \code{log_likelihood} (if \code{ftol < Inf})) along the iterations
 #'                                       (only if \code{return_iterates = TRUE}).}
-#'         \item{\code{converged}}{Boolean denoting whether the algorithm has converged (\code{TRUE}) or the maximum number
-#'                                 of iterations \code{max_iter} has reached (\code{FALSE}).}
 #'
 #' @author Daniel P. Palomar and Rui Zhou
 #'
@@ -91,21 +95,28 @@
 #'
 #' @importFrom stats optimize
 #' @export
-fit_mvt <- function(X, initial = NULL, factors = ncol(X),
+fit_mvt <- function(X, na_rm = TRUE,
+                    nu = NULL,
+                    method_nu = c("ECME-diag", "ECME", "ECM", "ECME-cov"),
+                    initial = NULL, factors = ncol(X),
                     max_iter = 100, ptol = 1e-3, ftol = Inf,
-                    nu = NULL, method_nu = c("ECM", "ECME"), nu_target = NULL, nu_regcoef = 0,
                     return_iterates = FALSE, verbose = FALSE) {
   ####### error control ########
   X <- try(as.matrix(X), silent = TRUE)
   if (!is.matrix(X)) stop("\"X\" must be a matrix or coercible to a matrix.")
   if (is.null(colnames(X))) colnames(X) <- paste0("Var", 1:ncol(X))
-  if (!all(is.na(X) | is.numeric(X))) stop("\"X\" only allows numerical or NA values.")
-  if (ncol(X) <= 1) X <- X[!is.na(X), , drop = FALSE]
-  if (nrow(X) == 1) stop("Only T=1 sample!!")
-  if (nrow(X) < ncol(X)) stop("Cannot deal with T < N, too few samples.")
+  if (!is.numeric(X)) stop("\"X\" only allows numerical or NA values.")
+  if (anyNA(X))
+    if (na_rm || ncol(X) == 1) {
+      if (verbose) message("X contains NAs, dropping those observations.")
+      mask_NA <- apply(X, 1, anyNA)
+      X <- X[!mask_NA, , drop = FALSE]
+    }
+  if (nrow(X) <= ncol(X)) stop("Cannot deal with T <= N (after removing NAs), too few samples.")
+  if (is.numeric(nu) && nu <= 2) stop("Non-valid value for nu.")
   factors <- round(factors)
-  max_iter <- round(max_iter)
   if (factors < 1 || factors > ncol(X)) stop("\"factors\" must be no less than 1 and no more than column number of \"X\".")
+  max_iter <- round(max_iter)
   if (max_iter < 1) stop("\"max_iter\" must be greater than 1.")
   ##############################
 
@@ -115,24 +126,19 @@ fit_mvt <- function(X, initial = NULL, factors = ncol(X),
   X_has_NA <- anyNA(X)
   FA_struct <- (factors != N)
   optimize_nu <- is.null(nu)
-  if (!optimize_nu) {
-    if (nu == Inf) nu <- 1e15  # for numerical stability (for the Gaussian case)
-    else if (nu == "kurtosis") {  # estimate nu if argument nu = "kurtosis"
-      nu <- est_nu_kurtosis(X)
-      if (verbose) message(sprintf("Automatically set nu = %.2f", nu))
-    } else if (!is.numeric(nu) || nu <=2 ) stop("Non-valid value for nu.")
-  } else  # choose nu_target if necessary
-    if (is.null(nu_target)) {
-      if (nu_regcoef > 0) {  # really need nu_target
-        nu_target <- est_nu_kurtosis(X)
-        if (verbose) message(sprintf("Automatically choose a target nu = %.2f", nu_target))
-      } else  # no need to have nu_target, but assign a value to simplify following codes
-        nu_target <- 0
-    } else if (nu_target < 2) stop("Non-valid value for nu_target.")
 
   # initialize all parameters
-  alpha <- 1  # an extra variable for PX-EM acceleration
-  if (optimize_nu) nu <- if (is.null(initial$nu)) 4 else initial$nu
+  start_time <- proc.time()[3]
+  if (optimize_nu) nu <- initial$nu
+  if (is.null(nu)) nu <- 4  # default initial point
+  if (!is.numeric(nu)) {
+    nu <- switch(nu,
+                 "kurtosis"           = nu_from_kurtosis(X),
+                 "MLE-diag"           = nu_mle(X, method = "MLE-mv-diagcov"),
+                 "MLE-diag-resampled" = nu_mle(X, method = "MLE-mv-diagcov-resampled"),
+                 stop("Method to estimate nu unknown."))
+    if (verbose) message(sprintf("Automatically setting nu = %.2f", nu))
+  } else if (nu == Inf) nu <- 1e15  # for numerical stability (for the Gaussian case)
   mu <- if (is.null(initial$mu)) colMeans(X, na.rm = TRUE) else initial$mu
   Sigma <- if (is.null(initial$cov)) (nu-2)/nu * var(X, na.rm = TRUE) else (nu-2)/nu * initial$cov
   if (!is.null(initial$scatter)) Sigma <- initial$scatter
@@ -147,13 +153,13 @@ fit_mvt <- function(X, initial = NULL, factors = ncol(X),
   if (ftol < Inf) log_likelihood <- ifelse(X_has_NA,
                                            dmvt_withNA(X = X, delta = mu, sigma = Sigma / alpha, df = nu),
                                            sum(mvtnorm::dmvt(X, delta = mu, sigma = Sigma, df = nu, log = TRUE, type = "shifted")))
+  alpha <- 1  # an extra variable for PX-EM acceleration
 
   # aux function to save iterates
   snapshot <- function() {
     if (ftol < Inf) list(mu = mu, scatter = Sigma, nu = nu, log_likelihood = log_likelihood)
     else list(mu = mu, scatter = Sigma, nu = nu)
   }
-
 
   # loop
   if (return_iterates) iterates_record <- list(snapshot())
@@ -169,8 +175,8 @@ fit_mvt <- function(X, initial = NULL, factors = ncol(X),
       Q <- Estep(mu, Sigma, psi, nu, X)
     else {
       X_ <- X - matrix(mu, T, N, byrow = TRUE)
-      tmp <- rowSums(X_ * (X_ %*% inv(Sigma)))  # diag( X_ %*% inv(Sigma) %*% t(X_) )
-      E_tau <- (nu + N) / (nu + tmp)
+      delta2 <- rowSums(X_ * (X_ %*% inv(Sigma)))  # diag( X_ %*% inv(Sigma) %*% t(X_) )
+      E_tau <- (nu + N) / (nu + delta2)
       ave_E_tau <- mean(E_tau)
       ave_E_tau_X <- (1/T)*as.vector(E_tau %*% X)
     }
@@ -188,8 +194,10 @@ fit_mvt <- function(X, initial = NULL, factors = ncol(X),
         Sigma <- B %*% t(B) + diag(psi, N)
       } else
         Sigma <- S
-      Q_nu <- function(nu) { - (nu/2)*log(nu/2) + lgamma(nu/2) - (nu/2)*(Q$ave_E_logtau - Q$ave_E_tau) + nu_regcoef * (nu/(nu-2) - nu_target/(nu_target-2))^2 }
-      if (optimize_nu) nu <- optimize(Q_nu, interval = c(2 + 1e-12, 100))$minimum
+      if (optimize_nu) {
+        Q_nu <- function(nu) - (nu/2)*log(nu/2) + lgamma(nu/2) - (nu/2)*(Q$ave_E_logtau - Q$ave_E_tau)
+        nu <- optimize(Q_nu, interval = c(2 + 1e-12, 100))$minimum
+      }
     } else {
       mu <- ave_E_tau_X / ave_E_tau
       alpha <- ave_E_tau  # acceleration
@@ -199,18 +207,32 @@ fit_mvt <- function(X, initial = NULL, factors = ncol(X),
       if (optimize_nu)
         nu <- switch(method_nu,
                      "ECM" = {  # based on minus the Q function of nu
-                       E_log_tau_minus_E_tau <- T*(digamma((N+nu)/2) - log((N+nu)/2)) + sum(log(E_tau) - E_tau)
-                       Q_nu <- function(nu) { - T*(nu/2)*log(nu/2) + T*lgamma(nu/2) - (nu/2)*E_log_tau_minus_E_tau +
-                                              nu_regcoef * (nu/(nu-2) - nu_target/(nu_target-2))^2 }
+                       ave_E_log_tau_minus_E_tau <- (digamma((N+nu)/2) - log((N+nu)/2)) + mean(log(E_tau) - E_tau)  # equal to Q$ave_E_logtau - Q$ave_E_tau
+                       Q_nu <- function(nu) - (nu/2)*log(nu/2) + lgamma(nu/2) - (nu/2)*ave_E_log_tau_minus_E_tau
                        optimize(Q_nu, interval = c(2 + 1e-12, 100))$minimum
                        },
                      "ECME" = {  # based on minus log-likelihood of nu with mu and sigma fixed to mu[k+1] and sigma[k+1]
-                       tmp <- rowSums(X_ * (X_ %*% inv(Sigma)))  # diag( X_ %*% inv(Sigma) %*% t(X_) )
-                       LL_nu <- function(nu) { - sum(- ((nu+N)/2)*log(nu+tmp) + lgamma( (nu+N)/2 ) - lgamma(nu/2) + (nu/2)*log(nu)) +
-                                               nu_regcoef * (nu/(nu-2) - nu_target/(nu_target-2))^2 }
-                       optimize(LL_nu, interval = c(2 + 1e-12, 100))$minimum
+                       #nu_mle(Xc = X_, method = "MLE-mv-scat", Sigma_scatter = Sigma)
+                       delta2 <- rowSums(X_ * (X_ %*% inv(Sigma)))  # diag( X_ %*% inv(Sigma) %*% t(X_) )
+                       negLL <- function(nu) ((N + nu)/2)*sum(log(nu + delta2)) - T*lgamma((N + nu)/2) + T*lgamma(nu/2) - (nu*T/2)*log(nu)
+                       optimize(negLL, interval = c(2 + 1e-12, 100))$minimum
                        },
-                     stop("Method unknown."))
+                     "ECME-diag" = {  # based on minus log-likelihood of nu with mu and sigma fixed to mu[k+1] and sigma[k+1]
+                       #nu_mle(Xc = X_, method = "MLE-mv-diagscat", Sigma_scatter = Sigma)
+                       delta2 <- rowSums(X_^2 / matrix(diag(Sigma), T, N, byrow = TRUE))  # this amounts to using a diagonal cov matrix
+                       negLL <- function(nu) ((N + nu)/2)*sum(log(nu + delta2)) - T*lgamma((N + nu)/2) + T*lgamma(nu/2) - (nu*T/2)*log(nu)
+                       optimize(negLL, interval = c(2 + 1e-12, 100))$minimum
+                     },
+                     "ECME-cov" = {  # this variation is worse than ECME
+                       Sigma_cov <- nu/(nu-2)*Sigma
+                       #nu_mle(Xc = X_, method = "MLE-mv-cov", Sigma_cov = Sigma_cov)  # this is without nu_target
+                       delta2_cov <- rowSums(X_ * (X_ %*% inv(Sigma_cov)))
+                       negLL <- function(nu) (N*T)/2*log((nu-2)/nu) + ((N + nu)/2)*sum(log(nu + nu/(nu-2)*delta2_cov)) -
+                         T*lgamma((N + nu)/2) + T*lgamma(nu/2) - (nu*T/2)*log(nu) +
+                         nu_regcoef * (nu/(nu-2) - nu_target/(nu_target-2))^2
+                       optimize(negLL, interval = c(2 + 1e-12, 100))$minimum
+                     },
+                     stop("Method to estimate nu unknown."))
     }
 
     ## -------- stopping criterion --------
@@ -228,14 +250,18 @@ fit_mvt <- function(X, initial = NULL, factors = ncol(X),
     if (return_iterates) iterates_record[[iter + 1]] <- snapshot()
     if (have_params_converged && has_fun_converged) break
   }
-  if (verbose) message(sprintf("Number of iterations for mvt estimator = %d\n", iter))
+  elapsed_time <- proc.time()[3] - start_time
+  if (verbose) message(sprintf("Number of iterations for mvt estimation = %d\n", iter))
 
   ## -------- return variables --------
   #Sigma <- T/(T-1) * Sigma  # unbiased estimator
-  vars_to_be_returned <- list("mu"          = mu,
-                              "cov"         = nu/(nu-2) * Sigma,
-                              "scatter"     = Sigma,
-                              "nu"          = nu)
+  vars_to_be_returned <- list("mu"             = mu,
+                              "cov"            = nu/(nu-2) * Sigma,
+                              "scatter"        = Sigma,
+                              "nu"             = nu,
+                              "converged"      = (iter < max_iter),
+                              "num_iterations" = iter,
+                              "cpu_time"       = elapsed_time)
   # if (!optimize_nu) {
   #   kappa <- scaling_fitting_ka_with_b(a = diag(Sigma), b = apply(X^2, 2, mean, trim = max(1/T, 0.03)))
   #   vars_to_be_returned$cov <- kappa * Sigma
@@ -252,7 +278,6 @@ fit_mvt <- function(X, initial = NULL, factors = ncol(X),
     names(iterates_record) <- paste("iter", 0:(length(iterates_record)-1))
     vars_to_be_returned$iterates_record <- iterates_record
   }
-  vars_to_be_returned$converged <- (iter < max_iter)
   return(vars_to_be_returned)
 }
 
@@ -389,13 +414,15 @@ dmvt_withNA <- function(X, delta, sigma, df) {
 excess_kurtosis_unbiased <- function(x) {
   x <- as.vector(x)
   T <- length(x)
-  excess_kurt <- (T+1)*(T-1) * ((sum(x^4)/T)/(sum(x^2)/T)^2 - 3*(T-1)/(T+1))/((T-2)*(T-3))
+  x <- x - mean(x)
+  #excess_kurt <- mean(x^4)/(mean(x^2))^2 - 3
+  excess_kurt <- (T-1)*(T+1)/((T-2)*(T-3)) * (mean(x^4)/(mean(x^2))^2 - 3*(T-1)/(T+1))  # this is better
   excess_kurt_unbiased <- (T-1) / (T-2) / (T-3) * ((T+1)*excess_kurt + 6)  # is this bias correction still necessary?
   return(excess_kurt_unbiased)
 }
 
 
-est_nu_kurtosis <- function(X) {
+nu_from_kurtosis <- function(X) {
   kurt <- apply(X, 2, excess_kurtosis_unbiased)
   kappa <- max(0, mean(kurt)/3)
   nu <- 2 / kappa + 4
@@ -404,3 +431,146 @@ est_nu_kurtosis <- function(X) {
   if (nu > 100) nu <- 100
   return(nu)
 }
+
+
+# estimate nu via Pareto-tail index
+alpha_Pareto_tail_index <- function(X, center = FALSE, method = c("WLS", "WLS-stacked", "MLE", "MLE-unbiased")) {
+  if (!is.matrix(X)) stop("X must be a matrix.")
+
+  # center data if necessary
+  if (center) {
+    mu <- colMeans(X)
+    X <- X - matrix(mu, nrow(X), ncol(X), byrow = TRUE)
+  }
+  T <- nrow(X)
+
+  # method
+  inv_alpha <- switch(match.arg(method),
+                      "MLE"          = mean(apply(abs(X), 2, function(x) mean(log(x/min(x))))),
+                      "MLE-unbiased" = mean(apply(abs(X), 2, function(x) T/(T-2)*mean(log(x/min(x))))),
+                      "WLS"          = mean(apply(abs(X), 2, function(x) mean(log(x/min(x)))/mean(log(T/(1:T))))),
+                      "WLS-stacked" = {
+                        absXdivXmin <- apply(abs(X), 2, function(x) x/min(x))
+                        mean(log(c(absXdivXmin)))/mean(log((N*T)/(1:(N*T))))
+                      },
+                      stop("Method to estimate Pareto-tail index unknown."))
+  return(1/inv_alpha)
+}
+
+
+
+# estimate nu via MLE
+#' @importFrom stats optimize
+nu_mle <- function(X, Xc,
+                   method = c("MLE-mv-diagcov-resampled", "MLE-mv-cov", "MLE-mv-diagcov",
+                              "MLE-mv-scat", "MLE-mv-diagscat", "MLE-mv-diagscat-resampled",
+                              "MLE-uv-var-ave", "MLE-uv-scat-ave", "MLE-uv-var-stacked", "test"),
+                   Sigma_cov = NULL, Sigma_scatter = NULL) {
+  # center data if necessary
+  if (missing(Xc)) {
+    if (missing(X)) stop("Either X or Xc must be passed.")
+    if (!is.matrix(X)) stop("X must be a matrix.")
+    mu <- colMeans(X)
+    Xc <- X - matrix(mu, nrow(X), ncol(X), byrow = TRUE)
+  } else if (!is.matrix(Xc)) stop("Xc must be a matrix.")
+  T <- nrow(Xc)
+  N <- ncol(Xc)
+
+  # method
+  nu <- switch(match.arg(method),
+               "MLE-mv-cov" = {  # not good with sample mean and SCM
+                 if (is.null(Sigma_cov)) Sigma_cov <- cov(X)
+                 delta2_cov <- rowSums(Xc * (Xc %*% solve(Sigma_cov)))
+                 negLL <- function(nu) (N*T)/2*log((nu-2)/nu) + ((N + nu)/2)*sum(log(nu + nu/(nu-2)*delta2_cov)) -
+                   T*lgamma((N + nu)/2) + T*lgamma(nu/2) - (nu*T/2)*log(nu)
+                 optimize(negLL, interval = c(2 + 1e-12, 100))$minimum
+               },
+               "MLE-mv-scat" = {
+                 if (is.null(Sigma_scatter)) stop("Scatter matrix must be passed.")
+                 delta2 <- rowSums(Xc * (Xc %*% solve(Sigma_scatter)))
+                 negLL <- function(nu) ((N + nu)/2)*sum(log(nu + delta2)) - T*lgamma((N + nu)/2) + T*lgamma(nu/2) - (nu*T/2)*log(nu)
+                 optimize(negLL, interval = c(2 + 1e-12, 100))$minimum
+               },
+               "MLE-mv-diagcov" = {
+                 if (!is.null(Sigma_cov)) var <- diag(Sigma_cov)
+                 else var <- apply(Xc^2, 2, sum)/(T-1)
+                 delta2_var <- Xc^2 / matrix(var, T, N, byrow = TRUE)
+                 delta2_cov_diag <- rowSums(delta2_var)  # this amounts to using a diagonal cov matrix
+                 negLL <- function(nu) (N*T)/2*log((nu-2)/nu) + ((N + nu)/2)*sum(log(nu + nu/(nu-2)*delta2_cov_diag)) -
+                   T*lgamma((N + nu)/2) + T*lgamma(nu/2) - (nu*T/2)*log(nu)
+                 optimize(negLL, interval = c(2 + 1e-12, 100))$minimum
+               },
+               "MLE-mv-diagscat" = {
+                 if (is.null(Sigma_scatter)) stop("Scatter matrix must be passed.")
+                 diagscat <- diag(Sigma_scatter)
+                 delta2_diagscat <- Xc^2 / matrix(diagscat, T, N, byrow = TRUE)
+                 delta2 <- rowSums(delta2_diagscat)  # this amounts to using a diagonal cov matrix
+                 negLL <- function(nu) ((N + nu)/2)*sum(log(nu + delta2)) - T*lgamma((N + nu)/2) + T*lgamma(nu/2) - (nu*T/2)*log(nu)
+                 optimize(negLL, interval = c(2 + 1e-12, 100))$minimum
+               },
+               "MLE-mv-diagcov-resampled" = {  # this method is the winner
+                 fT_resampling <- 4
+                 N_resampling <- round(1.2*N)
+                 var <- apply(Xc^2, 2, sum)/(T-1)
+                 delta2_var <- Xc^2 / matrix(var, T, N, byrow = TRUE)
+                 # delta2_var_resampled <- t(apply(delta2_var[sample(1:T, size = f_resampling*T, replace = TRUE), ], MARGIN = 1,
+                 #                           function(x) x[sample(1:N, size = N, replace = TRUE)]))
+                 # delta2_var_resampled <- t(apply(delta2_var[rep.int(1:T, times = f_resampling), ], MARGIN = 1,
+                 #                           function(x) x[sample(1:N, size = round(1.2*N), replace = TRUE)]))  #replace=FALSE is not as good
+                 # delta2_var_resampled <- t(apply(matrix(rep(t(delta2_var), times = fT_resampling), ncol = N, byrow = TRUE), MARGIN = 1,
+                 #                           function(x) x[sample(1:N, size = N_resampling, replace = TRUE)]))  #replace=FALSE is not as good
+                 # delta2_cov <- rowSums(delta2_var_resampled)
+                 delta2_cov <- apply(matrix(rep(t(delta2_var), times = fT_resampling), ncol = N, byrow = TRUE), MARGIN = 1,
+                                     function(x) sum(x[sample(1:N, size = N_resampling, replace = TRUE)]))  #replace=FALSE is not as good
+                 # delta2_cov <- c(replicate(fT_resampling,
+                 #                           apply(delta2_var, MARGIN = 1, function(x) sum(x[sample(1:N, size = N_resampling, replace = TRUE)]))))
+                 T <- T*fT_resampling
+                 #N <- N_resampling
+                 negLL <- function(nu) (N*T)/2*log((nu-2)/nu) + ((N + nu)/2)*sum(log(nu + nu/(nu-2)*delta2_cov)) -
+                   T*lgamma((N + nu)/2) + T*lgamma(nu/2) - (nu*T/2)*log(nu)
+                 optimize(negLL, interval = c(2 + 1e-12, 100))$minimum
+               },
+               "MLE-mv-diagscat-resampled" = {
+                 if (is.null(Sigma_scatter)) stop("Scatter matrix must be passed.")
+                 f_resampling <- 2
+                 diagscat <- diag(Sigma_scatter)
+                 delta2_diagscat <- Xc^2 / matrix(diagscat, T, N, byrow = TRUE)  # this amounts to using a diagonal cov matrix
+                 delta2_diagscat_resampled <- t(apply(delta2_diagscat[rep(1:T, times = f_resampling), ], 1,
+                                                      function(x) x[sample(1:N, size = round(1.2*N), replace = TRUE)]))
+                 delta2_diagscat_resampled <- delta2_diagscat
+                 T <- nrow(delta2_diagscat_resampled)
+                 N <- ncol(delta2_diagscat_resampled)
+                 delta2 <- rowSums(delta2_diagscat_resampled)
+                 negLL <- function(nu) ((N + nu)/2)*sum(log(nu + delta2)) - T*lgamma((N + nu)/2) + T*lgamma(nu/2) - (nu*T/2)*log(nu)
+                 optimize(negLL, interval = c(2 + 1e-12, 100))$minimum
+               },
+               "MLE-uv-var-ave" = {  # not so good with sample mean and SCM
+                 var <- apply(Xc^2, 2, sum)/(T-1)
+                 delta2_var <- Xc^2 / matrix(var, T, N, byrow = TRUE)
+                 negLL <- function(nu, delta2_vari) T/2*log((nu-2)/nu) + ((1 + nu)/2)*sum(log(nu + nu/(nu-2)*delta2_vari)) -
+                   T*lgamma((1 + nu)/2) + T*lgamma(nu/2) - (nu/2)*T*log(nu)
+                 nu_i <- apply(delta2_var, 2, function(delta2_vari)
+                   optimize(negLL, interval = c(2 + 1e-12, 100), delta2_vari = delta2_vari)$minimum)
+                 mean(nu_i)
+               },
+               "MLE-uv-scat-ave" = {  # not so good
+                 if (is.null(Sigma_scatter)) stop("Scatter matrix must be passed.")
+                 delta2 <- Xc^2 / matrix(diag(Sigma_scatter), T, N, byrow = TRUE)
+                 negLL <- function(nu, delta2_i) ((1 + nu)/2)*sum(log(nu + delta2_i)) -
+                   T*lgamma((1 + nu)/2) + T*lgamma(nu/2) - (nu*T/2)*log(nu)
+                 nu_i <- apply(delta2, 2, function(delta2_i)
+                   optimize(negLL, interval = c(2 + 1e-12, 100), delta2_i = delta2_i)$minimum)
+                 mean(nu_i)
+               },
+               "MLE-uv-var-stacked" = {  # not so good
+                 var <- apply(Xc^2, 2, sum)/(T-1)
+                 delta2_var <- Xc^2 / matrix(var, T, N, byrow = TRUE)
+                 negLL <- function(nu) (N*T)/2*log((nu-2)/nu) + ((1 + nu)/2)*sum(log(nu + nu/(nu-2)*c(delta2_var))) -
+                   N*T*lgamma((1 + nu)/2) + N*T*lgamma(nu/2) - (nu/2)*N*T*log(nu)
+                 optimize(negLL, interval = c(2 + 1e-12, 100))$minimum
+               },
+               stop("Method to estimate nu unknown."))
+  return(nu)
+}
+
+
