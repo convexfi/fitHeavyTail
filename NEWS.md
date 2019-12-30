@@ -2,7 +2,15 @@
 
 * Vignette revised: detailed descriptions of the algorithms included.
 
-* Comparison with sn::selm() included.
+* Comparison with existing benchmark sn::selm() included in the vignette.
+
+* Now the three fitting functions also return the number of iterations and elapsed cpu_time.
+
+* Significant revision of the fitting function fit_mvt(); in particular:
+
+  - the nu_target for the estimation of nu has been removed since it was not effective;
+  - several new options for the initial value of nu or fixed value of nu have been included; and
+  - improved and more robust estimation of nu at each EM iteration.
 
 
 
