@@ -1,9 +1,12 @@
 #
 # example:
 #   fitted_Tyler <- fit_Tyler(X, return_iterates = TRUE)
-#   plotConvergence(fitted_Tyler)
+#   p <- fitHeavyTail:::plot_convergence(fitted_Tyler)
+#   p$nu
+#   p$nu_div_nu_2
+#   p
 #' @importFrom stats median
-plotConvergence <- function(res_fit) {
+plot_convergence <- function(res_fit) {
   if (is.null(res_fit$iterates_record))
     stop("Fitting result does not contain iteration converge. Make sure to use \"return_iterates = TRUE\" when doing the fitting.")
 
@@ -23,14 +26,14 @@ plotConvergence <- function(res_fit) {
     p_nu <- ggplot2::ggplot(data, ggplot2::aes(x = iteration, y = nu)) +
       ggplot2::geom_line() + ggplot2::geom_point() +
       ggplot2::ggtitle("Convergence of nu")
-    print(p_nu)
-    p_all <- c(p_all, list(p_nu))
+    #print(p_nu)
+    p_all <- c(p_all, "nu" = list(p_nu))
 
     p_nu_div_nu_2 <- ggplot2::ggplot(data, ggplot2::aes(x = iteration, y = nu_div_nu_2)) +
       ggplot2::geom_line() + ggplot2::geom_point() +
       ggplot2::ggtitle("Convergence of nu/(nu-2)") + ggplot2::ylab(nu/(nu-2))
-    print(p_nu_div_nu_2)
-    p_all <- c(p_all, list(p_nu_div_nu_2))
+    #print(p_nu_div_nu_2)
+    p_all <- c(p_all, "nu_div_nu_2" = list(p_nu_div_nu_2))
   }
 
   if (!is.null(res_fit$iterates_record[[1]]$mu)) {
@@ -42,8 +45,8 @@ plotConvergence <- function(res_fit) {
     p_mu <- ggplot2::ggplot(reshape2::melt(data, measure.vars = rownames(mu_matrix)), ggplot2::aes(x = iteration, y = value, col = variable)) +
       ggplot2::geom_line() + ggplot2::geom_point() +
       ggplot2::ggtitle("Convergence of mu")
-    print(p_mu)
-    p_all <- c(p_all, list(p_mu))
+    #print(p_mu)
+    p_all <- c(p_all, "mu" = list(p_mu))
   }
 
   if (!is.null(res_fit$iterates_record[[1]]$scatter)) {
@@ -53,8 +56,8 @@ plotConvergence <- function(res_fit) {
     p_scatter <- ggplot2::ggplot(reshape2::melt(data, measure.vars = rownames(diag_scatter_matrix)), ggplot2::aes(x = iteration, y = value, col = variable)) +
       ggplot2::geom_line() + ggplot2::geom_point() +
       ggplot2::ggtitle("Convergence of scatter matrix")
-    print(p_scatter)
-    p_all <- c(p_all, list(p_scatter))
+    #print(p_scatter)
+    p_all <- c(p_all, "scatter" = list(p_scatter))
   }
 
   if (!is.null(res_fit$iterates_record[[1]]$log_likelihood)) {
@@ -62,8 +65,8 @@ plotConvergence <- function(res_fit) {
     p_log_likelihood <- ggplot2::ggplot(data, ggplot2::aes(x = iteration, y = log_likelihood)) +
       ggplot2::geom_line() + ggplot2::geom_point() +
       ggplot2::ggtitle("Convergence of log_likelihood")
-    print(p_log_likelihood)
-    p_all <- c(p_all, list(p_log_likelihood))
+    #print(p_log_likelihood)
+    p_all <- c(p_all, "log_likelihood" = list(p_log_likelihood))
   }
 
   return(invisible(p_all))
