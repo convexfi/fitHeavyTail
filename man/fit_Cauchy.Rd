@@ -4,8 +4,15 @@
 \alias{fit_Cauchy}
 \title{Estimate parameters of a multivariate elliptical distribution to fit data under a Cauchy distribution}
 \usage{
-fit_Cauchy(X, initial = NULL, max_iter = 100, ptol = 0.001,
-  ftol = Inf, return_iterates = FALSE, verbose = FALSE)
+fit_Cauchy(
+  X,
+  initial = NULL,
+  max_iter = 100,
+  ptol = 0.001,
+  ftol = Inf,
+  return_iterates = FALSE,
+  verbose = FALSE
+)
 }
 \arguments{
 \item{X}{Data matrix containing the multivariate time series (each column is one time series).}
@@ -38,6 +45,10 @@ A list containing possibly the following elements:
         \item{\code{mu}}{Mean vector estimate.}
         \item{\code{cov}}{Covariance matrix estimate.}
         \item{\code{scatter}}{Scatter matrix estimate.}
+        \item{\code{converged}}{Boolean denoting whether the algorithm has converged (\code{TRUE}) or the maximum number
+                                of iterations \code{max_iter} has reached (\code{FALSE}).}
+        \item{\code{num_iterations}}{Number of iterations executed.}
+        \item{\code{cpu_time}}{Elapsed CPU time.}
         \item{\code{log_likelihood}}{Value of log-likelihood after converge of the estimation algorithm
                                      (only if \code{ftol < Inf}).}
         \item{\code{iterates_record}}{Iterates of the parameters (\code{mu} and possibly

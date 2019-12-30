@@ -4,20 +4,43 @@
 \alias{fit_mvt}
 \title{Estimate parameters of a multivariate Student's t distribution to fit data}
 \usage{
-fit_mvt(X, initial = NULL, factors = ncol(X), max_iter = 100,
-  ptol = 0.001, ftol = Inf, nu = NULL, method_nu = c("ECM",
-  "ECME"), nu_target = NULL, nu_regcoef = 0, return_iterates = FALSE,
-  verbose = FALSE)
+fit_mvt(
+  X,
+  nu = NULL,
+  method_nu = c("ECME-diag", "ECME", "ECM", "ECME-cov"),
+  initial = NULL,
+  factors = ncol(X),
+  max_iter = 100,
+  ptol = 0.001,
+  ftol = Inf,
+  return_iterates = FALSE,
+  verbose = FALSE
+)
 }
 \arguments{
 \item{X}{Data matrix containing the multivariate time series (each column is one time series).}
+
+\item{nu}{Degrees of freedom of the \eqn{t} distribution. If passed, then \code{nu} will be fixed
+and will not be further optimized. Possible values: directly a number (\code{>2}) or
+a method to compute it among:
+\itemize{\item{\code{"kurtosis"}: based on the kurtosis obtained from the sampled moemnts}
+         \item{\code{"MLE-diag"}: based on the MLE assuming a diagonal sample covariance matrix w.r.t. \code{nu}}
+         \item{\code{"MLE-diag-resampled"}: method "MLE-diag" resampled for better stability.}}
+If \code{nu} is not passed, then it will be iteratively optimized via the EM algorithm, with initial value
+specified by the argument \code{initial$nu}, which can take the same values as \code{nu} (default is \code{4}).}
+
+\item{method_nu}{String indicating the method for estimating \code{nu} (in case \code{nu} was not passed):
+\itemize{\item{\code{"ECM"}: maximization of the Q function}
+         \item{\code{"ECME"}: maximization of the log-likelihood function}
+         \item{\code{"ECME-diag"}: maximization of the log-likelihood function assuming a digonal scatter matrix (default method).}}
+This argument is used only when there are no NAs in the data and no factor model is chosen.}
 
 \item{initial}{List of initial values of the parameters for the iterative estimation method.
 Possible elements include:
 \itemize{\item{\code{mu}: default is the data sample mean,}
          \item{\code{cov}: default is the data sample covariance matrix,}
          \item{\code{scatter}: default follows from the scaled sample covariance matrix,}
-         \item{\code{nu}: default is \code{4},}
+         \item{\code{nu}: can take the same values as argument \code{nu}, default is \code{4},}
          \item{\code{B}: default is the top eigenvectors of \code{initial$cov}
                                    multiplied by the sqrt of the eigenvalues,}
          \item{\code{psi}: default is
@@ -36,23 +59,6 @@ value to determine convergence of the iterative method (default is \code{Inf}, s
 not active). Note that using this argument might have a computational cost as a convergence
 criterion due to the computation of the log-likelihood (especially when \code{X} is high-dimensional).}
 
-\item{nu}{Degrees of freedom (\code{>2}) of the \eqn{t} distribution. If a number is passed,
-then \code{nu} will be fixed to this number and will not be further optimized;
-if \code{"kurtosis"} is passed, then \code{nu} will be computed from the marginal
-kurtosis of the time series; otherwise (default option), \code{nu} will be
-estimated via the EM method.}
-
-\item{method_nu}{String indicating the method for estimating \code{nu} (in case \code{nu} was not passed):
-\itemize{\item{\code{"ECM"}: maximize the Q function w.r.t. \code{nu}}
-         \item{\code{"ECME"}: maximize the L function w.r.t. \code{nu}.}}
-This argument is used only when there are no NAs in the data and no factor model is chosen.}
-
-\item{nu_target}{Number (\code{>=2}) indicating the target for the regularization term for \code{nu}
-in case it is estimated (by default it is obtained via the marginal kurtosis).}
-
-\item{nu_regcoef}{Number (\code{>=0}) indicating the weight of the regularization term for \code{nu}
-in case it is estimated (default is \code{0}, so no regularion is used).}
-
 \item{return_iterates}{Logical value indicating whether to record the values of the parameters \code{mu},
 \code{scatter}, and \code{nu} (and possibly the log-likelihood if \code{ftol} is used)
 at each iteration (default is \code{FALSE}).}
@@ -65,6 +71,10 @@ A list containing possibly the following elements:
         \item{\code{cov}}{Covariance matrix estimate.}
         \item{\code{scatter}}{Scatter matrix estimate.}
         \item{\code{nu}}{Degrees of freedom estimate.}
+        \item{\code{converged}}{Boolean denoting whether the algorithm has converged (\code{TRUE}) or the maximum number
+                                of iterations \code{max_iter} has reached (\code{FALSE}).}
+        \item{\code{num_iterations}}{Number of iterations executed.}
+        \item{\code{cpu_time}}{Elapsed CPU time.}
         \item{\code{B}}{Factor model loading matrix estimate according to \code{cov = (B \%*\% t(B) + diag(psi)}
                         (only if factor model requested).}
         \item{\code{psi}}{Factor model idiosynchratic variances estimates according to \code{cov = (B \%*\% t(B) + diag(psi)}
@@ -74,8 +84,6 @@ A list containing possibly the following elements:
         \item{\code{iterates_record}}{Iterates of the parameters (\code{mu}, \code{scatter}, \code{nu},
                                       and possibly \code{log_likelihood} (if \code{ftol < Inf})) along the iterations
                                       (only if \code{return_iterates = TRUE}).}
-        \item{\code{converged}}{Boolean denoting whether the algorithm has converged (\code{TRUE}) or the maximum number
-                                of iterations \code{max_iter} has reached (\code{FALSE}).}
 }
 \description{
 Estimate parameters of a multivariate Student's t distribution to fit data,
