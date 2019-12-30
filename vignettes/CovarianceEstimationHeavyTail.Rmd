@@ -1,7 +1,7 @@
 ---
 title: "Mean Vector and Covariance Matrix Estimation under Heavy Tails"
 author: |
-  | Daniel P. Palomar and Rui ZHOU
+  | Daniel P. Palomar and Rui Zhou
   | The Hong Kong University of Science and Technology (HKUST)
 date: "`r Sys.Date()`"
 output:
@@ -15,6 +15,8 @@ output:
     highlight: pygments  
     toc: yes
     toc_depth: 2
+params:
+  N_realiz: 10
 csl: ieee.csl
 bibliography: refs.bib
 vignette: >
@@ -24,7 +26,7 @@ vignette: >
   %\VignetteEngine{knitr::rmarkdown}
 ---
 
-```{r, echo = FALSE}
+```{r, echo=FALSE}
 library(knitr)
 opts_chunk$set(
   collapse = TRUE,
@@ -37,7 +39,7 @@ opts_chunk$set(
 )
 knitr_in_progress <- isTRUE(getOption('knitr.in.progress'))
 knit_hooks$set(pngquant = hook_pngquant)
-# rmarkdown::render("vignettes/CovarianceEstimationHeavyTail.Rmd", "prettydoc::html_pretty")
+# rmarkdown::render("vignettes/CovarianceEstimationHeavyTail.Rmd", "prettydoc::html_pretty", params = list(N_realiz = 100))
 ```
 
 -----------
@@ -73,14 +75,14 @@ nu <- 4   # degrees of freedom for tail heavyness
 set.seed(42)
 mu <- rep(0, N)
 U <- t(rmvnorm(n = round(0.3*N), sigma = 0.1*diag(N)))
-Sigma <- U %*% t(U) + diag(N)  # covariance matrix with factor model structure
-Sigma_scatter <- (nu-2)/nu * Sigma
+Sigma_cov <- U %*% t(U) + diag(N)  # covariance matrix with factor model structure
+Sigma_scatter <- (nu-2)/nu * Sigma_cov
 X <- rmvt(n = T, delta = mu, sigma = Sigma_scatter, df = nu)  # generate data
 ```
 
 We can first estimate the mean vector and covariance matrix via the traditional sample estimates (i.e., sample mean and sample covariance matrix):
 ```{r}
-mu_sm <- colMeans(X)
+mu_sm     <- colMeans(X)
 Sigma_scm <- cov(X)
 ```
 
@@ -92,11 +94,11 @@ fitted <- fit_mvt(X)
 
 We can now compute the estimation errors and see the big improvement:
 ```{r}
-sum((mu_sm - mu)^2)
+sum((mu_sm     - mu)^2)
 sum((fitted$mu - mu)^2)
 
-sum((Sigma_scm - Sigma)^2)
-sum((fitted$cov - Sigma)^2)
+sum((Sigma_scm  - Sigma_cov)^2)
+sum((fitted$cov - Sigma_cov)^2)
 ```
 
 ```{r, eval=FALSE, echo=FALSE}
@@ -107,7 +109,7 @@ sum((fitted_3factors$cov - Sigma)^2)
 ```
 
 To get a visual idea of the robustness, we can plot the shapes of the covariance matrices (true and estimated ones) projected on two dimensions. Observe how the heavy-tailed estimation follows the true one more closely than the sample covariance matrix:
-```{r, eval=FALSE, echo=FALSE}
+```{r basic-plot, eval=FALSE, echo=FALSE}
 library(ellipse)
 
 i1 <- 7  #7-4, 7-5
@@ -134,7 +136,7 @@ i1 <- 7; i2 <- 5
 colnames(fitted$cov) <- rownames(fitted$cov) <- NULL
 ggplot(data.frame(x = X[, i1], y = X[, i2]), aes(x, y)) +
   geom_point(alpha = 0.7, size = 3) +
-  geom_path(data = data.frame(ellipse(Sigma[c(i1, i2), c(i1, i2)])), 
+  geom_path(data = data.frame(ellipse(Sigma_cov[c(i1, i2), c(i1, i2)])), 
             aes(x, y, col = "true"), lwd = 1) +
   geom_path(data = data.frame(ellipse(Sigma_scm[c(i1, i2), c(i1, i2)], centre = mu_sm[c(i1, i2)])), 
             aes(x, y, col = "SCM estimation"), lwd = 1) +
@@ -152,7 +154,7 @@ ggplot(data.frame(x = X[, i1], y = X[, i2]), aes(x, y)) +
 
 
 # Numerical Comparison with Existing Packages
-In the following, we generate multivariate heavy-tailed Student's $t$ distributed data and compare the performance of many different existing packages in terms of estimation accurary, measured by the mean squared error (MSE), and cpu time.
+In the following, we generate multivariate heavy-tailed Student's $t$ distributed data and compare the performance of many different existing packages via `r params$N_realiz` Monte Carlo simulations in terms of estimation accurary, measured by the mean squared error (MSE), and cpu time.
 
 ```{r, echo=FALSE}
 library(mvtnorm)
@@ -163,9 +165,9 @@ mu <- rep(0, N)
 
 set.seed(357)
 U <- t(rmvnorm(n = round(0.3*N), sigma = 0.1*diag(N)))
-Sigma <- U %*% t(U) + diag(N)
-Sigma_scatter <- (nu-2)/nu * Sigma
-# qplot(eigen(Sigma)$values, geom = "histogram", xlab = "eigenvalues", fill = I("cyan"), col = I("black"),
+Sigma_cov <- U %*% t(U) + diag(N)
+Sigma_scatter <- (nu-2)/nu * Sigma_cov
+# qplot(eigen(Sigma_cov)$values, geom = "histogram", xlab = "eigenvalues", fill = I("cyan"), col = I("black"),
 #       main = "Histogram of eigenvalues of true covariance matrix")
 ```
 
@@ -174,7 +176,7 @@ library(fitHeavyTail)
 library(tictoc)
 library(parallel)  # detectCores(logical = FALSE)
 
-MSE <- function(Sigma_hat) norm(Sigma_hat - Sigma, "F")^2
+MSE <- function(Sigma_hat) norm(Sigma_hat - Sigma_cov, "F")^2
 
 eval_single <- function(X) {
   MSE <- time <- c()
@@ -238,7 +240,7 @@ eval_single <- function(X) {
   # MSE[name]   <- MSE(Sigma_hat)
   
   name        <- "fitHeavyTail::fit_mvt"
-  time[name]  <- system.time({Sigma_hat <- fitHeavyTail::fit_mvt(X, nu_regcoef = 1e2)$cov})["elapsed"]
+  time[name]  <- system.time({Sigma_hat <- fitHeavyTail::fit_mvt(X, initial = list(nu = 6))$cov})["elapsed"]
   MSE[name]   <- MSE(Sigma_hat)
 
   # name        <- "fitHeavyTail::fit_mvt (factors = 6)"
@@ -248,16 +250,15 @@ eval_single <- function(X) {
   return(list("MSE" = MSE, "time" = time))
 }
 
-N_realiz <- 100  # multiple realizations for averaging
 T_sweep <- round(seq(from = ceiling(1.5*N), to = 5*N, length.out = 12))
 if (!knitr_in_progress) pbar <- txtProgressBar(min = it <- 0, max = length(T_sweep), style = 3)
 MSE_all_T <- time_all_T <- NULL
 
-#tic(sprintf("Total execution time for %d Monte-Carlo realizations:", N_realiz))
+#tic(sprintf("Total execution time for %d Monte-Carlo realizations:", params$N_realiz))
 for(T in T_sweep) {
   if (!knitr_in_progress) setTxtProgressBar(pbar, it <- it + 1)
   # first, generate random heavy-tailed data sequentially for reproducibility
-  X <- replicate(N_realiz, rmvt(n = T, delta = mu, sigma = Sigma_scatter, df = nu), simplify = FALSE)
+  X <- replicate(params$N_realiz, rmvt(n = T, delta = mu, sigma = Sigma_scatter, df = nu), simplify = FALSE)
 
   # then, run the estimation in parallel (https://bookdown.org/rdpeng/rprogdatascience/parallel-computation.html)
   res <- mclapply(X, eval_single, mc.cores = 4)
@@ -283,16 +284,16 @@ rownames(time_all_T) <- rownames(MSE_all_T) <- T_sweep
 for(T in T_sweep) {
   if (!knitr_in_progress) setTxtProgressBar(pbar, it <- it + 1)
   # first, generate random heavy-tailed data sequentially for reproducibility
-  #X <- lapply(1:N_realiz, function(idx) {rmvt(n = T, delta = mu, sigma = Sigma_scatter, df = nu)})
-  X <- replicate(N_realiz, rmvt(n = T, delta = mu, sigma = Sigma_scatter, df = nu), simplify = FALSE)
-  #X <- foreach(1:N_realiz) %do% rmvt(n = T, delta = mu, sigma = Sigma_scatter, df = nu)
+  #X <- lapply(1:params$N_realiz, function(idx) {rmvt(n = T, delta = mu, sigma = Sigma_scatter, df = nu)})
+  X <- replicate(params$N_realiz, rmvt(n = T, delta = mu, sigma = Sigma_scatter, df = nu), simplify = FALSE)
+  #X <- foreach(1:params$N_realiz) %do% rmvt(n = T, delta = mu, sigma = Sigma_scatter, df = nu)
 
   # then, run the estimation in parallel 
   #res <- lapply(X, eval_single)
-  #res <- foreach(i = 1:N_realiz) %do% eval_single(X[[i]])
+  #res <- foreach(i = 1:params$N_realiz) %do% eval_single(X[[i]])
   res <- mclapply(X, eval_single, mc.cores = 4)
   #res <- parLapply(cl = cl, X, eval_single)  # this requires: cl <- makeCluster(4); clusterExport(cl = cl, varlist = ls(envir = .GlobalEnv)); stopCluster(cl = cl)
-  #res <- foreach(i = 1:N_realiz) %dopar% eval_single(X[[i]])  # this requires: registerDoParallel(4); stopImplicitCluster()
+  #res <- foreach(i = 1:params$N_realiz) %dopar% eval_single(X[[i]])  # this requires: registerDoParallel(4); stopImplicitCluster()
   
   # finally, keep track of MSEs and times
   MSE_all_T  <- rbind(MSE_all_T,  rowMeans(sapply(res, function(x) x$MSE)))
@@ -301,7 +302,7 @@ for(T in T_sweep) {
 ```
 
 
-```{r plots-1, warning=FALSE, echo=FALSE, fig.width = 9, fig.height = 5, out.width = "95%"}
+```{r plots-1, warning=FALSE, echo=FALSE, fig.width=9, fig.height=5, out.width="95%"}
 library(ggplot2)
 library(reshape2)
 
@@ -315,7 +316,7 @@ ggplot(melt(MSE_all_T, varnames = c("Var1", "method")), aes(x = Var1, y = value,
 # check here is TeX problem has been fixed: https://github.com/stefano-meschiari/latex2exp/pull/21
 ```
 
-```{r plots-2, warning=FALSE, echo=FALSE, fig.width = 9, fig.height = 5, out.width = "95%"}
+```{r plots-2, warning=FALSE, echo=FALSE, fig.width=9, fig.height=5, out.width="95%"}
 # time plot
 time_all_T[is.na(MSE_all_T)] <- NA
 ggplot(melt(time_all_T, varnames = c("Var1", "method")), aes(x = Var1, y = value, col = method, shape = method)) +
@@ -325,9 +326,11 @@ ggplot(melt(time_all_T, varnames = c("Var1", "method")), aes(x = Var1, y = value
   xlab("T") + ylab("cpu time")
 ```
 
-The following plot gives a nice overall perspective of the MSE vs. cput time tradeoff of the different methods (note the ellipse at the bottom left that embraces the best four methods: `fitHeavyTail::fit_Tyler()`, `fitHeavyTail::fit_Cauchy()`, `fitHeavyTail::fit_mvt()`, and `fitHeavyTail::fit_mvt()` with fixed `nu = 6`):
+The following plot gives a nice overall perspective of the MSE vs. cpu time tradeoff of the different methods (note the ellipse at the bottom left that embraces the best four methods: `fitHeavyTail::fit_Tyler()`, `fitHeavyTail::fit_Cauchy()`, `fitHeavyTail::fit_mvt()`, and `fitHeavyTail::fit_mvt()` with fixed `nu = 6`):
 
-```{r plots-3, warning=FALSE, echo=FALSE, fig.width = 9, fig.height = 5, out.width = "95%"}
+```{r plots-3, warning=FALSE, echo=FALSE, fig.width=9, fig.height=5, out.width="95%"}
+library(ggforce)
+
 # joint MSE-time plot
 mse4 <- tail(MSE_all_T["100", ], 4)    # for the ellipse
 time4 <- tail(time_all_T["100", ], 4)  #
@@ -365,7 +368,7 @@ Concluding, the top choices seem to be (in order):
 4. `MASS::cov.trob()` (with the advantage of being preinstalled with base R, but with a worse estimation error).
 
 
-The winner seems to be by a big margin `fitHeavyTail::fit_mvt()`.
+The overall winner is `fitHeavyTail::fit_mvt()` by a big margin.
 
 
 
@@ -374,7 +377,7 @@ In essence, all the algorithms are based on the maximum likelihood estimation (M
 
 In some cases, the probability distribution function becomes too complicated to manage directly (like the multivariate Student's $t$ distribution) and it is necessary to resort to a hierarchical distribution that involves some latent variables. In order to deal with such hidden variables, one has to resort to the Expectation-Maximization (EM) algorithm, which interestingly is an instance of the MM algorithm.
 
-In particular:
+The following is a description of the algorithms used by the three fitting functions (note that the current version of the R package [`fitHeavyTail`](https://CRAN.R-project.org/package=fitHeavyTail) does not allow yet a regularization term with a target):
 
 - The function `fitHeavyTail::fit_Tyler()` normalizes the centered samples $\bar{\mathbf{x}}_t = \mathbf{x}_t - \boldsymbol{\mu}$ (where $\boldsymbol{\mu}$ has been previously estimated), which then have an angular Gaussian distribution on the sphere, and performs an MLE based on the MM algorithm [@SunBabPal2014]. The formulation including a regularization term is
 $$
@@ -450,7 +453,7 @@ $$
   \end{aligned}
 \end{array}
 $$
-Since its direct minimization is complicated, the EM algorithm instead iteratively solves the following problem at iteration $k$:
+Since its direct minimization is complicated, the EM algorithm instead iteratively optimizes the Q function at iteration $k$:
 $$
 \begin{array}{ll}
 \underset{\boldsymbol{\mu},\boldsymbol{\Sigma},\nu}{\textsf{minimize}} & 
@@ -473,9 +476,17 @@ $$
 \boldsymbol{\Sigma}_{k+1} = \frac{1}{\alpha_k}\frac{1}{T}\sum_{t=1}^{T}\textsf{E}_k[\tau_t]\left(\mathbf{x}_t - \boldsymbol{\mu}_{k+1}\right)\left(\mathbf{x}_t - \boldsymbol{\mu}_{k+1}\right)^T,
 $$
 with $\alpha_k = \frac{1}{T}\sum_{t=1}^T\textsf{E}_k[\tau_t]$, and $\nu_{k+1}$ can be found by a one-dimensional search:
-$$
-\nu_{k+1} = \arg\min_\nu \left\{\frac{\nu}{2}\sum_{t=1}^{T}\left(\textsf{E}_k[\tau_t] - \textsf{E}_k[\log{\tau_t]}\right) - \frac{\nu}{2}T\log{\frac{\nu}{2}} + T\log{\Gamma\left(\frac{\nu}{2}\right)}\right\}.
-$$
+
+  - method ECM based on the Q function:
+  
+  $$\nu_{k+1} = \arg\min_\nu \left\{\frac{\nu}{2}\sum_{t=1}^{T}\left(\textsf{E}_k[\tau_t] - \textsf{E}_k[\log{\tau_t]}\right) - \frac{\nu}{2}T\log{\frac{\nu}{2}} + T\log{\Gamma\left(\frac{\nu}{2}\right)}\right\}$$
+
+  - method ECME based directly on the likelihood:
+  
+  $$\nu_{k+1} = \arg\min_\nu \left\{
+  \frac{N + \nu}{2}\sum_{t=1}^{T}\log{\left(\nu + \left(\mathbf{x}_t - \boldsymbol{\mu}_{k+1}\right)\boldsymbol{\Sigma}_{k+1}^{-1}\left(\mathbf{x}_t - \boldsymbol{\mu}_{k+1}\right)^T\right)}\\\hspace{6cm} 
+  - T\log{\Gamma\left(\frac{N + \nu}{2}\right)} + T\log{\Gamma\left(\frac{\nu}{2}\right)} - \frac{\nu}{2}T\log{\nu}
+  \right\}.$$
 The initial point is $\boldsymbol{\mu}_{0} = \frac{1}{T}\sum_{t=1}^{T}\mathbf{x}_t$, $\boldsymbol{\Sigma}_{0} = \frac{\nu_0-2}{\nu_0}\mathbf{S}$, and $\nu_0 = 2/\kappa + 4$, with $\kappa = \left[\frac{1}{3}\frac{1}{N}\sum_{i=1}^N \textsf{kurt}_i\right]^+$ and 
 <!---$$\textsf{kurt}_i = \frac{(T-1)(T+1)}{(T-2)(T-3)}\left(\frac{m_i^{(4)}}{\big(m_i^{(2)}\big)^2} - 3\frac{T-1}{T+1}\right),$$--->
 $$\textsf{kurt}_i =  \frac{(T-1)}{(T-2)(T-3)}\left((T+1)\left(\frac{m_i^{(4)}}{\big(m_i^{(2)}\big)^2} - 3\right) + 6\right),$$
