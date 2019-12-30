@@ -8,7 +8,7 @@ output:
   prettydoc::html_pretty:
     theme: tactile
     highlight: vignette
-    toc: yes
+    toc: no
     toc_depth: 2
   html_document:
     theme: flatly
@@ -16,7 +16,7 @@ output:
     toc: yes
     toc_depth: 2
 params:
-  N_realiz: 50
+  N_realiz: 10
 csl: ieee.csl
 bibliography: refs.bib
 ---
@@ -34,10 +34,12 @@ opts_chunk$set(
 )
 knitr_in_progress <- isTRUE(getOption('knitr.in.progress'))
 knit_hooks$set(pngquant = hook_pngquant)
-# rmarkdown::render("vignettes/nu_estimation.Rmd", "prettydoc::html_pretty", params = list(N_realiz = 500))
+# rmarkdown::render("vignettes/nu_estimation.Rmd", "html_document", params = list(N_realiz = 500))
 ```
 
 -----------
+
+> This report explores the convergence of $\nu$ for different estimation methods in package [`fitHeavyTail`](https://CRAN.R-project.org/package=fitHeavyTail).
 
 
 Let's define the parameters for the generation of the multivariate Student's $t$ distribution:
@@ -46,91 +48,183 @@ library(mvtnorm)  # package for multivariate t distribution
 set.seed(137)
 
 N <- 10   # number of variables
-T <- 80   # number of observations
+T <- 60   # number of observations
 nu <- 4   # degrees of freedom for tail heavyness
 mu <- rep(0, N)
 U <- t(rmvnorm(n = round(0.3*N), sigma = 0.1*diag(N)))
-Sigma <- U %*% t(U) + diag(N)  # covariance matrix with factor model structure
-Sigma_scatter <- (nu-2)/nu * Sigma
+Sigma_cov <- U %*% t(U) + diag(N)  # covariance matrix with factor model structure
+Sigma_scatter <- (nu-2)/nu * Sigma_cov
 ```
 
 
 To warm up, let's consider the following estimators for $\nu$:
 
 - based on the kurtosis directly
-- based on EM with initial value of 4
-- based on EM with initial value from kurtosis
+- based on MLE w.r.t. $\nu$ assuming a diagonal sample covariance matrix
+- idem but resampling for additional stability
+- iterative estimation based on the EM algorithm with the previous three initial points. 
 
 ```{r}
 library(fitHeavyTail)
 
 X <- rmvt(n = T, delta = mu, sigma = Sigma_scatter, df = nu)  # generate data
-nu_kurtosis  <- fit_mvt(X, nu = fitHeavyTail:::est_nu_kurtosis(X))$nu
-nu0_4        <- fit_mvt(X, initial = list("nu" = 4))$nu
-nu0_kurtosis <- fit_mvt(X, initial = list("nu" = fitHeavyTail:::est_nu_kurtosis(X)))$nu
-rbind("true" = nu, nu_kurtosis, nu0_4, nu0_kurtosis)
+
+# direct methods
+nu_kurtosis           <- fit_mvt(X, nu = "kurtosis")$nu
+nu_mle_diag           <- fit_mvt(X, nu = "MLE-diag")$nu
+nu_mle_diag_resampled <- fit_mvt(X, nu = "MLE-diag-resampled")$nu
+
+# EM with different initial points
+EM_nu0_true               <- fit_mvt(X, initial = list(nu = nu))$nu
+EM_nu0_kurtosis           <- fit_mvt(X, initial = list(nu = "kurtosis"))$nu
+EM_nu0_mle_diag           <- fit_mvt(X, initial = list(nu = "MLE-diag"))$nu
+EM_nu0_mle_diag_resampled <- fit_mvt(X, initial = list(nu = "MLE-diag-resampled"))$nu
+
+rbind("nu_true" = nu, nu_kurtosis, nu_mle_diag, nu_mle_diag_resampled,
+      EM_nu0_true, EM_nu0_kurtosis, EM_nu0_mle_diag, EM_nu0_mle_diag_resampled)
+```
+
+We can observe the convergence of $\nu$:
+```{r}
+fitted <- fit_mvt(X, return_iterates = TRUE)
+fitHeavyTail:::plot_convergence(fitted)$nu
 ```
 
 
 We now run `r params$N_realiz` Monte Carlo simulations.
 ```{r, echo=FALSE}
 eval_single <- function(X) {
-  nu <- list()
-  nu["nu = kurt"]  <- fit_mvt(X, nu = fitHeavyTail:::est_nu_kurtosis(X))$nu
-  nu["nu0 = 4"]    <- fit_mvt(X, initial = list("nu" = 4))$nu
-  nu["nu0 = kurt"] <- fit_mvt(X, initial = list("nu" = fitHeavyTail:::est_nu_kurtosis(X)))$nu
-  return(nu)
+  nu <- num_iterations <- cpu_time <- list()
+  
+  # name                  <- "nu = true"
+  # fitted                <- fit_mvt(X, nu = 4)
+  # nu[name]              <- fitted$nu
+  # num_iterations[name]  <- fitted$num_iterations
+  # cpu_time[name]        <- fitted$cpu_time  
+
+  name                  <- "nu = kurtosis"
+  fitted                <- fit_mvt(X, nu = "kurtosis")
+  nu[name]              <- fitted$nu
+  num_iterations[name]  <- fitted$num_iterations
+  cpu_time[name]        <- fitted$cpu_time
+  
+  name                  <- "nu = MLE-diag"
+  fitted                <- fit_mvt(X, nu = "MLE-diag")
+  nu[name]              <- fitted$nu
+  num_iterations[name]  <- fitted$num_iterations
+  cpu_time[name]        <- fitted$cpu_time
+
+  name                  <- "nu = MLE-diag-resampled"
+  fitted                <- fit_mvt(X, nu = "MLE-diag-resampled")
+  nu[name]              <- fitted$nu
+  num_iterations[name]  <- fitted$num_iterations
+  cpu_time[name]        <- fitted$cpu_time
+  
+  # name                  <- "nu0 = 4"
+  # fitted                <- fit_mvt(X, initial = list(nu = 4))
+  # nu[name]              <- fitted$nu
+  # num_iterations[name]  <- fitted$num_iterations
+  # cpu_time[name]        <- fitted$cpu_time
+
+  name                  <- "nu0 = kurtosis"
+  fitted                <- fit_mvt(X, initial = list(nu = "kurtosis"))
+  nu[name]              <- fitted$nu
+  num_iterations[name]  <- fitted$num_iterations
+  cpu_time[name]        <- fitted$cpu_time
+
+  name                  <- "nu0 = MLE-diag"
+  fitted                <- fit_mvt(X, initial = list(nu = "MLE-diag"))
+  nu[name]              <- fitted$nu
+  num_iterations[name]  <- fitted$num_iterations
+  cpu_time[name]        <- fitted$cpu_time
+  
+  name                  <- "nu0 = MLE-diag-resampled"
+  fitted                <- fit_mvt(X, initial = list(nu = "MLE-diag-resampled"))
+  nu[name]              <- fitted$nu
+  num_iterations[name]  <- fitted$num_iterations
+  cpu_time[name]        <- fitted$cpu_time
+
+  return(list("nu"= nu, "num_iterations" = num_iterations, "cpu_time" = cpu_time))
 }
 
-T_sweep <- round(seq(from = 25, to = 50, by = 5))
+T_sweep <- round(seq(from = 20, to = 100, by = 10))
 if (!knitr_in_progress) pbar <- txtProgressBar(min = it <- 0, max = length(T_sweep), style = 3)
-nu_all_T <- list()
+res_all_T <- list()
 for(T in T_sweep) {
   if (!knitr_in_progress) setTxtProgressBar(pbar, it <- it + 1)
   
   # first, generate random heavy-tailed data sequentially for reproducibility
-  X <- replicate(params$N_realiz, rmvt(n = T, delta = mu, sigma = Sigma_scatter, df = nu), simplify = FALSE)
-  names(X) <- paste0("realiz ", 1:params$N_realiz)
+  X_list <- replicate(params$N_realiz, rmvt(n = T, delta = mu, sigma = Sigma_scatter, df = nu), simplify = FALSE)
+  names(X_list) <- paste0("realiz ", 1:params$N_realiz)
 
   # then, run estimations for all realizations
-  nu_all_T <- c(nu_all_T, list(lapply(X, eval_single)))
+  res_all_T <- c(res_all_T, list(lapply(X_list, eval_single)))
 }
-names(nu_all_T) <- paste0("T = ", T_sweep)
+names(res_all_T) <- T_sweep  # paste0("T = ", T_sweep)
 ```
-
-The results can be see in the following boxplots:
+The results can be seen in the following boxplots:
 ```{r, echo=FALSE, fig.width = 9, fig.height = 5, out.width = "100%"}
 library(ggplot2)
 library(reshape2)
 
-nu_all_T_molten <- melt(nu_all_T)
-names(nu_all_T_molten) <- c("value", "method", "realization", "T")
-nu_all_T_molten$T <- factor(nu_all_T_molten$T, levels = names(nu_all_T))
+# create data.frame by melting the nested list
+res_all_T_molten <- melt(res_all_T)
+names(res_all_T_molten) <- c("value", "method", "measure", "realization", "T")
+res_all_T_molten$realization <- NULL  # don't really need the realization index
+res_all_T_molten$T      <- factor(res_all_T_molten$T, levels = names(res_all_T))
+res_all_T_molten$method <- factor(res_all_T_molten$method, levels = names(res_all_T[[1]][[1]][[1]]))
 
-ggplot(nu_all_T_molten, aes(x = T, y = value, fill = method)) +
+# plot
+ggplot(res_all_T_molten[res_all_T_molten$measure == "nu", ], aes(x = T, y = value, fill = method)) +
   geom_boxplot(show.legend = FALSE) +  #show.legend = FALSE
-  geom_point(size = 0.5, alpha = 0.8, show.legend = FALSE) +
-  facet_wrap(~ method) +
-  scale_x_discrete(labels = T_sweep) +
-  labs(title = sprintf("Estimation of nu (nu = %d, N = %d)", nu, N), x = "T", y = NULL)
+  facet_wrap(~ method, dir = "v", scales = "free_y") +
+  #coord_cartesian(ylim = c(0, 25)) +
+  geom_hline(yintercept = nu, linetype = "dashed") +
+  labs(title = sprintf("Estimated nu (nu = %d, N = %d)", nu, N), x = "T", y = "nu")
 ```
 
-```{r, echo=FALSE, eval=FALSE, fig.width = 9, fig.height = 5, out.width = "100%"}
-ggplot(nu_all_T_molten, aes(x = method, y = value, fill = method)) +
-  geom_boxplot() + 
-  geom_point(size = 0.5, alpha = 0.8, show.legend = FALSE) +
-  facet_grid(~ T) +
-  scale_x_discrete(labels = element_blank()) +  #theme(axis.text.x = element_blank()) +
-  labs(title = sprintf("Estimation of nu (nu = %d, N = %d)", nu, N), x = NULL, y = NULL)
+```{r, echo=FALSE, fig.width = 9, fig.height = 5, out.width = "100%"}
+ggplot(res_all_T_molten[res_all_T_molten$measure == "num_iterations", ], aes(x = T, y = value, fill = method)) +
+  geom_boxplot(show.legend = FALSE) +
+  facet_wrap(~ method, dir = "v", scales = "free_y") +
+  labs(title = "Iterations for the estimation of all parameters", x = "T", y = "iterations")
 ```
 
-We can see that the EM algorithm generally gives an improvement with respect to the direct estimation based on the marginal kurtosis, but it is subject to unacceptable outliers. Perhaps with the usage of RMT techniques these outliers can be eliminated?
+```{r, echo=FALSE, fig.width = 9, fig.height = 5, out.width = "100%"}
+ggplot(res_all_T_molten[res_all_T_molten$measure == "cpu_time", ], aes(x = T, y = value, fill = method)) +
+  geom_boxplot(show.legend = FALSE) +
+  facet_wrap(~ method, dir = "v", scales = "free_y") +
+  #coord_cartesian(ylim = c(0, 0.008)) +
+  labs(title = "Elapsed CPU time for the estimation of all parameters", x = "T", y = "seconds")
+```
 
+<!---
+The following line plots with confidence bands are more compact:
+```{r, echo=FALSE, eval=FALSE, message=FALSE, fig.width = 9, fig.height = 5, out.width = "100%"}
+library(dplyr)
 
+# generate mean and confidence intervale in data.frame
+res_meansd_T_molten <- 
+  res_all_T_molten %>%
+  mutate(T = as.numeric(as.character(T))) %>%
+  group_by(method, measure, T) %>% 
+  summarize(value_mean      = mean(value),
+            value_meansd_lo = mean(value) - sd(value),
+            value_meansd_up = mean(value) + sd(value))
 
+# plot
+ggplot(res_meansd_T_molten[res_meansd_T_molten$measure == "nu", ], aes(x = T, y = value_mean, color = method)) +
+  geom_ribbon(aes(ymin = value_meansd_lo, ymax = value_meansd_up, fill = method), alpha = 0.3, linetype = "blank", show.legend = FALSE) +
+  geom_line() + geom_point() +
+  labs(title = sprintf("Estimation of nu (nu = %d, N = %d)", nu, N), y = "nu")
+```
+--->
 
+Conclusions:
 
-
+- If $\nu$ is not optimized, then the best method to estimate it with the method "MLE-diag-resampled", albeit with a high computational cost, followed by the method "MLE-diag".
+- In terms of number of EM iterations, the fixed value or initial point for $\nu$ does not matter that much.
+- If $\nu$ is optimized via the EM algorithm, then the initial point is not that relevant and one can simply initialize to $\nu_0 = 4$ with zero computational cost.
 
 
 
