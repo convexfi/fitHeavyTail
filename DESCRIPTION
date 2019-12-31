@@ -1,25 +1,16 @@
 Package: fitHeavyTail
 Title: Mean and Covariance Matrix Estimation under Heavy Tails
-Version: 0.1.1.9000
-Date: 2019-11-22
+Version: 0.1.2
+Date: 2019-12-31
 Description: Robust estimation methods for the mean vector and covariance matrix 
     from data (possibly containing NAs) under multivariate heavy-tailed 
-    distributions such as angular Gaussian, Cauchy, and Student's t. Additionally,
-    a factor model structure can be specified for the covariance matrix.
-    The package is based on the papers:
-    Y. Sun, P. Babu, and D. P. Palomar (2014). Regularized Tyler’s Scatter 
-    Estimator: Existence, Uniqueness, and Algorithms. IEEE Trans. on Signal 
-    Processing, vol. 62, no. 19, pp. 5143-5156. <doi:10.1109/TSP.2014.2348944>.
-    Y. Sun, P. Babu, and D. P. Palomar (2015). Regularized Robust Estimation of 
-    Mean and Covariance Matrix Under Heavy-Tailed Distributions. IEEE Trans. on 
-    Signal Processing, vol. 63, no. 12, pp. 3096-3109. <doi:10.1109/SAM.2014.6882356>.
-    Chuanhai Liu and Donald B. Rubin (1995).
-    ML estimation of the t-distribution using EM and its extensions, ECM and ECME.
-    Statistica Sinica (5), pp. 19-39.
-    <https:www3.stat.sinica.edu.tw/statistica/oldpdf/A5n12.pdf>.
-    R. Zhou, J. Liu, S. Kumar, and D. P. Palomar (2019).
-    Robust factor analysis parameter estimation.
-    Lecture Notes in Computer Science (LNCS). <arXiv:1909.12530>.
+    distributions such as angular Gaussian (via Tyler's method), Cauchy, 
+    and Student's t. 
+    Additionally, a factor model structure can be specified for the covariance 
+    matrix.
+    The package is based on the papers: Sun, Babu, and Palomar (2014),
+    Sun, Babu, and Palomar (2015), Liu and Rubin (1995), and 
+    Zhou, Liu, Kumar, and Palomar (2019).
 Authors@R: c(
   person(c("Daniel", "P."), "Palomar", role = c("cre", "aut"), email = "daniel.p.palomar@gmail.com"),
   person("Rui", "Zhou", role =  "aut", email = "rzhouae@connect.ust.hk")

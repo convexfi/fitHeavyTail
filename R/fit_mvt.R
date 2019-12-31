@@ -18,23 +18,22 @@
 #'          \code{cov}, \code{scatter}, and \code{nu}) to fit the data via the expectation–maximization (EM) algorithm.
 #'          The data matrix \code{X} can contain missing values denoted by NAs.
 #'          The estimation of \code{nu} if very flexible: it can be directly passed as an argument (without being estimated),
-#'          it can be estimated by maximizing the log-likelihood or a surrogate function (methods \code{"ECME"} and
-#'          \code{"ECM"}, respectively), and it can be estimated by maximizing the log-likelihood regularized with a
-#'          target \code{nu_target} with weight \code{nu_regcoef > 0} (the regularization term is
-#'          \code{nu_regcoef * (nu - nu_target)^2}).
+#'          it can be estimated with several one-shot methods (namely, \code{"kurtosis"}, \code{"MLE-diag"},
+#'          \code{"MLE-diag-resampled"}), and it can also be iteratively estimated with the other parameters via the EM
+#'          algorithm.
 #'
 #' @param X Data matrix containing the multivariate time series (each column is one time series).
-#' @param na_rm Logical value to indicate whether to remove observations with some NAs (default) or not, in which
+#' @param na_rm Logical value indicating whether to remove observations with some NAs (default) or not, in which
 #'              case they will be imputed at a higher computational cost.
 #' @param nu Degrees of freedom of the \eqn{t} distribution. Either a number (\code{>2}) or a string indicating the
 #'           method to compute it:
-#'           \itemize{\item{\code{"kurtosis"}: based on the kurtosis obtained from the sampled moemnts;}
-#'                    \item{\code{"MLE-diag"}: based on the MLE assuming a diagonal sample covariance matrix w.r.t. \code{nu};}
+#'           \itemize{\item{\code{"kurtosis"}: based on the kurtosis obtained from the sampled moments;}
+#'                    \item{\code{"MLE-diag"}: based on the MLE assuming a diagonal sample covariance;}
 #'                    \item{\code{"MLE-diag-resampled"}: method "MLE-diag" resampled for better stability;}
 #'                    \item{\code{"iterative"}: iterative estimation with the rest of the parameters via the EM algorithm.}}
 #' @param nu_iterative_method String indicating the method for iteratively estimating \code{nu} (in case \code{nu = "iterative"}):
-#'                  \itemize{\item{\code{"ECM"}: maximization of the Q function}
-#'                           \item{\code{"ECME"}: maximization of the log-likelihood function}
+#'                  \itemize{\item{\code{"ECM"}: maximization of the Q function;}
+#'                           \item{\code{"ECME"}: maximization of the log-likelihood function;}
 #'                           \item{\code{"ECME-diag"}: maximization of the log-likelihood function assuming
 #'                                                     a digonal scatter matrix (default method).}}
 #'                  This argument is used only when there are no NAs in the data and no factor model is chosen.
@@ -57,9 +56,8 @@
 #'             value to determine convergence of the iterative method (default is \code{Inf}, so it is
 #'             not active). Note that using this argument might have a computational cost as a convergence
 #'             criterion due to the computation of the log-likelihood (especially when \code{X} is high-dimensional).
-#' @param return_iterates Logical value indicating whether to record the values of the parameters \code{mu},
-#'                        \code{scatter}, and \code{nu} (and possibly the log-likelihood if \code{ftol} is used)
-#'                        at each iteration (default is \code{FALSE}).
+#' @param return_iterates Logical value indicating whether to record the values of the parameters (and possibly the
+#'                        log-likelihood if \code{ftol < Inf}) at each iteration (default is \code{FALSE}).
 #' @param verbose Logical value indicating whether to allow the function to print messages (default is \code{FALSE}).
 #'
 #' @return A list containing possibly the following elements:
@@ -68,18 +66,17 @@
 #'         \item{\code{scatter}}{Scatter matrix estimate.}
 #'         \item{\code{nu}}{Degrees of freedom estimate.}
 #'         \item{\code{converged}}{Boolean denoting whether the algorithm has converged (\code{TRUE}) or the maximum number
-#'                                 of iterations \code{max_iter} has reached (\code{FALSE}).}
+#'                                 of iterations \code{max_iter} has been reached (\code{FALSE}).}
 #'         \item{\code{num_iterations}}{Number of iterations executed.}
 #'         \item{\code{cpu_time}}{Elapsed CPU time.}
 #'         \item{\code{B}}{Factor model loading matrix estimate according to \code{cov = (B \%*\% t(B) + diag(psi)}
 #'                         (only if factor model requested).}
 #'         \item{\code{psi}}{Factor model idiosynchratic variances estimates according to \code{cov = (B \%*\% t(B) + diag(psi)}
 #'                           (only if factor model requested).}
-#'         \item{\code{log_likelihood}}{Value of log-likelihood after converge of the estimation algorithm
-#'                                      (only if \code{ftol < Inf}).}
+#'         \item{\code{log_likelihood}}{Value of log-likelihood after converge of the estimation algorithm (if \code{ftol < Inf}).}
 #'         \item{\code{iterates_record}}{Iterates of the parameters (\code{mu}, \code{scatter}, \code{nu},
 #'                                       and possibly \code{log_likelihood} (if \code{ftol < Inf})) along the iterations
-#'                                       (only if \code{return_iterates = TRUE}).}
+#'                                       (if \code{return_iterates = TRUE}).}
 #'
 #' @author Daniel P. Palomar and Rui Zhou
 #'

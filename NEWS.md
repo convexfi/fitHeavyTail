@@ -1,8 +1,8 @@
-## Changes in fitHeavyTail version 0.1.1.9000 (XXXX-XX-XX)
+## Changes in fitHeavyTail version 0.1.2 (2019-12-31)
 
 * Vignette revised: detailed descriptions of the algorithms included.
 
-* Comparison with existing benchmark sn::selm() included in the vignette.
+* Comparison with additional existing benchmark sn::selm() included in the vignette.
 
 * Now the three fitting functions also return the number of iterations and elapsed cpu_time.
 
@@ -12,7 +12,8 @@
   - several new options for the initial value of nu or fixed value of nu have been included; and
   - improved and more robust estimation of nu at each EM iteration.
 
-* Function fit_mvt() now allows to drop the observation with NAs or impute them via the argument na_rm.
+* Function fit_mvt() now allows the choice (via the argument na_rm) to drop the observations with NAs 
+  or impute them.
 
 
 ## Changes in fitHeavyTail version 0.1.1 (2019-11-22)

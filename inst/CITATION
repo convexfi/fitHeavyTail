@@ -4,12 +4,50 @@ citEntry(entry = "Manual",
          title        = "{fitHeavyTail: Mean and Covariance Matrix Estimation under Heavy Tails}",
          author       = personList(as.person("D. P. Palomar"),
                                    as.person("Rui ZHOU")),
-         note         = "R package version 0.1.1",
+         note         = "R package version 0.1.2",
          year         = "2019",
          url          = "https://CRAN.R-project.org/package=fitHeavyTail",
          textVersion  =
-           paste("D. P. Palomar and Rui ZHOU (2019).",
+           paste("D. P. Palomar and Rui Zhou (2019).",
                  "fitHeavyTail: Mean and Covariance Matrix Estimation under Heavy Tails.",
-                 "R package version 0.1.1.",
+                 "R package version 0.1.2.",
                  "https://CRAN.R-project.org/package=fitHeavyTail")
+)
+
+citEntry(entry = "Article",
+         title        = "Regularized Tyler’s scatter estimator: Existence, uniqueness, and algorithms",
+         author       = personList(as.person("Y. Sun"),
+                                   as.person("P. Babu"),
+                                   as.person("D. P. Palomar")),
+         journal      = "IEEE Transactions on Signal Processing",
+         volume       = "62",
+         number       = "19",
+         pages        = "5143--5156",
+         year         = "2014",
+         url          = "https://doi.org/10.1109/TSP.2014.2348944",
+         textVersion  =
+           paste("Y. Sun, P. Babu, and D. P. Palomar (2014).",
+                 "Regularized Tyler’s scatter estimator: Existence, uniqueness, and algorithms.",
+                 "IEEE Transactions on Signal Processing,",
+                 "vol. 62, no. 19, pp. 5143-5156.",
+                 "https://doi.org/10.1109/TSP.2014.2348944")
+)
+
+citEntry(entry = "Article",
+         title        = "Regularized robust estimation of mean and covariance matrix under heavy-tailed distributions",
+         author       = personList(as.person("Y. Sun"),
+                                   as.person("P. Babu"),
+                                   as.person("D. P. Palomar")),
+         journal      = "IEEE Transactions on Signal Processing",
+         volume       = "63",
+         number       = "12",
+         pages        = "3096--3109",
+         year         = "2015",
+         url          = "https://doi.org/10.1109/TSP.2015.2417513",
+         textVersion  =
+           paste("Y. Sun, P. Babu, and D. P. Palomar (2015).",
+                 "Regularized robust estimation of mean and covariance matrix under heavy-tailed distributions.",
+                 "IEEE Transactions on Signal Processing,",
+                 "vol. 63, no. 12, pp. 3096-3109.",
+                 "https://doi.org/10.1109/TSP.2015.2417513")
 )

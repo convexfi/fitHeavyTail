@@ -2,8 +2,9 @@
 #'
 #' Robust estimation methods for the mean vector and covariance matrix
 #' from data (possibly containing NAs) under multivariate heavy-tailed
-#' distributions such as angular Gaussian, Cauchy, and Student's t. Additionally,
-#' a factor model structure can be specified for the covariance matrix.
+#' distributions such as angular Gaussian (via Tyler's method), Cauchy,
+#' and Student's t. Additionally, a factor model structure can be
+#' specified for the covariance matrix.
 #'
 #'
 #' @section Functions:
@@ -20,10 +21,10 @@
 #'
 #' @references
 #' Ying Sun, Prabhu Babu, and Daniel P. Palomar, “Regularized Tyler’s Scatter Estimator: Existence, Uniqueness, and Algorithms,”
-#' IEEE Trans. on Signal Processing, vol. 62, no. 19, pp. 5143-5156, Oct. 2014.
+#' IEEE Trans. on Signal Processing, vol. 62, no. 19, pp. 5143-5156, Oct. 2014. <https://doi.org/10.1109/TSP.2014.2348944>
 #'
 #' Ying Sun, Prabhu Babu, and Daniel P. Palomar, “Regularized Robust Estimation of Mean and Covariance Matrix Under Heavy-Tailed Distributions,”
-#' IEEE Trans. on Signal Processing, vol. 63, no. 12, pp. 3096-3109, June 2015.
+#' IEEE Trans. on Signal Processing, vol. 63, no. 12, pp. 3096-3109, June 2015. <https://doi.org/10.1109/TSP.2015.2417513>
 #'
 #' Chuanhai Liu and Donald B. Rubin, “ML estimation of the t-distribution using EM and its extensions, ECM and ECME,”
 #' Statistica Sinica (5), pp. 19-39, 1995.

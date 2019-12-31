@@ -22,13 +22,10 @@
 #'                                 of iterations \code{max_iter} has reached (\code{FALSE}).}
 #'         \item{\code{num_iterations}}{Number of iterations executed.}
 #'         \item{\code{cpu_time}}{Elapsed CPU time.}
-#'         \item{\code{log_likelihood}}{Value of log-likelihood after converge of the estimation algorithm
-#'                                      (only if \code{ftol < Inf}).}
-#'         \item{\code{iterates_record}}{Iterates of the parameters (\code{mu} and possibly
-#'                                       \code{log_likelihood} (if \code{ftol < Inf})) along the iterations
-#'                                       (only if \code{return_iterates = TRUE}).}
-#'         \item{\code{converged}}{Boolean denoting whether the algorithm has converged (\code{TRUE}) or the maximum number
-#'                                 of iterations \code{max_iter} has reached (\code{FALSE}).}
+#'         \item{\code{log_likelihood}}{Value of log-likelihood after converge of the estimation algorithm (if \code{ftol < Inf}).}
+#'         \item{\code{iterates_record}}{Iterates of the parameters (\code{mu}, \code{scatter},
+#'                                       and possibly \code{log_likelihood} (if \code{ftol < Inf})) along the iterations
+#'                                       (if \code{return_iterates = TRUE}).}
 #'
 #' @author Daniel P. Palomar
 #'
@@ -158,13 +155,10 @@ fit_Tyler <- function(X, initial = NULL, max_iter = 100, ptol = 1e-3, ftol = Inf
 #'                                 of iterations \code{max_iter} has reached (\code{FALSE}).}
 #'         \item{\code{num_iterations}}{Number of iterations executed.}
 #'         \item{\code{cpu_time}}{Elapsed CPU time.}
-#'         \item{\code{log_likelihood}}{Value of log-likelihood after converge of the estimation algorithm
-#'                                      (only if \code{ftol < Inf}).}
-#'         \item{\code{iterates_record}}{Iterates of the parameters (\code{mu} and possibly
-#'                                       \code{log_likelihood} (if \code{ftol < Inf})) along the iterations
-#'                                       (only if \code{return_iterates = TRUE}).}
-#'         \item{\code{converged}}{Boolean denoting whether the algorithm has converged (\code{TRUE}) or the maximum number
-#'                                 of iterations \code{max_iter} has reached (\code{FALSE}).}
+#'         \item{\code{log_likelihood}}{Value of log-likelihood after converge of the estimation algorithm (if \code{ftol < Inf}).}
+#'         \item{\code{iterates_record}}{Iterates of the parameters (\code{mu}, \code{scatter},
+#'                                       and possibly \code{log_likelihood} (if \code{ftol < Inf})) along the iterations
+#'                                       (if \code{return_iterates = TRUE}).}
 #'
 #' @author Daniel P. Palomar
 #'
