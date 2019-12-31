@@ -68,8 +68,8 @@ nu <- 4   # degrees of freedom for tail heavyness
 set.seed(42)
 mu <- rep(0, N)
 U <- t(rmvnorm(n = round(0.3*N), sigma = 0.1*diag(N)))
-Sigma <- U %*% t(U) + diag(N)  # covariance matrix with factor model structure
-Sigma_scatter <- (nu-2)/nu * Sigma
+Sigma_cov     <- U %*% t(U) + diag(N)  # covariance matrix with factor model structure
+Sigma_scatter <- (nu-2)/nu * Sigma_cov
 X <- rmvt(n = T, delta = mu, sigma = Sigma_scatter, df = nu)  # generate data
 ```
 
@@ -87,16 +87,16 @@ fitted <- fit_mvt(X)
 
 We can now compute the estimation errors and see the big improvement:
 ```{r}
-sum((mu_sm - mu)^2)
+sum((mu_sm     - mu)^2)
 sum((fitted$mu - mu)^2)
 
-sum((Sigma_scm - Sigma)^2)
-sum((fitted$cov - Sigma)^2)
+sum((Sigma_scm  - Sigma_cov)^2)
+sum((fitted$cov - Sigma_cov)^2)
 ```
 
 To get a visual idea of the robustness, we can plot the shapes of the covariance matrices (true and estimated ones) projected on two dimensions. Observe how the heavy-tailed estimation follows the true one more closely than the sample covariance matrix:
 
-```{r ellipses, echo=FALSE, message=FALSE, fig.width = 9, fig.height = 5, out.width = "80%"}
+```{r ellipses, echo=FALSE, message=FALSE, fig.width = 9, fig.height = 5, out.width = "75%"}
 library(ggplot2)
 library(ellipse)
 
@@ -104,7 +104,7 @@ i1 <- 7; i2 <- 5
 colnames(fitted$cov) <- rownames(fitted$cov) <- NULL
 ggplot(data.frame(x = X[, i1], y = X[, i2]), aes(x, y)) +
   geom_point(alpha = 0.7, size = 3) +
-  geom_path(data = data.frame(ellipse(Sigma[c(i1, i2), c(i1, i2)])), 
+  geom_path(data = data.frame(ellipse(Sigma_cov[c(i1, i2), c(i1, i2)])), 
             aes(x, y, col = "true"), lwd = 1) +
   geom_path(data = data.frame(ellipse(Sigma_scm[c(i1, i2), c(i1, i2)], centre = mu_sm[c(i1, i2)])), 
             aes(x, y, col = "SCM estimation"), lwd = 1) +

@@ -52,8 +52,8 @@ nu <- 4   # degrees of freedom for tail heavyness
 set.seed(42)
 mu <- rep(0, N)
 U <- t(rmvnorm(n = round(0.3*N), sigma = 0.1*diag(N)))
-Sigma <- U %*% t(U) + diag(N)  # covariance matrix with factor model structure
-Sigma_scatter <- (nu-2)/nu * Sigma
+Sigma_cov     <- U %*% t(U) + diag(N)  # covariance matrix with factor model structure
+Sigma_scatter <- (nu-2)/nu * Sigma_cov
 X <- rmvt(n = T, delta = mu, sigma = Sigma_scatter, df = nu)  # generate data
 ```
 
@@ -74,20 +74,20 @@ fitted <- fit_mvt(X)
 We can now compute the estimation errors and see the big improvement:
 
 ```r
-sum((mu_sm - mu)^2)
+sum((mu_sm     - mu)^2)
 #> [1] 0.2857323
 sum((fitted$mu - mu)^2)
-#> [1] 0.150424
+#> [1] 0.1404855
 
-sum((Sigma_scm - Sigma)^2)
+sum((Sigma_scm  - Sigma_cov)^2)
 #> [1] 5.861138
-sum((fitted$cov - Sigma)^2)
-#> [1] 2.957443
+sum((fitted$cov - Sigma_cov)^2)
+#> [1] 4.107825
 ```
 
 To get a visual idea of the robustness, we can plot the shapes of the covariance matrices (true and estimated ones) projected on two dimensions. Observe how the heavy-tailed estimation follows the true one more closely than the sample covariance matrix:
 
-<img src="man/figures/README-ellipses-1.png" width="80%" style="display: block; margin: auto;" />
+<img src="man/figures/README-ellipses-1.png" width="75%" style="display: block; margin: auto;" />
 
 
 
