@@ -12,6 +12,7 @@
   - several new options for the initial value of nu or fixed value of nu have been included; and
   - improved and more robust estimation of nu at each EM iteration.
 
+* Function fit_mvt() now allows to drop the observation with NAs or impute them via the argument na_rm.
 
 
 ## Changes in fitHeavyTail version 0.1.1 (2019-11-22)
