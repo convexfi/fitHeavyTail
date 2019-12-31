@@ -16,7 +16,7 @@ output:
     toc: yes
     toc_depth: 2
 params:
-  N_realiz: 10
+  N_realiz: 4
 csl: ieee.csl
 bibliography: refs.bib
 vignette: >
@@ -163,6 +163,7 @@ N <- 20
 nu <- 4
 mu <- rep(0, N)
 
+set.seed(42)
 set.seed(357)
 U <- t(rmvnorm(n = round(0.3*N), sigma = 0.1*diag(N)))
 Sigma_cov <- U %*% t(U) + diag(N)
@@ -179,7 +180,7 @@ library(parallel)  # detectCores(logical = FALSE)
 MSE <- function(Sigma_hat) norm(Sigma_hat - Sigma_cov, "F")^2
 
 eval_single <- function(X) {
-  MSE <- time <- c()
+  MSE <- time <- list()
   
   name        <- "stats::cov"
   time[name]  <- system.time({Sigma_hat <- cov(X)})["elapsed"]
@@ -240,7 +241,7 @@ eval_single <- function(X) {
   # MSE[name]   <- MSE(Sigma_hat)
   
   name        <- "fitHeavyTail::fit_mvt"
-  time[name]  <- system.time({Sigma_hat <- fitHeavyTail::fit_mvt(X, initial = list(nu = 6))$cov})["elapsed"]
+  time[name]  <- system.time({Sigma_hat <- fitHeavyTail::fit_mvt(X)$cov})["elapsed"]
   MSE[name]   <- MSE(Sigma_hat)
 
   # name        <- "fitHeavyTail::fit_mvt (factors = 6)"
@@ -252,24 +253,25 @@ eval_single <- function(X) {
 
 T_sweep <- round(seq(from = ceiling(1.5*N), to = 5*N, length.out = 12))
 if (!knitr_in_progress) pbar <- txtProgressBar(min = it <- 0, max = length(T_sweep), style = 3)
-MSE_all_T <- time_all_T <- NULL
-
+res_all_T <- list()
 #tic(sprintf("Total execution time for %d Monte-Carlo realizations:", params$N_realiz))
 for(T in T_sweep) {
   if (!knitr_in_progress) setTxtProgressBar(pbar, it <- it + 1)
   # first, generate random heavy-tailed data sequentially for reproducibility
-  X <- replicate(params$N_realiz, rmvt(n = T, delta = mu, sigma = Sigma_scatter, df = nu), simplify = FALSE)
+  X_list <- replicate(params$N_realiz, rmvt(n = T, delta = mu, sigma = Sigma_scatter, df = nu), simplify = FALSE)
+  names(X_list) <- paste0("realiz ", 1:params$N_realiz)
 
-  # then, run the estimation in parallel (https://bookdown.org/rdpeng/rprogdatascience/parallel-computation.html)
-  res <- mclapply(X, eval_single, mc.cores = 4)
-  #res <- lapply(X, eval_single)
+  # then, run estimations for all realizations in parallel (https://bookdown.org/rdpeng/rprogdatascience/parallel-computation.html)
+  res <- mclapply(X_list, eval_single, mc.cores = 4)
+  #res <- lapply(X_list, eval_single)
 
   # finally, keep track of MSEs and times
-  MSE_all_T  <- rbind(MSE_all_T,  rowMeans(sapply(res, function(x) x$MSE)))
-  time_all_T <- rbind(time_all_T, rowMeans(sapply(res, function(x) x$time)))
+  res_all_T <- c(res_all_T, list(res))
 }
 #toc()
-rownames(time_all_T) <- rownames(MSE_all_T) <- T_sweep
+names(res_all_T) <- T_sweep
+
+save.image(file = "lala.RData")
 ```
 
 ```{r, eval=FALSE, echo=FALSE}
@@ -301,27 +303,62 @@ for(T in T_sweep) {
 }
 ```
 
+```{r, warning=FALSE, echo=FALSE}
+library(reshape2)
+library(dplyr)
+
+# create data.frame by melting the nested list
+res_all_T_molten <- melt(res_all_T)
+names(res_all_T_molten) <- c("value", "method", "measure", "realization", "T")
+res_all_T_molten$realization <- NULL  # don't really need the realization index
+res_all_T_molten$T_string <- factor(res_all_T_molten$T, levels = T_sweep)
+res_all_T_molten$method <- factor(res_all_T_molten$method, levels = names(res_all_T[[1]][[1]][[1]]))
+res_all_T_molten <- res_all_T_molten %>%
+  mutate(T = as.numeric(as.character(T))) %>%
+  group_by(method, measure, T) %>%
+  mutate(value_mean = mean(value)) %>%
+  ungroup()
+  #summarize(value_mean = mean(value))
+N_methods <- length(unique(res_all_T_molten$method))
+# if MSE_mean is NA, force time_mean to NA:
+na_mask <- is.na(res_all_T_molten[res_all_T_molten$measure == "MSE", ]$value_mean)
+res_all_T_molten[res_all_T_molten$measure == "time", ][na_mask, ]$value_mean <- NA
+```
+
 
 ```{r plots-1, warning=FALSE, echo=FALSE, fig.width=9, fig.height=5, out.width="95%"}
 library(ggplot2)
-library(reshape2)
 
 # MSE plot
-ggplot(melt(MSE_all_T, varnames = c("Var1", "method")), aes(x = Var1, y = value, col = method, shape = method)) +
+ggplot(res_all_T_molten[res_all_T_molten$measure == "MSE", ], aes(x = T, y = value_mean, col = method, shape = method)) +
   geom_line() + geom_point(size = 2) + scale_y_log10() +  # coord_cartesian(ylim = c(0, 500)) +
-  scale_shape_manual(values = 1:ncol(MSE_all_T)) +  # theme(legend.title = element_blank())
-  ggtitle(bquote("MSE of covariance matrix estimation for heavy-tailed data (" * N == .(N) * "," ~ nu == .(nu)* ")")) +
+  scale_shape_manual(values = 1:N_methods) +  # theme(legend.title = element_blank())
+  scale_x_discrete(limits = seq(T_sweep[1], tail(T_sweep, 1), by = 10)) +
+  ggtitle(bquote("Error of covariance matrix estimation for heavy-tailed data (" * N == .(N) * "," ~ nu == .(nu)* ")")) +
   xlab("T") + ylab("MSE")
 # ggtitle(latex2exp::TeX(sprintf("MSE of covariance matrix estimation for heavy-tailed data (N = %d, $\\nu$ = %.2f)", N, nu))) +
 # check here is TeX problem has been fixed: https://github.com/stefano-meschiari/latex2exp/pull/21
 ```
 
+
+```{r, echo=FALSE, eval=FALSE}
+load("lala.RData")
+
+ggplot(res_all_T_molten[res_all_T_molten$measure == "MSE" & 
+                        res_all_T_molten$method %in% c("fitHeavyTail::fit_mvt (nu=6)", "fitHeavyTail::fit_mvt"), ], 
+       aes(x = T_string, y = value, fill = method)) +
+  geom_boxplot(show.legend = FALSE) +
+  facet_wrap(~ method, dir = "v", scales = "free_y") +
+  labs(title = "Error in estimation of covariance matrix", x = "T", y = "error")
+```
+
+
 ```{r plots-2, warning=FALSE, echo=FALSE, fig.width=9, fig.height=5, out.width="95%"}
 # time plot
-time_all_T[is.na(MSE_all_T)] <- NA
-ggplot(melt(time_all_T, varnames = c("Var1", "method")), aes(x = Var1, y = value, col = method, shape = method)) +
+ggplot(res_all_T_molten[res_all_T_molten$measure == "time", ], aes(x = T, y = value_mean, col = method, shape = method)) +
   geom_line() + geom_point(size = 2) + scale_y_log10() +
-  scale_shape_manual(values = 1:ncol(time_all_T)) +
+  scale_shape_manual(values = 1:N_methods) +
+  scale_x_discrete(limits = seq(T_sweep[1], tail(T_sweep, 1), by = 10)) +
   ggtitle(bquote("Computational cost for different methods (" * N == .(N) * "," ~ nu == .(nu)* ")")) +
   xlab("T") + ylab("cpu time")
 ```
@@ -329,18 +366,19 @@ ggplot(melt(time_all_T, varnames = c("Var1", "method")), aes(x = Var1, y = value
 The following plot gives a nice overall perspective of the MSE vs. cpu time tradeoff of the different methods (note the ellipse at the bottom left that embraces the best four methods: `fitHeavyTail::fit_Tyler()`, `fitHeavyTail::fit_Cauchy()`, `fitHeavyTail::fit_mvt()`, and `fitHeavyTail::fit_mvt()` with fixed `nu = 6`):
 
 ```{r plots-3, warning=FALSE, echo=FALSE, fig.width=9, fig.height=5, out.width="95%"}
-library(ggforce)
+library(ggforce)  # for geom_ellipse()
 
 # joint MSE-time plot
-mse4 <- tail(MSE_all_T["100", ], 4)    # for the ellipse
-time4 <- tail(time_all_T["100", ], 4)  #
-ggplot(data.frame("MSE" = MSE_all_T["100", ], "cpu_time" = time_all_T["100", ], "method" = colnames(MSE_all_T)), 
+mse4 <- tail(res_all_T_molten[res_all_T_molten$T == 100 & res_all_T_molten$measure == "MSE", ]$value_mean, 4)    # for the ellipse (last 4 methods)
+time4 <- tail(res_all_T_molten[res_all_T_molten$T == 100 & res_all_T_molten$measure == "time", ]$value_mean, 4)    # for the ellipse (last 4 methods)
+ggplot(data.frame("MSE" = res_all_T_molten[res_all_T_molten$T == 100 & res_all_T_molten$measure == "MSE", ]$value_mean, 
+                  "cpu_time" = res_all_T_molten[res_all_T_molten$T == 100 & res_all_T_molten$measure == "time", ]$value_mean, 
+                  "method" = unique(res_all_T_molten$method)), 
        aes(x = cpu_time, y = MSE, col = method)) +
-  scale_color_discrete(limits = colnames(MSE_all_T)) +  # this is to order the legend items
   geom_point(size = 3) +
-  geom_ellipse(aes(x0 = mean(time4), y0 = mean(mse4), a = 1.5*(max(time4) - min(time4)), b = 1.5*(max(mse4) - min(mse4)), angle = 0), 
+  geom_ellipse(aes(x0 = mean(time4), y0 = mean(mse4), a = 2.2*(max(time4) - min(time4)), b = 1.0*(max(mse4) - min(mse4)), angle = 0), 
                col = "black", size = 0.5) +
-  ggtitle(bquote("Performance vs cpu time for different methods (" * N == .(N) * ", T = 100," ~ nu == .(nu)* ")"))
+  labs(title = bquote("Performance vs cpu time for different methods (" * N == .(N) * ", T = 100," ~ nu == .(nu)* ")"), x = "cpu time")
 ```
 
 From the numerical results we can draw several observations:
