@@ -6,8 +6,9 @@
 \usage{
 fit_mvt(
   X,
-  nu = NULL,
-  method_nu = c("ECME-diag", "ECME", "ECM", "ECME-cov"),
+  na_rm = TRUE,
+  nu = c("kurtosis", "MLE-diag", "MLE-diag-resampled", "iterative"),
+  nu_iterative_method = c("ECME-diag", "ECME", "ECM", "ECME-cov"),
   initial = NULL,
   factors = ncol(X),
   max_iter = 100,
@@ -20,22 +21,24 @@ fit_mvt(
 \arguments{
 \item{X}{Data matrix containing the multivariate time series (each column is one time series).}
 
-\item{nu}{Degrees of freedom of the \eqn{t} distribution. If passed, then \code{nu} will be fixed
-and will not be further optimized. Possible values: directly a number (\code{>2}) or
-a method to compute it among:
-\itemize{\item{\code{"kurtosis"}: based on the kurtosis obtained from the sampled moemnts}
-         \item{\code{"MLE-diag"}: based on the MLE assuming a diagonal sample covariance matrix w.r.t. \code{nu}}
-         \item{\code{"MLE-diag-resampled"}: method "MLE-diag" resampled for better stability.}}
-If \code{nu} is not passed, then it will be iteratively optimized via the EM algorithm, with initial value
-specified by the argument \code{initial$nu}, which can take the same values as \code{nu} (default is \code{4}).}
+\item{na_rm}{Logical value to indicate whether to remove observations with some NAs (default) or not, in which
+case they will be imputed at a higher computational cost.}
 
-\item{method_nu}{String indicating the method for estimating \code{nu} (in case \code{nu} was not passed):
+\item{nu}{Degrees of freedom of the \eqn{t} distribution. Either a number (\code{>2}) or a string indicating the
+method to compute it:
+\itemize{\item{\code{"kurtosis"}: based on the kurtosis obtained from the sampled moemnts;}
+         \item{\code{"MLE-diag"}: based on the MLE assuming a diagonal sample covariance matrix w.r.t. \code{nu};}
+         \item{\code{"MLE-diag-resampled"}: method "MLE-diag" resampled for better stability;}
+         \item{\code{"iterative"}: iterative estimation with the rest of the parameters via the EM algorithm.}}}
+
+\item{nu_iterative_method}{String indicating the method for iteratively estimating \code{nu} (in case \code{nu = "iterative"}):
 \itemize{\item{\code{"ECM"}: maximization of the Q function}
          \item{\code{"ECME"}: maximization of the log-likelihood function}
-         \item{\code{"ECME-diag"}: maximization of the log-likelihood function assuming a digonal scatter matrix (default method).}}
+         \item{\code{"ECME-diag"}: maximization of the log-likelihood function assuming
+                                   a digonal scatter matrix (default method).}}
 This argument is used only when there are no NAs in the data and no factor model is chosen.}
 
-\item{initial}{List of initial values of the parameters for the iterative estimation method.
+\item{initial}{List of initial values of the parameters for the iterative EM estimation method (in case \code{nu = "iterative"}).
 Possible elements include:
 \itemize{\item{\code{mu}: default is the data sample mean,}
          \item{\code{cov}: default is the data sample covariance matrix,}
