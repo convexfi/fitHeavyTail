@@ -237,8 +237,7 @@ fit_mvt <- function(X, na_rm = TRUE,
                        #nu_mle(Xc = X_, method = "MLE-mv-cov", Sigma_cov = Sigma_cov)  # this is without nu_target
                        delta2_cov <- rowSums(X_ * (X_ %*% inv(Sigma_cov)))
                        negLL <- function(nu) (N*T)/2*log((nu-2)/nu) + ((N + nu)/2)*sum(log(nu + nu/(nu-2)*delta2_cov)) -
-                         T*lgamma((N + nu)/2) + T*lgamma(nu/2) - (nu*T/2)*log(nu) +
-                         nu_regcoef * (nu/(nu-2) - nu_target/(nu_target-2))^2
+                         T*lgamma((N + nu)/2) + T*lgamma(nu/2) - (nu*T/2)*log(nu)
                        optimize(negLL, interval = c(.nu_min, .nu_max))$minimum
                      },
                      stop("Method to estimate nu unknown."))
@@ -452,6 +451,7 @@ alpha_Pareto_tail_index <- function(X, center = FALSE, method = c("WLS", "WLS-st
     X <- X - matrix(mu, nrow(X), ncol(X), byrow = TRUE)
   }
   T <- nrow(X)
+  N <- ncol(X)
 
   # method
   inv_alpha <- switch(match.arg(method),
@@ -556,19 +556,19 @@ nu_mle <- function(X, Xc,
                "MLE-uv-var-ave" = {  # not so good with sample mean and SCM
                  var <- apply(Xc^2, 2, sum)/(T-1)
                  delta2_var <- Xc^2 / matrix(var, T, N, byrow = TRUE)
-                 negLL <- function(nu, delta2_vari) T/2*log((nu-2)/nu) + ((1 + nu)/2)*sum(log(nu + nu/(nu-2)*delta2_vari)) -
+                 negLL_uv_var_ave <- function(nu, delta2_vari) T/2*log((nu-2)/nu) + ((1 + nu)/2)*sum(log(nu + nu/(nu-2)*delta2_vari)) -
                    T*lgamma((1 + nu)/2) + T*lgamma(nu/2) - (nu/2)*T*log(nu)
                  nu_i <- apply(delta2_var, 2, function(delta2_vari)
-                   optimize(negLL, interval = c(.nu_min, .nu_max), delta2_vari = delta2_vari)$minimum)
+                   optimize(negLL_uv_var_ave, interval = c(.nu_min, .nu_max), delta2_vari = delta2_vari)$minimum)
                  mean(nu_i)
                },
                "MLE-uv-scat-ave" = {  # not so good
                  if (is.null(Sigma_scatter)) stop("Scatter matrix must be passed.")
                  delta2 <- Xc^2 / matrix(diag(Sigma_scatter), T, N, byrow = TRUE)
-                 negLL <- function(nu, delta2_i) ((1 + nu)/2)*sum(log(nu + delta2_i)) -
+                 negLL_uv_scat_ave <- function(nu, delta2_i) ((1 + nu)/2)*sum(log(nu + delta2_i)) -
                    T*lgamma((1 + nu)/2) + T*lgamma(nu/2) - (nu*T/2)*log(nu)
                  nu_i <- apply(delta2, 2, function(delta2_i)
-                   optimize(negLL, interval = c(.nu_min, .nu_max), delta2_i = delta2_i)$minimum)
+                   optimize(negLL_uv_scat_ave, interval = c(.nu_min, .nu_max), delta2_i = delta2_i)$minimum)
                  mean(nu_i)
                },
                "MLE-uv-var-stacked" = {  # not so good
