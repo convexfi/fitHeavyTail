@@ -49,7 +49,7 @@ set.seed(137)
 
 N <- 10   # number of variables
 T <- 60   # number of observations
-nu <- 4   # degrees of freedom for tail heavyness
+nu <- 8   # degrees of freedom for tail heavyness
 mu <- rep(0, N)
 U <- t(rmvnorm(n = round(0.3*N), sigma = 0.1*diag(N)))
 Sigma_cov <- U %*% t(U) + diag(N)  # covariance matrix with factor model structure
@@ -93,58 +93,68 @@ fitHeavyTail:::plot_convergence(fitted)$nu
 
 We now run `r params$N_realiz` Monte Carlo simulations.
 ```{r, echo=FALSE}
+MSE <- function(Sigma_hat) norm(Sigma_hat - Sigma_cov, "F")^2
+
 eval_single <- function(X) {
-  nu <- num_iterations <- cpu_time <- list()
+  nu <- MSE_cov <- num_iterations <- cpu_time <- list()
   
-  # name                  <- "nu = true"
-  # fitted                <- fit_mvt(X, nu = 4)
+  # name                  <- "nu = 6"
+  # fitted                <- fit_mvt(X, nu = 6)
   # nu[name]              <- fitted$nu
+  # MSE_cov[name]         <- MSE(fitted$cov)
   # num_iterations[name]  <- fitted$num_iterations
-  # cpu_time[name]        <- fitted$cpu_time  
+  # cpu_time[name]        <- fitted$cpu_time
 
   name                  <- "nu = kurtosis"
   fitted                <- fit_mvt(X, nu = "kurtosis")
   nu[name]              <- fitted$nu
+  MSE_cov[name]         <- MSE(fitted$cov)
   num_iterations[name]  <- fitted$num_iterations
   cpu_time[name]        <- fitted$cpu_time
   
   name                  <- "nu = MLE-diag"
   fitted                <- fit_mvt(X, nu = "MLE-diag")
   nu[name]              <- fitted$nu
+  MSE_cov[name]         <- MSE(fitted$cov)
   num_iterations[name]  <- fitted$num_iterations
   cpu_time[name]        <- fitted$cpu_time
 
   name                  <- "nu = MLE-diag-resampled"
   fitted                <- fit_mvt(X, nu = "MLE-diag-resampled")
   nu[name]              <- fitted$nu
+  MSE_cov[name]         <- MSE(fitted$cov)
   num_iterations[name]  <- fitted$num_iterations
   cpu_time[name]        <- fitted$cpu_time
   
-  # name                  <- "nu0 = 4"
-  # fitted                <- fit_mvt(X, initial = list(nu = 4))
+  # name                  <- "nu0 = 6"
+  # fitted                <- fit_mvt(X, initial = list(nu = 6), method_nu = "ECME-diag")
   # nu[name]              <- fitted$nu
+  # MSE_cov[name]         <- MSE(fitted$cov)
   # num_iterations[name]  <- fitted$num_iterations
   # cpu_time[name]        <- fitted$cpu_time
 
   name                  <- "nu0 = kurtosis"
   fitted                <- fit_mvt(X, initial = list(nu = "kurtosis"))
   nu[name]              <- fitted$nu
+  MSE_cov[name]         <- MSE(fitted$cov)
   num_iterations[name]  <- fitted$num_iterations
   cpu_time[name]        <- fitted$cpu_time
 
   name                  <- "nu0 = MLE-diag"
   fitted                <- fit_mvt(X, initial = list(nu = "MLE-diag"))
   nu[name]              <- fitted$nu
+  MSE_cov[name]         <- MSE(fitted$cov)
   num_iterations[name]  <- fitted$num_iterations
   cpu_time[name]        <- fitted$cpu_time
   
   name                  <- "nu0 = MLE-diag-resampled"
   fitted                <- fit_mvt(X, initial = list(nu = "MLE-diag-resampled"))
   nu[name]              <- fitted$nu
+  MSE_cov[name]         <- MSE(fitted$cov)
   num_iterations[name]  <- fitted$num_iterations
   cpu_time[name]        <- fitted$cpu_time
 
-  return(list("nu"= nu, "num_iterations" = num_iterations, "cpu_time" = cpu_time))
+  return(list("nu"= nu, "MSE_cov" = MSE_cov, "num_iterations" = num_iterations, "cpu_time" = cpu_time))
 }
 
 T_sweep <- round(seq(from = 20, to = 100, by = 10))
@@ -160,27 +170,36 @@ for(T in T_sweep) {
   # then, run estimations for all realizations
   res_all_T <- c(res_all_T, list(lapply(X_list, eval_single)))
 }
-names(res_all_T) <- T_sweep  # paste0("T = ", T_sweep)
+names(res_all_T) <- T_sweep
 ```
 The results can be seen in the following boxplots:
-```{r, echo=FALSE, fig.width = 9, fig.height = 5, out.width = "100%"}
-library(ggplot2)
+```{r}
 library(reshape2)
 
 # create data.frame by melting the nested list
 res_all_T_molten <- melt(res_all_T)
 names(res_all_T_molten) <- c("value", "method", "measure", "realization", "T")
 res_all_T_molten$realization <- NULL  # don't really need the realization index
-res_all_T_molten$T      <- factor(res_all_T_molten$T, levels = names(res_all_T))
+res_all_T_molten$T      <- factor(res_all_T_molten$T, levels = T_sweep)
 res_all_T_molten$method <- factor(res_all_T_molten$method, levels = names(res_all_T[[1]][[1]][[1]]))
+```
 
-# plot
+```{r, echo=FALSE, fig.width = 9, fig.height = 5, out.width = "100%"}
+library(ggplot2)
 ggplot(res_all_T_molten[res_all_T_molten$measure == "nu", ], aes(x = T, y = value, fill = method)) +
   geom_boxplot(show.legend = FALSE) +  #show.legend = FALSE
   facet_wrap(~ method, dir = "v", scales = "free_y") +
   #coord_cartesian(ylim = c(0, 25)) +
   geom_hline(yintercept = nu, linetype = "dashed") +
   labs(title = sprintf("Estimated nu (nu = %d, N = %d)", nu, N), x = "T", y = "nu")
+```
+
+```{r, echo=FALSE, fig.width = 9, fig.height = 5, out.width = "100%"}
+ggplot(res_all_T_molten[res_all_T_molten$measure == "MSE_cov", ], aes(x = T, y = value, fill = method)) +
+  geom_boxplot(show.legend = FALSE) +  #show.legend = FALSE
+  facet_wrap(~ method, dir = "v", scales = "free_y") +
+  #coord_cartesian(ylim = c(0, 25)) +
+  labs(title = sprintf("Estimated error in covariance matrix (nu = %d, N = %d)", nu, N), x = "T", y = "error")
 ```
 
 ```{r, echo=FALSE, fig.width = 9, fig.height = 5, out.width = "100%"}
@@ -194,7 +213,7 @@ ggplot(res_all_T_molten[res_all_T_molten$measure == "num_iterations", ], aes(x =
 ggplot(res_all_T_molten[res_all_T_molten$measure == "cpu_time", ], aes(x = T, y = value, fill = method)) +
   geom_boxplot(show.legend = FALSE) +
   facet_wrap(~ method, dir = "v", scales = "free_y") +
-  #coord_cartesian(ylim = c(0, 0.008)) +
+  #coord_cartesian(ylim = c(0, 0.01)) +
   labs(title = "Elapsed CPU time for the estimation of all parameters", x = "T", y = "seconds")
 ```
 
@@ -222,7 +241,8 @@ ggplot(res_meansd_T_molten[res_meansd_T_molten$measure == "nu", ], aes(x = T, y 
 
 Conclusions:
 
-- If $\nu$ is not optimized, then the best method to estimate it with the method "MLE-diag-resampled", albeit with a high computational cost, followed by the method "MLE-diag".
+- The optimization of $\nu$ via the EM algorithm is not stable enough, so better not to use it.
+- The three direct estimations "nu = kurtosis", "nu = MLE-diag", and "nu = MLE-diag-resampled" give good results. As a consequence, the faster method "nu = kurtosis" will be chosen by default.
 - In terms of number of EM iterations, the fixed value or initial point for $\nu$ does not matter that much.
 - If $\nu$ is optimized via the EM algorithm, then the initial point is not that relevant and one can simply initialize to $\nu_0 = 4$ with zero computational cost.
 
