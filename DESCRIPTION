@@ -1,7 +1,7 @@
 Package: fitHeavyTail
 Title: Mean and Covariance Matrix Estimation under Heavy Tails
 Version: 0.1.2
-Date: 2019-12-31
+Date: 2020-1-7
 Description: Robust estimation methods for the mean vector and covariance matrix 
     from data (possibly containing NAs) under multivariate heavy-tailed 
     distributions such as angular Gaussian (via Tyler's method), Cauchy, 

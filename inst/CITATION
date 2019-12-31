@@ -5,10 +5,10 @@ citEntry(entry = "Manual",
          author       = personList(as.person("D. P. Palomar"),
                                    as.person("Rui ZHOU")),
          note         = "R package version 0.1.2",
-         year         = "2019",
+         year         = "2020",
          url          = "https://CRAN.R-project.org/package=fitHeavyTail",
          textVersion  =
-           paste("D. P. Palomar and Rui Zhou (2019).",
+           paste("D. P. Palomar and Rui Zhou (2020).",
                  "fitHeavyTail: Mean and Covariance Matrix Estimation under Heavy Tails.",
                  "R package version 0.1.2.",
                  "https://CRAN.R-project.org/package=fitHeavyTail")

@@ -1,4 +1,4 @@
-## Changes in fitHeavyTail version 0.1.2 (2019-12-31)
+## Changes in fitHeavyTail version 0.1.2 (2020-1-7)
 
 * Vignette revised: detailed descriptions of the algorithms included.
 
