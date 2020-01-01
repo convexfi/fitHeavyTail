@@ -86,7 +86,7 @@ rbind("nu_true" = nu, nu_kurtosis, nu_mle_diag, nu_mle_diag_resampled,
 
 We can observe the convergence of $\nu$:
 ```{r}
-fitted <- fit_mvt(X, return_iterates = TRUE)
+fitted <- fit_mvt(X, nu = "iterative", return_iterates = TRUE)
 fitHeavyTail:::plot_convergence(fitted)$nu
 ```
 
