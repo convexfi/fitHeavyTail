@@ -171,9 +171,9 @@ fit_mvt <- function(X, na_rm = TRUE,
   if (return_iterates) iterates_record <- list(snapshot())
   for (iter in 1:max_iter) {
     # record the current status
+    mu_old    <- mu
     Sigma_old <- Sigma
-    mu_old <- mu
-    nu_old <- nu
+    nu_old    <- nu
     if (ftol < Inf) log_likelihood_old <- log_likelihood
 
     ## -------------- E-step --------------
@@ -264,7 +264,7 @@ fit_mvt <- function(X, na_rm = TRUE,
   ## -------- return variables --------
   #Sigma <- T/(T-1) * Sigma  # unbiased estimator
   vars_to_be_returned <- list("mu"             = mu,
-                              "cov"            = nu/(nu-2) * Sigma,
+                              "cov"            = if (nu > 2) nu/(nu-2) * Sigma else NA,
                               "scatter"        = Sigma,
                               "nu"             = nu,
                               "converged"      = (iter < max_iter),
