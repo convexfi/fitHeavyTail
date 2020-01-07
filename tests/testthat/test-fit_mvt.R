@@ -22,7 +22,7 @@ test_that("error control works", {
                "Cannot deal with T <= N (after removing NAs), too few samples.", fixed = TRUE)
   expect_error(fit_mvt(X = X, max_iter = -1), "\"max_iter\" must be greater than 1.")
   expect_error(fit_mvt(X = X, factors = -1), "\"factors\" must be no less than 1 and no more than column number of \"X\".")
-  expect_error(fit_mvt(X = X, nu = "lala"), "'arg' should be one of \"kurtosis\", \"MLE-diag\", \"MLE-diag-resampled\", \"iterative\"", fixed = TRUE)
+  expect_error(fit_mvt(X = X, nu = "lala"), "'arg' should be one of \"kurtosis\", \"MLE-diag\", \"MLE-diag-resampled\", \"iterative\"")
   expect_error(fit_mvt(X = X, nu = 1), "Non-valid value for nu.")
 })
 
@@ -92,7 +92,8 @@ test_that("fixed nu works", {
   # save(mvt_model_fixednu_check, file = "fitted_mvt_fixednu_mle_check.RData", version = 2, compress = "xz")
   load("fitted_mvt_fixednu_mle_check.RData")
   mvt_model_fixednu <- fit_mvt(X, nu = "MLE-diag-resampled")
-  expect_equal(mvt_model_fixednu[c("mu", "cov", "scatter", "nu", "converged", "num_iterations")],
-               mvt_model_fixednu_check[c("mu", "cov", "scatter", "nu", "converged", "num_iterations")], tolerance = 0.3)
+  expect_equal(mvt_model_fixednu[c("mu", "cov", "scatter", "converged", "num_iterations")],
+               mvt_model_fixednu_check[c("mu", "cov", "scatter", "converged", "num_iterations")], tolerance = 0.3)
+  expect_equal(mvt_model_fixednu["nu"], mvt_model_fixednu_check["nu"], tolerance = 0.4)
 })
 
