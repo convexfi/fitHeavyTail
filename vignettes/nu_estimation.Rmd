@@ -49,7 +49,7 @@ set.seed(137)
 
 N <- 10   # number of variables
 T <- 60   # number of observations
-nu <- 8   # degrees of freedom for tail heavyness
+nu <- 4   # degrees of freedom for tail heavyness
 mu <- rep(0, N)
 U <- t(rmvnorm(n = round(0.3*N), sigma = 0.1*diag(N)))
 Sigma_cov <- U %*% t(U) + diag(N)  # covariance matrix with factor model structure
@@ -75,10 +75,10 @@ nu_mle_diag           <- fit_mvt(X, nu = "MLE-diag")$nu
 nu_mle_diag_resampled <- fit_mvt(X, nu = "MLE-diag-resampled")$nu
 
 # EM with different initial points
-EM_nu0_true               <- fit_mvt(X, initial = list(nu = nu))$nu
-EM_nu0_kurtosis           <- fit_mvt(X, initial = list(nu = "kurtosis"))$nu
-EM_nu0_mle_diag           <- fit_mvt(X, initial = list(nu = "MLE-diag"))$nu
-EM_nu0_mle_diag_resampled <- fit_mvt(X, initial = list(nu = "MLE-diag-resampled"))$nu
+EM_nu0_true               <- fit_mvt(X, nu = "iterative", initial = list(nu = nu))$nu
+EM_nu0_kurtosis           <- fit_mvt(X, nu = "iterative", initial = list(nu = "kurtosis"))$nu
+EM_nu0_mle_diag           <- fit_mvt(X, nu = "iterative", initial = list(nu = "MLE-diag"))$nu
+EM_nu0_mle_diag_resampled <- fit_mvt(X, nu = "iterative", initial = list(nu = "MLE-diag-resampled"))$nu
 
 rbind("nu_true" = nu, nu_kurtosis, nu_mle_diag, nu_mle_diag_resampled,
       EM_nu0_true, EM_nu0_kurtosis, EM_nu0_mle_diag, EM_nu0_mle_diag_resampled)
@@ -86,7 +86,7 @@ rbind("nu_true" = nu, nu_kurtosis, nu_mle_diag, nu_mle_diag_resampled,
 
 We can observe the convergence of $\nu$:
 ```{r}
-fitted <- fit_mvt(X, nu = "iterative", return_iterates = TRUE)
+fitted <- fit_mvt(X, nu = "iterative", initial = list(nu = nu), nu_iterative_method = "trace-fitting", return_iterates = TRUE)
 fitHeavyTail:::plot_convergence(fitted)$nu
 ```
 
@@ -133,27 +133,50 @@ eval_single <- function(X) {
   # num_iterations[name]  <- fitted$num_iterations
   # cpu_time[name]        <- fitted$cpu_time
 
-  name                  <- "nu0 = kurtosis"
-  fitted                <- fit_mvt(X, initial = list(nu = "kurtosis"))
+  name                  <- "nu0 = kurtosis + ECME-diag"
+  fitted                <- fit_mvt(X, nu = "iterative", initial = list(nu = "kurtosis"), nu_iterative_method = "ECME-diag")
   nu[name]              <- fitted$nu
   MSE_cov[name]         <- MSE(fitted$cov)
   num_iterations[name]  <- fitted$num_iterations
   cpu_time[name]        <- fitted$cpu_time
 
-  name                  <- "nu0 = MLE-diag"
-  fitted                <- fit_mvt(X, initial = list(nu = "MLE-diag"))
+  name                  <- "nu0 = MLE-diag + ECME-diag"
+  fitted                <- fit_mvt(X, nu = "iterative", initial = list(nu = "MLE-diag", nu_iterative_method = "ECME-diag"))
   nu[name]              <- fitted$nu
   MSE_cov[name]         <- MSE(fitted$cov)
   num_iterations[name]  <- fitted$num_iterations
   cpu_time[name]        <- fitted$cpu_time
   
-  name                  <- "nu0 = MLE-diag-resampled"
-  fitted                <- fit_mvt(X, initial = list(nu = "MLE-diag-resampled"))
+  name                  <- "nu0 = MLE-diag-resampled + ECME-diag"
+  fitted                <- fit_mvt(X, nu = "iterative", initial = list(nu = "MLE-diag-resampled", nu_iterative_method = "ECME-diag"))
   nu[name]              <- fitted$nu
   MSE_cov[name]         <- MSE(fitted$cov)
   num_iterations[name]  <- fitted$num_iterations
   cpu_time[name]        <- fitted$cpu_time
 
+  
+  
+  name                  <- "nu0 = kurtosis + fitting"
+  fitted                <- fit_mvt(X, nu = "iterative", initial = list(nu = "kurtosis"), nu_iterative_method = "trace-fitting")
+  nu[name]              <- fitted$nu
+  MSE_cov[name]         <- MSE(fitted$cov)
+  num_iterations[name]  <- fitted$num_iterations
+  cpu_time[name]        <- fitted$cpu_time
+
+  name                  <- "nu0 = MLE-diag + fitting"
+  fitted                <- fit_mvt(X, nu = "iterative", initial = list(nu = "MLE-diag", nu_iterative_method = "trace-fitting"))
+  nu[name]              <- fitted$nu
+  MSE_cov[name]         <- MSE(fitted$cov)
+  num_iterations[name]  <- fitted$num_iterations
+  cpu_time[name]        <- fitted$cpu_time
+  
+  name                  <- "nu0 = MLE-diag-resampled + fitting"
+  fitted                <- fit_mvt(X, nu = "iterative", initial = list(nu = "MLE-diag-resampled", nu_iterative_method = "trace-fitting"))
+  nu[name]              <- fitted$nu
+  MSE_cov[name]         <- MSE(fitted$cov)
+  num_iterations[name]  <- fitted$num_iterations
+  cpu_time[name]        <- fitted$cpu_time
+  
   return(list("nu"= nu, "MSE_cov" = MSE_cov, "num_iterations" = num_iterations, "cpu_time" = cpu_time))
 }
 
@@ -172,8 +195,9 @@ for(T in T_sweep) {
 }
 names(res_all_T) <- T_sweep
 ```
+
 The results can be seen in the following boxplots:
-```{r}
+```{r, echo=FALSE}
 library(reshape2)
 
 # create data.frame by melting the nested list
@@ -193,14 +217,18 @@ ggplot(res_all_T_molten[res_all_T_molten$measure == "nu", ], aes(x = T, y = valu
   geom_hline(yintercept = nu, linetype = "dashed") +
   labs(title = sprintf("Estimated nu (nu = %d, N = %d)", nu, N), x = "T", y = "nu")
 ```
+Note that except with the methods `nu = "MLE-diag-resampled"` and `"nu0 = kurtosis + trace-fitting"`, all the others have huge outliers outside the y-range shown (up to 100 which is the hard limit).
+<br><br><br>
 
 ```{r, echo=FALSE, fig.width = 9, fig.height = 5, out.width = "100%"}
 ggplot(res_all_T_molten[res_all_T_molten$measure == "MSE_cov", ], aes(x = T, y = value, fill = method)) +
   geom_boxplot(show.legend = FALSE) +  #show.legend = FALSE
   facet_wrap(~ method, dir = "v", scales = "free_y") +
-  #coord_cartesian(ylim = c(0, 25)) +
+  #coord_cartesian(ylim = c(0, 27)) +
   labs(title = sprintf("Estimated error in covariance matrix (nu = %d, N = %d)", nu, N), x = "T", y = "error")
 ```
+Ironically, all the iterative methods have huge outliers outside the y-range shown (up to 200-300). So better not to iteratively update nu! The best method now is `nu = "kurtosis"`.
+<br><br><br>
 
 ```{r, echo=FALSE, fig.width = 9, fig.height = 5, out.width = "100%"}
 ggplot(res_all_T_molten[res_all_T_molten$measure == "num_iterations", ], aes(x = T, y = value, fill = method)) +
@@ -208,12 +236,14 @@ ggplot(res_all_T_molten[res_all_T_molten$measure == "num_iterations", ], aes(x =
   facet_wrap(~ method, dir = "v", scales = "free_y") +
   labs(title = "Iterations for the estimation of all parameters", x = "T", y = "iterations")
 ```
+In terms of iterations they all look similar, although the methods that do not update nu are slightly better..
+<br><br><br>
 
 ```{r, echo=FALSE, fig.width = 9, fig.height = 5, out.width = "100%"}
 ggplot(res_all_T_molten[res_all_T_molten$measure == "cpu_time", ], aes(x = T, y = value, fill = method)) +
   geom_boxplot(show.legend = FALSE) +
   facet_wrap(~ method, dir = "v", scales = "free_y") +
-  #coord_cartesian(ylim = c(0, 0.01)) +
+  coord_cartesian(ylim = c(0, 0.02)) +
   labs(title = "Elapsed CPU time for the estimation of all parameters", x = "T", y = "seconds")
 ```
 
