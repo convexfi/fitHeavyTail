@@ -27,7 +27,7 @@
 #'              case they will be imputed at a higher computational cost.
 #' @param nu Degrees of freedom of the \eqn{t} distribution. Either a number (\code{>2}) or a string indicating the
 #'           method to compute it:
-#'           \itemize{\item{\code{"kurtosis"}: based on the kurtosis obtained from the sampled moments;}
+#'           \itemize{\item{\code{"kurtosis"}: based on the kurtosis obtained from the sampled moments (default method);}
 #'                    \item{\code{"MLE-diag"}: based on the MLE assuming a diagonal sample covariance;}
 #'                    \item{\code{"MLE-diag-resampled"}: method "MLE-diag" resampled for better stability;}
 #'                    \item{\code{"iterative"}: iterative estimation with the rest of the parameters via the EM algorithm.}}
@@ -100,7 +100,7 @@
 #' @export
 fit_mvt <- function(X, na_rm = TRUE,
                     nu = c("kurtosis", "MLE-diag", "MLE-diag-resampled", "iterative"),
-                    nu_iterative_method = c("ECME-diag", "ECME", "ECM", "ECME-cov"),
+                    nu_iterative_method = c("ECME-diag", "ECME", "ECM", "ECME-cov", "trace-fitting"),
                     initial = NULL, factors = ncol(X),
                     max_iter = 100, ptol = 1e-3, ftol = Inf,
                     return_iterates = FALSE, verbose = FALSE) {
@@ -240,6 +240,11 @@ fit_mvt <- function(X, na_rm = TRUE,
                          T*lgamma((N + nu)/2) + T*lgamma(nu/2) - (nu*T/2)*log(nu)
                        optimize(negLL, interval = c(.nu_min, .nu_max))$minimum
                      },
+                     "trace-fitting" = {  # from draft for TSP2020
+                       var_X <- T/(T-1)*apply(X_^2, 2, mean, na.rm = TRUE)  # could be computed just once
+                       eta <- sum(var_X)/sum(diag(Sigma))  # eta <- scaling_fitting_ka_with_b(a = diag(Sigma), b = var_X)
+                       min(.nu_max, max(.nu_min, 2*eta/(eta - 1)))
+                     },
                      stop("Method to estimate nu unknown."))
     }
 
@@ -286,6 +291,8 @@ fit_mvt <- function(X, na_rm = TRUE,
     names(iterates_record) <- paste("iter", 0:(length(iterates_record)-1))
     vars_to_be_returned$iterates_record <- iterates_record
   }
+  if (exists("E_tau"))
+    vars_to_be_returned$Xcg <- sqrt(nu/(nu-2)) * sqrt(E_tau) * X_
   return(vars_to_be_returned)
 }
 

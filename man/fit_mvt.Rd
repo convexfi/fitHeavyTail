@@ -8,7 +8,7 @@ fit_mvt(
   X,
   na_rm = TRUE,
   nu = c("kurtosis", "MLE-diag", "MLE-diag-resampled", "iterative"),
-  nu_iterative_method = c("ECME-diag", "ECME", "ECM", "ECME-cov"),
+  nu_iterative_method = c("ECME-diag", "ECME", "ECM", "ECME-cov", "trace-fitting"),
   initial = NULL,
   factors = ncol(X),
   max_iter = 100,
@@ -26,7 +26,7 @@ case they will be imputed at a higher computational cost.}
 
 \item{nu}{Degrees of freedom of the \eqn{t} distribution. Either a number (\code{>2}) or a string indicating the
 method to compute it:
-\itemize{\item{\code{"kurtosis"}: based on the kurtosis obtained from the sampled moments;}
+\itemize{\item{\code{"kurtosis"}: based on the kurtosis obtained from the sampled moments (default method);}
          \item{\code{"MLE-diag"}: based on the MLE assuming a diagonal sample covariance;}
          \item{\code{"MLE-diag-resampled"}: method "MLE-diag" resampled for better stability;}
          \item{\code{"iterative"}: iterative estimation with the rest of the parameters via the EM algorithm.}}}
