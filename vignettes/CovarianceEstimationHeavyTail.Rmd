@@ -16,7 +16,7 @@ output:
     toc: yes
     toc_depth: 2
 params:
-  N_realiz: 4
+  num_realiz: 4
 csl: ieee.csl
 bibliography: refs.bib
 vignette: >
@@ -39,7 +39,7 @@ opts_chunk$set(
 )
 knitr_in_progress <- isTRUE(getOption('knitr.in.progress'))
 knit_hooks$set(pngquant = hook_pngquant)
-# rmarkdown::render("vignettes/CovarianceEstimationHeavyTail.Rmd", "prettydoc::html_pretty", params = list(N_realiz = 100))
+# rmarkdown::render("vignettes/CovarianceEstimationHeavyTail.Rmd", "prettydoc::html_pretty", params = list(num_realiz = 100))
 ```
 
 -----------
@@ -154,7 +154,20 @@ ggplot(data.frame(x = X[, i1], y = X[, i2]), aes(x, y)) +
 
 
 # Numerical Comparison with Existing Packages
-In the following, we generate multivariate heavy-tailed Student's $t$ distributed data and compare the performance of many different existing packages via `r params$N_realiz` Monte Carlo simulations in terms of estimation accurary, measured by the mean squared error (MSE), and cpu time.
+In the following, we generate multivariate heavy-tailed Student's $t$ distributed data and compare the performance of many different existing packages via `r params$num_realiz` Monte Carlo simulations in terms of estimation accurary, measured by the mean squared error (MSE), and cpu time.
+```{r load libraries, echo=FALSE, message=FALSE}
+library(mvtnorm)
+library(fitHeavyTail)
+library(parallel)  # detectCores(logical = FALSE)
+library(tictoc)
+library(ggplot2)
+library(ellipse)
+library(ggforce)  # for geom_ellipse()
+library(reshape2)
+library(dplyr)
+# library(RColorBrewer)  # display.brewer.all(colorblindFriendly = TRUE)
+# library(latex2exp)
+```
 
 ```{r, echo=FALSE}
 library(mvtnorm)
@@ -236,17 +249,13 @@ eval_single <- function(X) {
   time[name]  <- system.time({Sigma_hat <- fitHeavyTail::fit_mvt(X, nu = 6)$cov})["elapsed"]
   MSE[name]   <- MSE(Sigma_hat)
   
-  # name        <- "fitHeavyTail::fit_mvt (factors = 6, nu=6)"
-  # time[name]  <- system.time({Sigma_hat <- fit_mvt(X, factors = 6, nu = 6)$cov})["elapsed"]
-  # MSE[name]   <- MSE(Sigma_hat)
-  
   name        <- "fitHeavyTail::fit_mvt"
   time[name]  <- system.time({Sigma_hat <- fitHeavyTail::fit_mvt(X)$cov})["elapsed"]
   MSE[name]   <- MSE(Sigma_hat)
-
-  # name        <- "fitHeavyTail::fit_mvt (factors = 6)"
-  # time[name]  <- system.time({Sigma_hat <- fit_mvt(X, factors = 6, nu_regcoef = 1e2)$cov})["elapsed"]
-  # MSE[name]   <- MSE(Sigma_hat)
+  
+  # name        <- "fitHeavyTail::fit_mvt (factors = 6, nu=6)"
+  # time[name]  <- system.time({Sigma_hat <- fit_mvt(X, factors = 6, nu = 6)$cov})["elapsed"]
+  # MSE[name]   <- MSE(Sigma_hat)  
   
   return(list("MSE" = MSE, "time" = time))
 }
@@ -254,12 +263,12 @@ eval_single <- function(X) {
 T_sweep <- round(seq(from = ceiling(1.5*N), to = 5*N, length.out = 12))
 if (!knitr_in_progress) pbar <- txtProgressBar(min = it <- 0, max = length(T_sweep), style = 3)
 res_all_T <- list()
-#tic(sprintf("Total execution time for %d Monte-Carlo realizations:", params$N_realiz))
+#tic(sprintf("Total execution time for %d Monte-Carlo realizations:", params$num_realiz))
 for(T in T_sweep) {
   if (!knitr_in_progress) setTxtProgressBar(pbar, it <- it + 1)
   # first, generate random heavy-tailed data sequentially for reproducibility
-  X_list <- replicate(params$N_realiz, rmvt(n = T, delta = mu, sigma = Sigma_scatter, df = nu), simplify = FALSE)
-  names(X_list) <- paste0("realiz ", 1:params$N_realiz)
+  X_list <- replicate(params$num_realiz, rmvt(n = T, delta = mu, sigma = Sigma_scatter, df = nu), simplify = FALSE)
+  names(X_list) <- paste0("realiz ", 1:params$num_realiz)
 
   # then, run estimations for all realizations in parallel (https://bookdown.org/rdpeng/rprogdatascience/parallel-computation.html)
   res <- mclapply(X_list, eval_single, mc.cores = 4)
@@ -270,6 +279,7 @@ for(T in T_sweep) {
 }
 #toc()
 names(res_all_T) <- T_sweep
+methods_names <- names(res_all_T[[1]][[1]][[1]])
 
 save.image(file = "lala.RData")
 ```
@@ -286,16 +296,16 @@ save.image(file = "lala.RData")
 for(T in T_sweep) {
   if (!knitr_in_progress) setTxtProgressBar(pbar, it <- it + 1)
   # first, generate random heavy-tailed data sequentially for reproducibility
-  #X <- lapply(1:params$N_realiz, function(idx) {rmvt(n = T, delta = mu, sigma = Sigma_scatter, df = nu)})
-  X <- replicate(params$N_realiz, rmvt(n = T, delta = mu, sigma = Sigma_scatter, df = nu), simplify = FALSE)
-  #X <- foreach(1:params$N_realiz) %do% rmvt(n = T, delta = mu, sigma = Sigma_scatter, df = nu)
+  #X <- lapply(1:params$num_realiz, function(idx) {rmvt(n = T, delta = mu, sigma = Sigma_scatter, df = nu)})
+  X <- replicate(params$num_realiz, rmvt(n = T, delta = mu, sigma = Sigma_scatter, df = nu), simplify = FALSE)
+  #X <- foreach(1:params$num_realiz) %do% rmvt(n = T, delta = mu, sigma = Sigma_scatter, df = nu)
 
   # then, run the estimation in parallel 
   #res <- lapply(X, eval_single)
-  #res <- foreach(i = 1:params$N_realiz) %do% eval_single(X[[i]])
+  #res <- foreach(i = 1:params$num_realiz) %do% eval_single(X[[i]])
   res <- mclapply(X, eval_single, mc.cores = 4)
   #res <- parLapply(cl = cl, X, eval_single)  # this requires: cl <- makeCluster(4); clusterExport(cl = cl, varlist = ls(envir = .GlobalEnv)); stopCluster(cl = cl)
-  #res <- foreach(i = 1:params$N_realiz) %dopar% eval_single(X[[i]])  # this requires: registerDoParallel(4); stopImplicitCluster()
+  #res <- foreach(i = 1:params$num_realiz) %dopar% eval_single(X[[i]])  # this requires: registerDoParallel(4); stopImplicitCluster()
   
   # finally, keep track of MSEs and times
   MSE_all_T  <- rbind(MSE_all_T,  rowMeans(sapply(res, function(x) x$MSE)))
@@ -310,19 +320,13 @@ library(dplyr)
 # create data.frame by melting the nested list
 res_all_T_molten <- melt(res_all_T)
 names(res_all_T_molten) <- c("value", "method", "measure", "realization", "T")
-res_all_T_molten$realization <- NULL  # don't really need the realization index
-res_all_T_molten$T_string <- factor(res_all_T_molten$T, levels = T_sweep)
-res_all_T_molten$method <- factor(res_all_T_molten$method, levels = names(res_all_T[[1]][[1]][[1]]))
 res_all_T_molten <- res_all_T_molten %>%
-  mutate(T = as.numeric(as.character(T))) %>%
+  mutate(method = factor(method, levels = methods_names)) %>%
+  mutate(T = as.numeric(T)) %>%
   group_by(method, measure, T) %>%
-  mutate(value_mean = mean(value)) %>%
-  ungroup()
-  #summarize(value_mean = mean(value))
-N_methods <- length(unique(res_all_T_molten$method))
-# if MSE_mean is NA, force time_mean to NA:
-na_mask <- is.na(res_all_T_molten[res_all_T_molten$measure == "MSE", ]$value_mean)
-res_all_T_molten[res_all_T_molten$measure == "time", ][na_mask, ]$value_mean <- NA
+  summarize(value_mean = mean(value))  # mutate(value_mean = mean(value)) %>% ungroup()
+num_methods <- length(unique(res_all_T_molten$method))
+#if (anyNA(res_all_T_molten)) message("NAs found.")
 ```
 
 
@@ -332,8 +336,8 @@ library(ggplot2)
 # MSE plot
 ggplot(res_all_T_molten[res_all_T_molten$measure == "MSE", ], aes(x = T, y = value_mean, col = method, shape = method)) +
   geom_line() + geom_point(size = 2) + scale_y_log10() +  # coord_cartesian(ylim = c(0, 500)) +
-  scale_shape_manual(values = 1:N_methods) +  # theme(legend.title = element_blank())
-  scale_x_discrete(limits = seq(T_sweep[1], tail(T_sweep, 1), by = 10)) +
+  scale_shape_manual(values = 1:num_methods) +  # theme(legend.title = element_blank())
+  scale_x_continuous(limits = c(30, 100), breaks = seq(T_sweep[1], tail(T_sweep, 1), by = 10), minor_breaks = NULL) +
   ggtitle(bquote("Error of covariance matrix estimation for heavy-tailed data (" * N == .(N) * "," ~ nu == .(nu)* ")")) +
   xlab("T") + ylab("MSE")
 # ggtitle(latex2exp::TeX(sprintf("MSE of covariance matrix estimation for heavy-tailed data (N = %d, $\\nu$ = %.2f)", N, nu))) +
@@ -342,7 +346,7 @@ ggplot(res_all_T_molten[res_all_T_molten$measure == "MSE", ], aes(x = T, y = val
 
 
 ```{r, echo=FALSE, eval=FALSE}
-load("lala.RData")
+#load("lala.RData")
 
 ggplot(res_all_T_molten[res_all_T_molten$measure == "MSE" & 
                         res_all_T_molten$method %in% c("fitHeavyTail::fit_mvt (nu=6)", "fitHeavyTail::fit_mvt"), ], 
@@ -357,8 +361,8 @@ ggplot(res_all_T_molten[res_all_T_molten$measure == "MSE" &
 # time plot
 ggplot(res_all_T_molten[res_all_T_molten$measure == "time", ], aes(x = T, y = value_mean, col = method, shape = method)) +
   geom_line() + geom_point(size = 2) + scale_y_log10() +
-  scale_shape_manual(values = 1:N_methods) +
-  scale_x_discrete(limits = seq(T_sweep[1], tail(T_sweep, 1), by = 10)) +
+  scale_shape_manual(values = 1:num_methods) +
+  scale_x_continuous(limits = c(30, 100), breaks = seq(T_sweep[1], tail(T_sweep, 1), by = 10), minor_breaks = NULL) +
   ggtitle(bquote("Computational cost for different methods (" * N == .(N) * "," ~ nu == .(nu)* ")")) +
   xlab("T") + ylab("cpu time")
 ```
