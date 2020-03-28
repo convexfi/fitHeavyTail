@@ -71,7 +71,7 @@ fit_Tyler <- function(X, initial = NULL, max_iter = 100, ptol = 1e-3, ftol = Inf
     Sigma <- cov(X)
     Sigma <- Sigma/sum(diag(Sigma))
   } else Sigma <- initial$cov
-  X_ <- X_ <- X - matrix(mu, T, N, byrow = TRUE)  # demean data
+  X_ <- X - matrix(mu, T, N, byrow = TRUE)  # demean data
   weights <- 1/rowSums(X_ * (X_ %*% inv(Sigma)))   # 1/diag( X_ %*% inv(Sigma) %*% t(X_) )
   if (ftol < Inf)
     log_likelihood <- (N/2)*sum(log(weights)) - (T/2)*log(det(Sigma))
@@ -108,12 +108,12 @@ fit_Tyler <- function(X, initial = NULL, max_iter = 100, ptol = 1e-3, ftol = Inf
 
   # finally, recover missing scaling factor
   kappa <- scaling_fitting_ka_with_b(a = diag(Sigma), b = apply(X^2, 2, mean, trim = max(1/T, 0.03)))
-  Sigma <- kappa * Sigma
+  #kappa <- sum(apply(X, 2, var))/sum(diag(Sigma))  <-- this is worse
 
   # return variables
   #Sigma <- T/(T-1) * Sigma  # unbiased estimator
   vars_to_be_returned <- list("mu"             = mu,
-                              "cov"            = Sigma,
+                              "cov"            = kappa * Sigma,
                               "converged"      = (iter < max_iter),
                               "num_iterations" = iter,
                               "cpu_time"       = elapsed_time)
