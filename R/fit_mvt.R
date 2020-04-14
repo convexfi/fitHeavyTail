@@ -1,8 +1,15 @@
 #
 # lower and upper bounds for the optimization of nu
 #
-.nu_min <- 2.5
-.nu_max <- 100
+.onLoad <- function(libname, pkgname) {
+  op <- options()
+  op_fitHeavyTail <- list(nu_min = 2.5, nu_max = 100)
+  toset <- !(names(op_fitHeavyTail) %in% names(op))
+  if(any(toset)) options(op_fitHeavyTail[toset])
+
+  invisible()
+}
+
 
 
 #' @title Estimate parameters of a multivariate Student's t distribution to fit data
@@ -139,9 +146,9 @@ fit_mvt <- function(X, na_rm = TRUE,
   }
   if (!is.numeric(nu)) {
     nu <- switch(nu,
-                 "kurtosis"           = nu_from_kurtosis(X),
-                 "MLE-diag"           = nu_mle(X, method = "MLE-mv-diagcov"),
-                 "MLE-diag-resampled" = nu_mle(X, method = "MLE-mv-diagcov-resampled"),
+                 "kurtosis"           = nu_from_kurtosis(na.omit(X)),
+                 "MLE-diag"           = nu_mle(na.omit(X), method = "MLE-mv-diagcov"),
+                 "MLE-diag-resampled" = nu_mle(na.omit(X), method = "MLE-mv-diagcov-resampled"),
                  stop("Method to estimate nu unknown."))
     if (verbose) message(sprintf("Automatically setting nu = %.2f", nu))
   } else if (nu == Inf) nu <- 1e15  # for numerical stability (for the Gaussian case)
@@ -157,7 +164,7 @@ fit_mvt <- function(X, na_rm = TRUE,
     Sigma <- B %*% t(B) + diag(psi, N)
   }
   if (ftol < Inf) log_likelihood <- ifelse(X_has_NA,
-                                           dmvt_withNA(X = X, delta = mu, sigma = Sigma / alpha, df = nu),
+                                           dmvt_withNA(X = X, delta = mu, sigma = Sigma, df = nu),
                                            sum(mvtnorm::dmvt(X, delta = mu, sigma = Sigma, df = nu, log = TRUE, type = "shifted")))
   alpha <- 1  # an extra variable for PX-EM acceleration
 
@@ -218,19 +225,19 @@ fit_mvt <- function(X, na_rm = TRUE,
                        ave_E_log_tau_minus_E_tau <- digamma((N+nu)/2) - log((N+nu)/2) + mean(log(E_tau) - E_tau)  # equal to Q$ave_E_logtau - Q$ave_E_tau
                        Q_nu <- function(nu) - (nu/2)*log(nu/2) + lgamma(nu/2) - (nu/2)*ave_E_log_tau_minus_E_tau
                                               #+ nu_regcoef * (1/T)*(nu/(nu-2) - nu_target/(nu_target-2))^2
-                       optimize(Q_nu, interval = c(.nu_min, .nu_max))$minimum
+                       optimize(Q_nu, interval = c(getOption("nu_min"), getOption("nu_max")))$minimum
                        },
                      "ECME" = {  # based on minus log-likelihood of nu with mu and sigma fixed to mu[k+1] and sigma[k+1]
                        #nu_mle(Xc = X_, method = "MLE-mv-scat", Sigma_scatter = Sigma)
                        delta2 <- rowSums(X_ * (X_ %*% inv(Sigma)))  # diag( X_ %*% inv(Sigma) %*% t(X_) )
                        negLL <- function(nu) ((N + nu)/2)*sum(log(nu + delta2)) - T*lgamma((N + nu)/2) + T*lgamma(nu/2) - (nu*T/2)*log(nu)
-                       optimize(negLL, interval = c(.nu_min, .nu_max))$minimum
+                       optimize(negLL, interval = c(getOption("nu_min"), getOption("nu_max")))$minimum
                        },
                      "ECME-diag" = {  # based on minus log-likelihood of nu with mu and sigma fixed to mu[k+1] and sigma[k+1]
                        #nu_mle(Xc = X_, method = "MLE-mv-diagscat", Sigma_scatter = Sigma)
                        delta2 <- rowSums(X_^2 / matrix(diag(Sigma), T, N, byrow = TRUE))  # this amounts to using a diagonal cov matrix
                        negLL <- function(nu) ((N + nu)/2)*sum(log(nu + delta2)) - T*lgamma((N + nu)/2) + T*lgamma(nu/2) - (nu*T/2)*log(nu)
-                       optimize(negLL, interval = c(.nu_min, .nu_max))$minimum
+                       optimize(negLL, interval = c(getOption("nu_min"), getOption("nu_max")))$minimum
                      },
                      "ECME-cov" = {  # this variation is worse than ECME
                        Sigma_cov <- nu/(nu-2)*Sigma
@@ -238,12 +245,12 @@ fit_mvt <- function(X, na_rm = TRUE,
                        delta2_cov <- rowSums(X_ * (X_ %*% inv(Sigma_cov)))
                        negLL <- function(nu) (N*T)/2*log((nu-2)/nu) + ((N + nu)/2)*sum(log(nu + nu/(nu-2)*delta2_cov)) -
                          T*lgamma((N + nu)/2) + T*lgamma(nu/2) - (nu*T/2)*log(nu)
-                       optimize(negLL, interval = c(.nu_min, .nu_max))$minimum
+                       optimize(negLL, interval = c(getOption("nu_min"), getOption("nu_max")))$minimum
                      },
                      "trace-fitting" = {  # from draft for TSP2020
                        var_X <- T/(T-1)*apply(X_^2, 2, mean, na.rm = TRUE)  # could be computed just once
                        eta <- sum(var_X)/sum(diag(Sigma))  # eta <- scaling_fitting_ka_with_b(a = diag(Sigma), b = var_X)
-                       min(.nu_max, max(.nu_min, 2*eta/(eta - 1)))
+                       min(getOption("nu_max"), max(getOption("nu_min"), 2*eta/(eta - 1)))
                      },
                      stop("Method to estimate nu unknown."))
     }
@@ -255,7 +262,10 @@ fit_mvt <- function(X, na_rm = TRUE,
       all(abs(Sigma - Sigma_old) <= .5 * ptol * (abs(Sigma_old) + abs(Sigma)))
 
     if (ftol < Inf) {
-      log_likelihood  <- dmvt_withNA(X = X, delta = mu, sigma = Sigma, df = nu)
+      log_likelihood <- ifelse(X_has_NA,
+                               dmvt_withNA(X = X, delta = mu, sigma = Sigma, df = nu),
+                               sum(mvtnorm::dmvt(X, delta = mu, sigma = Sigma, df = nu, log = TRUE, type = "shifted")))
+
       has_fun_converged <- abs(log_likelihood - log_likelihood_old) <= .5 * ftol * (abs(log_likelihood) + abs(log_likelihood_old))
     } else has_fun_converged <- TRUE
     # record the current the variables/loglikelihood if required
@@ -441,9 +451,7 @@ nu_from_kurtosis <- function(X) {
   kurt <- apply(X, 2, excess_kurtosis_unbiased)
   kappa <- max(0, mean(kurt)/3)
   nu <- 2 / kappa + 4
-  # in case of some funny results
-  if (nu < .nu_min) nu <- .nu_min
-  if (nu > .nu_max) nu <- .nu_max
+  nu <- min(getOption("nu_max"), max(getOption("nu_min"), nu))
   return(nu)
 }
 
@@ -478,9 +486,10 @@ alpha_Pareto_tail_index <- function(X, center = FALSE, method = c("WLS", "WLS-st
 # estimate nu via MLE
 #' @importFrom stats optimize
 nu_mle <- function(X, Xc,
-                   method = c("MLE-mv-diagcov-resampled", "MLE-mv-cov", "MLE-mv-diagcov",
-                              "MLE-mv-scat", "MLE-mv-diagscat", "MLE-mv-diagscat-resampled",
-                              "MLE-uv-var-ave", "MLE-uv-scat-ave", "MLE-uv-var-stacked", "test"),
+                   method = c("MLE-mv-diagcov-resampled",  "MLE-mv-diagcov",  "MLE-mv-cov",
+                              "MLE-mv-diagscat-resampled", "MLE-mv-diagscat", "MLE-mv-scat",
+                              "MLE-uv-var-ave", "MLE-uv-scat-ave", "MLE-uv-var-stacked",
+                              "test"),
                    Sigma_cov = NULL, Sigma_scatter = NULL) {
   # center data if necessary
   if (missing(Xc)) {
@@ -489,23 +498,24 @@ nu_mle <- function(X, Xc,
     mu <- colMeans(X)
     Xc <- X - matrix(mu, nrow(X), ncol(X), byrow = TRUE)
   } else if (!is.matrix(Xc)) stop("Xc must be a matrix.")
+  # from now on Xc is used (not X)
   T <- nrow(Xc)
   N <- ncol(Xc)
 
   # method
   nu <- switch(match.arg(method),
                "MLE-mv-cov" = {  # not good with sample mean and SCM
-                 if (is.null(Sigma_cov)) Sigma_cov <- cov(X)
+                 if (is.null(Sigma_cov)) Sigma_cov <- cov(Xc)
                  delta2_cov <- rowSums(Xc * (Xc %*% solve(Sigma_cov)))
                  negLL <- function(nu) (N*T)/2*log((nu-2)/nu) + ((N + nu)/2)*sum(log(nu + nu/(nu-2)*delta2_cov)) -
                    T*lgamma((N + nu)/2) + T*lgamma(nu/2) - (nu*T/2)*log(nu)
-                 optimize(negLL, interval = c(.nu_min, .nu_max))$minimum
+                 optimize(negLL, interval = c(getOption("nu_min"), getOption("nu_max")))$minimum
                },
                "MLE-mv-scat" = {
                  if (is.null(Sigma_scatter)) stop("Scatter matrix must be passed.")
                  delta2 <- rowSums(Xc * (Xc %*% solve(Sigma_scatter)))
                  negLL <- function(nu) ((N + nu)/2)*sum(log(nu + delta2)) - T*lgamma((N + nu)/2) + T*lgamma(nu/2) - (nu*T/2)*log(nu)
-                 optimize(negLL, interval = c(.nu_min, .nu_max))$minimum
+                 optimize(negLL, interval = c(getOption("nu_min"), getOption("nu_max")))$minimum
                },
                "MLE-mv-diagcov" = {
                  if (!is.null(Sigma_cov)) var <- diag(Sigma_cov)
@@ -514,7 +524,7 @@ nu_mle <- function(X, Xc,
                  delta2_cov_diag <- rowSums(delta2_var)  # this amounts to using a diagonal cov matrix
                  negLL <- function(nu) (N*T)/2*log((nu-2)/nu) + ((N + nu)/2)*sum(log(nu + nu/(nu-2)*delta2_cov_diag)) -
                    T*lgamma((N + nu)/2) + T*lgamma(nu/2) - (nu*T/2)*log(nu)
-                 optimize(negLL, interval = c(.nu_min, .nu_max))$minimum
+                 optimize(negLL, interval = c(getOption("nu_min"), getOption("nu_max")))$minimum
                },
                "MLE-mv-diagscat" = {
                  if (is.null(Sigma_scatter)) stop("Scatter matrix must be passed.")
@@ -522,7 +532,7 @@ nu_mle <- function(X, Xc,
                  delta2_diagscat <- Xc^2 / matrix(diagscat, T, N, byrow = TRUE)
                  delta2 <- rowSums(delta2_diagscat)  # this amounts to using a diagonal cov matrix
                  negLL <- function(nu) ((N + nu)/2)*sum(log(nu + delta2)) - T*lgamma((N + nu)/2) + T*lgamma(nu/2) - (nu*T/2)*log(nu)
-                 optimize(negLL, interval = c(.nu_min, .nu_max))$minimum
+                 optimize(negLL, interval = c(getOption("nu_min"), getOption("nu_max")))$minimum
                },
                "MLE-mv-diagcov-resampled" = {  # this method is the winner
                  fT_resampling <- 4
@@ -544,7 +554,7 @@ nu_mle <- function(X, Xc,
                  #N <- N_resampling
                  negLL <- function(nu) (N*T)/2*log((nu-2)/nu) + ((N + nu)/2)*sum(log(nu + nu/(nu-2)*delta2_cov)) -
                    T*lgamma((N + nu)/2) + T*lgamma(nu/2) - (nu*T/2)*log(nu)
-                 optimize(negLL, interval = c(.nu_min, .nu_max))$minimum
+                 optimize(negLL, interval = c(getOption("nu_min"), getOption("nu_max")))$minimum
                },
                "MLE-mv-diagscat-resampled" = {
                  if (is.null(Sigma_scatter)) stop("Scatter matrix must be passed.")
@@ -558,7 +568,7 @@ nu_mle <- function(X, Xc,
                  N <- ncol(delta2_diagscat_resampled)
                  delta2 <- rowSums(delta2_diagscat_resampled)
                  negLL <- function(nu) ((N + nu)/2)*sum(log(nu + delta2)) - T*lgamma((N + nu)/2) + T*lgamma(nu/2) - (nu*T/2)*log(nu)
-                 optimize(negLL, interval = c(.nu_min, .nu_max))$minimum
+                 optimize(negLL, interval = c(getOption("nu_min"), getOption("nu_max")))$minimum
                },
                "MLE-uv-var-ave" = {  # not so good with sample mean and SCM
                  var <- apply(Xc^2, 2, sum)/(T-1)
@@ -566,7 +576,7 @@ nu_mle <- function(X, Xc,
                  negLL_uv_var_ave <- function(nu, delta2_vari) T/2*log((nu-2)/nu) + ((1 + nu)/2)*sum(log(nu + nu/(nu-2)*delta2_vari)) -
                    T*lgamma((1 + nu)/2) + T*lgamma(nu/2) - (nu/2)*T*log(nu)
                  nu_i <- apply(delta2_var, 2, function(delta2_vari)
-                   optimize(negLL_uv_var_ave, interval = c(.nu_min, .nu_max), delta2_vari = delta2_vari)$minimum)
+                   optimize(negLL_uv_var_ave, interval = c(getOption("nu_min"), getOption("nu_max")), delta2_vari = delta2_vari)$minimum)
                  mean(nu_i)
                },
                "MLE-uv-scat-ave" = {  # not so good
@@ -575,7 +585,7 @@ nu_mle <- function(X, Xc,
                  negLL_uv_scat_ave <- function(nu, delta2_i) ((1 + nu)/2)*sum(log(nu + delta2_i)) -
                    T*lgamma((1 + nu)/2) + T*lgamma(nu/2) - (nu*T/2)*log(nu)
                  nu_i <- apply(delta2, 2, function(delta2_i)
-                   optimize(negLL_uv_scat_ave, interval = c(.nu_min, .nu_max), delta2_i = delta2_i)$minimum)
+                   optimize(negLL_uv_scat_ave, interval = c(getOption("nu_min"), getOption("nu_max")), delta2_i = delta2_i)$minimum)
                  mean(nu_i)
                },
                "MLE-uv-var-stacked" = {  # not so good
@@ -583,7 +593,7 @@ nu_mle <- function(X, Xc,
                  delta2_var <- Xc^2 / matrix(var, T, N, byrow = TRUE)
                  negLL <- function(nu) (N*T)/2*log((nu-2)/nu) + ((1 + nu)/2)*sum(log(nu + nu/(nu-2)*c(delta2_var))) -
                    N*T*lgamma((1 + nu)/2) + N*T*lgamma(nu/2) - (nu/2)*N*T*log(nu)
-                 optimize(negLL, interval = c(.nu_min, .nu_max))$minimum
+                 optimize(negLL, interval = c(getOption("nu_min"), getOption("nu_max")))$minimum
                },
                stop("Method to estimate nu unknown."))
   return(nu)
