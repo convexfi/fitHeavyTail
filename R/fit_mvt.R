@@ -107,7 +107,8 @@
 #' @export
 fit_mvt <- function(X, na_rm = TRUE,
                     nu = c("kurtosis", "MLE-diag", "MLE-diag-resampled", "iterative"),
-                    nu_iterative_method = c("ECME-diag", "ECME", "ECM", "ECME-cov", "trace-fitting"),
+                    nu_iterative_method = c("ECME-diag", "ECME", "ECM", "ECME-cov", "trace-fitting",
+                                            "sample-mean-1", "sample-mean-2", "sample-mean-3"),
                     initial = NULL, factors = ncol(X),
                     max_iter = 100, ptol = 1e-3, ftol = Inf,
                     return_iterates = FALSE, verbose = FALSE) {
@@ -187,8 +188,8 @@ fit_mvt <- function(X, na_rm = TRUE,
     if (X_has_NA || FA_struct)
       Q <- Estep(mu, Sigma, psi, nu, X)
     else {
-      X_ <- X - matrix(mu, T, N, byrow = TRUE)
-      delta2 <- rowSums(X_ * (X_ %*% inv(Sigma)))  # diag( X_ %*% inv(Sigma) %*% t(X_) )
+      Xc <- X - matrix(mu, T, N, byrow = TRUE)
+      delta2 <- rowSums(Xc * (Xc %*% inv(Sigma)))  # diag( Xc %*% inv(Sigma) %*% t(Xc) )
       E_tau <- (nu + N) / (nu + delta2)
       ave_E_tau <- mean(E_tau)
       ave_E_tau_X <- (1/T)*as.vector(E_tau %*% X)
@@ -207,50 +208,54 @@ fit_mvt <- function(X, na_rm = TRUE,
         Sigma <- B %*% t(B) + diag(psi, N)
       } else
         Sigma <- S
-      if (optimize_nu) {
+      if (optimize_nu) {  # ECM
         Q_nu <- function(nu) - (nu/2)*log(nu/2) + lgamma(nu/2) - (nu/2)*(Q$ave_E_logtau - Q$ave_E_tau)
-        nu <- optimize(Q_nu, interval = c(2 + 1e-12, 100))$minimum
+        nu <- optimize(Q_nu, interval = c(getOption("nu_min"), getOption("nu_max")))$minimum
       }
     } else {
       mu <- ave_E_tau_X / ave_E_tau
       alpha <- ave_E_tau  # acceleration
-      X_ <- X - matrix(mu, T, N, byrow = TRUE)  # this is slower: sweep(X, 2, FUN = "-", STATS = mu)  #X_ <- X - rep(mu, each = TRUE)  # this is wrong?
-      ave_E_tau_XX <- (1/T) * crossprod(sqrt(E_tau) * X_)  # (1/T) * t(X_) %*% diag(E_tau) %*% X_
+      Xc <- X - matrix(mu, T, N, byrow = TRUE)  # this is slower: sweep(X, 2, FUN = "-", STATS = mu)  #Xc <- X - rep(mu, each = TRUE)  # this is wrong?
+      ave_E_tau_XX <- (1/T) * crossprod(sqrt(E_tau) * Xc)  # (1/T) * t(Xc) %*% diag(E_tau) %*% Xc
       Sigma <- ave_E_tau_XX / alpha
       if (optimize_nu)
         nu <- switch(nu_iterative_method,
                      "ECM" = {  # based on minus the Q function of nu
-                       #nu_regcoef = 1e2
-                       #nu_target <- nu_from_kurtosis(X)
                        ave_E_log_tau_minus_E_tau <- digamma((N+nu)/2) - log((N+nu)/2) + mean(log(E_tau) - E_tau)  # equal to Q$ave_E_logtau - Q$ave_E_tau
                        Q_nu <- function(nu) - (nu/2)*log(nu/2) + lgamma(nu/2) - (nu/2)*ave_E_log_tau_minus_E_tau
-                                              #+ nu_regcoef * (1/T)*(nu/(nu-2) - nu_target/(nu_target-2))^2
                        optimize(Q_nu, interval = c(getOption("nu_min"), getOption("nu_max")))$minimum
                        },
                      "ECME" = {  # based on minus log-likelihood of nu with mu and sigma fixed to mu[k+1] and sigma[k+1]
-                       #nu_mle(Xc = X_, method = "MLE-mv-scat", Sigma_scatter = Sigma)
-                       delta2 <- rowSums(X_ * (X_ %*% inv(Sigma)))  # diag( X_ %*% inv(Sigma) %*% t(X_) )
-                       negLL <- function(nu) ((N + nu)/2)*sum(log(nu + delta2)) - T*lgamma((N + nu)/2) + T*lgamma(nu/2) - (nu*T/2)*log(nu)
-                       optimize(negLL, interval = c(getOption("nu_min"), getOption("nu_max")))$minimum
+                       nu_mle(Xc = Xc, method = "MLE-mv-scat", Sigma_scatter = Sigma)
                        },
-                     "ECME-diag" = {  # based on minus log-likelihood of nu with mu and sigma fixed to mu[k+1] and sigma[k+1]
-                       #nu_mle(Xc = X_, method = "MLE-mv-diagscat", Sigma_scatter = Sigma)
-                       delta2 <- rowSums(X_^2 / matrix(diag(Sigma), T, N, byrow = TRUE))  # this amounts to using a diagonal cov matrix
-                       negLL <- function(nu) ((N + nu)/2)*sum(log(nu + delta2)) - T*lgamma((N + nu)/2) + T*lgamma(nu/2) - (nu*T/2)*log(nu)
-                       optimize(negLL, interval = c(getOption("nu_min"), getOption("nu_max")))$minimum
+                     "ECME-diag" = {  # using only the diag of Sigma
+                       nu_mle(Xc = Xc, method = "MLE-mv-diagscat", Sigma_scatter = Sigma)
                      },
                      "ECME-cov" = {  # this variation is worse than ECME
-                       Sigma_cov <- nu/(nu-2)*Sigma
-                       #nu_mle(Xc = X_, method = "MLE-mv-cov", Sigma_cov = Sigma_cov)  # this is without nu_target
-                       delta2_cov <- rowSums(X_ * (X_ %*% inv(Sigma_cov)))
-                       negLL <- function(nu) (N*T)/2*log((nu-2)/nu) + ((N + nu)/2)*sum(log(nu + nu/(nu-2)*delta2_cov)) -
-                         T*lgamma((N + nu)/2) + T*lgamma(nu/2) - (nu*T/2)*log(nu)
-                       optimize(negLL, interval = c(getOption("nu_min"), getOption("nu_max")))$minimum
+                       nu_mle(Xc = Xc, method = "MLE-mv-cov", Sigma_cov = nu/(nu-2)*Sigma)
                      },
                      "trace-fitting" = {  # from draft for TSP2020
-                       var_X <- T/(T-1)*apply(X_^2, 2, mean, na.rm = TRUE)  # could be computed just once
+                       var_X <- T/(T-1)*apply(Xc^2, 2, mean)  # could be computed just once
                        eta <- sum(var_X)/sum(diag(Sigma))  # eta <- scaling_fitting_ka_with_b(a = diag(Sigma), b = var_X)
                        min(getOption("nu_max"), max(getOption("nu_min"), 2*eta/(eta - 1)))
+                     },
+                     "sample-mean-1" = {
+                       r2 <- rowSums(Xc * (Xc %*% solve(Sigma)))  # diag( Xc %*% inv(Sigma) %*% t(Xc) )
+                       theta <- mean(r2)/N
+                       min(getOption("nu_max"), max(getOption("nu_min"), 2*theta/(theta - 1)))
+                     },
+                     "sample-mean-2" = {
+                       r2 <- rowSums(Xc * (Xc %*% solve(Sigma)))  # diag( Xc %*% inv(Sigma) %*% t(Xc) )
+                       theta <- T/(T-1)*mean(r2)/N
+                       min(getOption("nu_max"), max(getOption("nu_min"), 2*theta/(theta - 1)))
+                     },
+                     "sample-mean-3" = {
+                       r2 <- rowSums(Xc * (Xc %*% solve(Sigma)))  # diag( Xc %*% inv(Sigma) %*% t(Xc) )
+                       u <- (N + nu)/(nu + r2)
+                       b <- (T - 1)/(T/r2 - u)
+                       theta <- (1 - N/T) * mean(b) / N
+                       #new factor: c = (n-p+2)*n/(n-1)/(n+1) instead of (1 - N/T) above
+                       min(getOption("nu_max"), max(getOption("nu_min"), 2*theta/(theta - 1)))
                      },
                      stop("Method to estimate nu unknown."))
     }
@@ -275,6 +280,16 @@ fit_mvt <- function(X, na_rm = TRUE,
   }
   elapsed_time <- proc.time()[3] - start_time
   if (verbose) message(sprintf("Number of iterations for mvt estimation = %d\n", iter))
+
+  # compute sigma to fix the estimation: scatter = M-estimator / sigma
+  r2 <- rowSums(Xc * (Xc %*% solve(Sigma)))
+  psi <- function (t) (N + nu)/(nu + t) * t
+  F <- function(sigma) mean(psi(r2/sigma)) - N
+  sigma <- uniroot(F, lower = 0.5, upper = 1.5)$root
+  Sigma <- Sigma / sigma
+  print(sigma)
+
+
 
   ## -------- return variables --------
   #Sigma <- T/(T-1) * Sigma  # unbiased estimator
@@ -302,7 +317,7 @@ fit_mvt <- function(X, na_rm = TRUE,
     vars_to_be_returned$iterates_record <- iterates_record
   }
   if (exists("E_tau"))
-    vars_to_be_returned$Xcg <- sqrt(nu/(nu-2)) * sqrt(E_tau) * X_
+    vars_to_be_returned$Xcg <- sqrt(nu/(nu-2)) * sqrt(E_tau) * Xc
   return(vars_to_be_returned)
 }
 
@@ -483,6 +498,7 @@ alpha_Pareto_tail_index <- function(X, center = FALSE, method = c("WLS", "WLS-st
 
 
 
+
 # estimate nu via MLE
 #' @importFrom stats optimize
 nu_mle <- function(X, Xc,
@@ -513,7 +529,7 @@ nu_mle <- function(X, Xc,
                },
                "MLE-mv-scat" = {
                  if (is.null(Sigma_scatter)) stop("Scatter matrix must be passed.")
-                 delta2 <- rowSums(Xc * (Xc %*% solve(Sigma_scatter)))
+                 delta2 <- rowSums(Xc * (Xc %*% solve(Sigma_scatter)))  # diag( Xc %*% inv(Sigma_scatter) %*% t(Xc) )
                  negLL <- function(nu) ((N + nu)/2)*sum(log(nu + delta2)) - T*lgamma((N + nu)/2) + T*lgamma(nu/2) - (nu*T/2)*log(nu)
                  optimize(negLL, interval = c(getOption("nu_min"), getOption("nu_max")))$minimum
                },
