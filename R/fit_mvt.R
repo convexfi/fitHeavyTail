@@ -281,16 +281,6 @@ fit_mvt <- function(X, na_rm = TRUE,
   elapsed_time <- proc.time()[3] - start_time
   if (verbose) message(sprintf("Number of iterations for mvt estimation = %d\n", iter))
 
-  # compute sigma to fix the estimation: scatter = M-estimator / sigma
-  r2 <- rowSums(Xc * (Xc %*% solve(Sigma)))
-  psi <- function (t) (N + nu)/(nu + t) * t
-  F <- function(sigma) mean(psi(r2/sigma)) - N
-  sigma <- uniroot(F, lower = 0.5, upper = 1.5)$root
-  Sigma <- Sigma / sigma
-  print(sigma)
-
-
-
   ## -------- return variables --------
   #Sigma <- T/(T-1) * Sigma  # unbiased estimator
   vars_to_be_returned <- list("mu"             = mu,

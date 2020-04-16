@@ -1,3 +1,13 @@
+# compute sigma to fix the estimation: scatter = M-estimator / sigma
+r2 <- rowSums(Xc * (Xc %*% solve(Sigma)))
+psi <- function (t) (N + nu)/(nu + t) * t
+F <- function(sigma) mean(psi(r2/sigma)) - N
+sigma <- uniroot(F, lower = 0.5, upper = 1.5)$root
+Sigma <- Sigma / sigma
+print(sigma)
+
+
+
 
 EstimateMoments_MedianKendalltau <- function(X) {
   #first, compute (and remove mean)
