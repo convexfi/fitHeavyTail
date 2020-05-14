@@ -1,10 +1,10 @@
 #' fitHeavyTail: Mean and Covariance Matrix Estimation under Heavy Tails
 #'
-#' Robust estimation methods for the mean vector and covariance matrix
-#' from data (possibly containing NAs) under multivariate heavy-tailed
-#' distributions such as angular Gaussian (via Tyler's method), Cauchy,
-#' and Student's t. Additionally, a factor model structure can be
-#' specified for the covariance matrix.
+#' Robust estimation methods for the mean vector, scatter matrix,
+#' and covariance matrix (if it exists) from data (possibly containing NAs)
+#' under multivariate heavy-tailed distributions such as angular Gaussian
+#' (via Tyler's method), Cauchy, and Student's t distributions. Additionally,
+#' a factor model structure can be specified for the covariance matrix.
 #'
 #'
 #' @section Functions:

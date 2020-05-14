@@ -1,3 +1,14 @@
+## Changes in fitHeavyTail version 0.1.2.9000
+
+* Fixed description regarding covariance matrix for Cauchy distribution.
+
+* fit_mvt(): Now the bounds for nu estimation can be set as a global option: options(nu_min = 4.2).
+
+* fit_mvt(): Many more methods to estimate nu iteratively (via argument nu_iterative_method).
+
+* fit_mvt(): Working on correction factor for minimum MSE in covmat estimation.
+
+
 ## Changes in fitHeavyTail version 0.1.2 (2020-1-7)
 
 * Vignette revised: detailed descriptions of the algorithms included.
