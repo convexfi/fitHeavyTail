@@ -43,7 +43,8 @@
 #'                           \item{\code{"ECME"}: maximization of the log-likelihood function;}
 #'                           \item{\code{"ECME-diag"}: maximization of the log-likelihood function assuming
 #'                                                     a digonal scatter matrix (default method).}}
-#'                  This argument is used only when there are no NAs in the data and no factor model is chosen.
+#' @param scale_minMSE Logical value indicating whether to scale the scatter and covariance matrices to minimize the MSE
+#'                     estimation error by introducing bias (default is \code{FALSE}).
 #' @param initial List of initial values of the parameters for the iterative EM estimation method (in case \code{nu = "iterative"}).
 #'                Possible elements include:
 #'                \itemize{\item{\code{mu}: default is the data sample mean,}
@@ -107,9 +108,11 @@
 #' @export
 fit_mvt <- function(X, na_rm = TRUE,
                     nu = c("kurtosis", "MLE-diag", "MLE-diag-resampled", "iterative"),
-                    nu_iterative_method = c("ECME-diag", "ECME", "ECM", "ECME-cov", "trace-fitting",
-                                            "sample-mean-1", "sample-mean-2", "sample-mean-3"),
-                    initial = NULL, factors = ncol(X),
+                    nu_iterative_method = c("ECME-diag", "ECME", "ECM", "ECME-cov",
+                                            "theta-0", "theta-1a", "theta-1b", "theta-2a", "theta-2b"),
+                    scale_minMSE = FALSE,
+                    initial = NULL,
+                    factors = ncol(X),
                     max_iter = 100, ptol = 1e-3, ftol = Inf,
                     return_iterates = FALSE, verbose = FALSE) {
   ####### error control ########
@@ -190,7 +193,7 @@ fit_mvt <- function(X, na_rm = TRUE,
     else {
       Xc <- X - matrix(mu, T, N, byrow = TRUE)
       delta2 <- rowSums(Xc * (Xc %*% inv(Sigma)))  # diag( Xc %*% inv(Sigma) %*% t(Xc) )
-      E_tau <- (nu + N) / (nu + delta2)
+      E_tau <- (N + nu) / (nu + delta2)  # u_t(.)
       ave_E_tau <- mean(E_tau)
       ave_E_tau_X <- (1/T)*as.vector(E_tau %*% X)
     }
@@ -234,27 +237,34 @@ fit_mvt <- function(X, na_rm = TRUE,
                      "ECME-cov" = {  # this variation is worse than ECME
                        nu_mle(Xc = Xc, method = "MLE-mv-cov", Sigma_cov = nu/(nu-2)*Sigma)
                      },
-                     "trace-fitting" = {  # from draft for TSP2020
+                     "theta-0" = {
                        var_X <- T/(T-1)*apply(Xc^2, 2, mean)  # could be computed just once
                        eta <- sum(var_X)/sum(diag(Sigma))  # eta <- scaling_fitting_ka_with_b(a = diag(Sigma), b = var_X)
                        min(getOption("nu_max"), max(getOption("nu_min"), 2*eta/(eta - 1)))
                      },
-                     "sample-mean-1" = {
+                     "theta-1a" = {
                        r2 <- rowSums(Xc * (Xc %*% solve(Sigma)))  # diag( Xc %*% inv(Sigma) %*% t(Xc) )
                        theta <- mean(r2)/N
                        min(getOption("nu_max"), max(getOption("nu_min"), 2*theta/(theta - 1)))
                      },
-                     "sample-mean-2" = {
+                     "theta-1b" = {
                        r2 <- rowSums(Xc * (Xc %*% solve(Sigma)))  # diag( Xc %*% inv(Sigma) %*% t(Xc) )
                        theta <- T/(T-1)*mean(r2)/N
                        min(getOption("nu_max"), max(getOption("nu_min"), 2*theta/(theta - 1)))
                      },
-                     "sample-mean-3" = {
+                     "theta-2a" = {
                        r2 <- rowSums(Xc * (Xc %*% solve(Sigma)))  # diag( Xc %*% inv(Sigma) %*% t(Xc) )
                        u <- (N + nu)/(nu + r2)
-                       b <- (T - 1)/(T/r2 - u)
-                       theta <- (1 - N/T) * mean(b) / N
-                       #new factor: c = (n-p+2)*n/(n-1)/(n+1) instead of (1 - N/T) above
+                       r2i <- r2/(1 - r2*u/T)
+                       theta <- (1 - N/T) * mean(r2i) / N
+                       min(getOption("nu_max"), max(getOption("nu_min"), 2*theta/(theta - 1)))
+                     },
+                     "theta-2b" = {
+                       r2 <- rowSums(Xc * (Xc %*% solve(Sigma)))  # diag( Xc %*% inv(Sigma) %*% t(Xc) )
+                       u <- (N + nu)/(nu + r2)
+                       r2i <- r2/(1 - r2*u/T)
+                       theta <- (T - N + 2)*T/(T - 1)/(T + 1) * mean(r2i) / N
+                       #theta <- (T - N - 2)/T * mean(r2i) / N
                        min(getOption("nu_max"), max(getOption("nu_min"), 2*theta/(theta - 1)))
                      },
                      stop("Method to estimate nu unknown."))
@@ -281,19 +291,32 @@ fit_mvt <- function(X, na_rm = TRUE,
   elapsed_time <- proc.time()[3] - start_time
   if (verbose) message(sprintf("Number of iterations for mvt estimation = %d\n", iter))
 
+  # correction factor for scatter and cov matrices
+  if (scale_minMSE) {
+    if (!exists("Xc"))
+      Xc <- X - matrix(mu, T, N, byrow = TRUE)
+    kappa <- compute_kappa_from_marginals(Xc)
+    NMSE <- 1/T * (kappa*(2 + N) + 1 + N)
+    f <- 1/(NMSE + 1)
+    Sigma <- f*Sigma
+  }
+
+  # cov matrix
+  if (nu > 2)
+    Sigma_cov <- nu/(nu-2) * Sigma
+  else
+    Sigma_cov <- NA
+
+
   ## -------- return variables --------
   #Sigma <- T/(T-1) * Sigma  # unbiased estimator
   vars_to_be_returned <- list("mu"             = mu,
-                              "cov"            = if (nu > 2) nu/(nu-2) * Sigma else NA,
+                              "cov"            = Sigma_cov,
                               "scatter"        = Sigma,
                               "nu"             = nu,
                               "converged"      = (iter < max_iter),
                               "num_iterations" = iter,
                               "cpu_time"       = elapsed_time)
-  # if (!optimize_nu) {
-  #   kappa <- scaling_fitting_ka_with_b(a = diag(Sigma), b = apply(X^2, 2, mean, trim = max(1/T, 0.03)))
-  #   vars_to_be_returned$cov <- kappa * Sigma
-  # }
   if (FA_struct) {
     rownames(B) <- names(psi) <- colnames(X)
     colnames(B) <- paste0("factor-", 1:ncol(B))
@@ -314,9 +337,22 @@ fit_mvt <- function(X, na_rm = TRUE,
 
 
 
+
+
+
+
+
 ##
 ## -------- Auxiliary functions --------
 ##
+
+compute_kappa_from_marginals <- function(Xc) {
+  T <- nrow(Xc)
+  ki <- (T+1)*(T-1)/((T-2)*(T-3)) * ((colSums(Xc^4)/T)/(colSums(Xc^2)/T)^2 - 3*(T-1)/(T+1))
+  k <- mean(ki)
+  k_improved <- (T-1)/((T-2)*(T-3)) * ((T+1)*k + 6)
+  k_improved/3
+}
 
 
 fnu <- function(nu) {nu/(nu-2)}

@@ -8,7 +8,9 @@ fit_mvt(
   X,
   na_rm = TRUE,
   nu = c("kurtosis", "MLE-diag", "MLE-diag-resampled", "iterative"),
-  nu_iterative_method = c("ECME-diag", "ECME", "ECM", "ECME-cov", "trace-fitting"),
+  nu_iterative_method = c("ECME-diag", "ECME", "ECM", "ECME-cov", "theta-0", "theta-1a",
+    "theta-1b", "theta-2a", "theta-2b"),
+  scale_minMSE = TRUE,
   initial = NULL,
   factors = ncol(X),
   max_iter = 100,
@@ -35,8 +37,10 @@ method to compute it:
 \itemize{\item{\code{"ECM"}: maximization of the Q function;}
          \item{\code{"ECME"}: maximization of the log-likelihood function;}
          \item{\code{"ECME-diag"}: maximization of the log-likelihood function assuming
-                                   a digonal scatter matrix (default method).}}
-This argument is used only when there are no NAs in the data and no factor model is chosen.}
+                                   a digonal scatter matrix (default method).}}}
+
+\item{scale_minMSE}{Logical value indicating whether to scale the scatter and covariance matrices to minimize the MSE
+estimation error by introducing bias (default is \code{TRUE}).}
 
 \item{initial}{List of initial values of the parameters for the iterative EM estimation method (in case \code{nu = "iterative"}).
 Possible elements include:

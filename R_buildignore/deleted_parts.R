@@ -1,6 +1,25 @@
+# obtain the covmat from the scatter matrix
+Sigma_cov <- if (nu > 2) nu/(nu-2) * Sigma else NA
+r2 <- rowSums(Xc * (Xc %*% solve(Sigma_cov)))
+u <- (N + nu) / (nu - 2 + r2)
+Sigma_cov <- (1/T) * crossprod(sqrt(u) * Xc)  # (1/T) * t(Xc) %*% diag(u) %*% Xc
+
+
+
+
+# # compute sigma to fix the estimation: scatter = M-estimator / sigma
+# r2 <- rowSums(Xc * (Xc %*% solve(Sigma)))
+# u <- (N + nu)/(nu + r2)
+# r2i <- (1 - N/T)*r2/(1 - r2*u/T)
+# psi <- function(t) (N + nu)/(nu + t) * t
+# F <- function(sigma) mean(psi(r2i/sigma)) - N
+# sigma <- uniroot(F, lower = 0.5, upper = 1.5)$root
+# Sigma <- Sigma / sigma
+# print(sigma)
+
 # compute sigma to fix the estimation: scatter = M-estimator / sigma
 r2 <- rowSums(Xc * (Xc %*% solve(Sigma)))
-psi <- function (t) (N + nu)/(nu + t) * t
+psi <- function(t) (N + nu)/(nu + t) * t
 F <- function(sigma) mean(psi(r2/sigma)) - N
 sigma <- uniroot(F, lower = 0.5, upper = 1.5)$root
 Sigma <- Sigma / sigma
