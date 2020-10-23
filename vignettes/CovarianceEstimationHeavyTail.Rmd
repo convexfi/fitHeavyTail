@@ -21,7 +21,12 @@ csl: ieee.csl
 bibliography: refs.bib
 vignette: >
   %\VignetteIndexEntry{Mean Vector and Covariance Matrix Estimation under Heavy Tails}
-  %\VignetteKeyword{covariance matrix, heavy tail, non Gaussian, Student t, Cauchy, Tyler}
+  %\VignetteKeyword{covariance matrix}
+  %\VignetteKeyword{heavy tail}
+  %\VignetteKeyword{non-Gaussian}
+  %\VignetteKeyword{Student t}
+  %\VignetteKeyword{Cauchy}
+  %\VignetteKeyword{Tyler}
   %\VignetteEncoding{UTF-8}
   %\VignetteEngine{knitr::rmarkdown}
 ---
@@ -190,7 +195,7 @@ library(fitHeavyTail)
 library(tictoc)
 library(parallel)  # detectCores(logical = FALSE)
 
-MSE <- function(Sigma_hat) norm(Sigma_hat - Sigma_cov, "F")^2
+MSE <- function(Sigma_hat) sum((Sigma_hat - Sigma_cov)^2)
 
 eval_single <- function(X) {
   MSE <- time <- list()
@@ -250,12 +255,9 @@ eval_single <- function(X) {
   MSE[name]   <- MSE(Sigma_hat)
   
   name        <- "fitHeavyTail::fit_mvt"
-  time[name]  <- system.time({Sigma_hat <- fitHeavyTail::fit_mvt(X)$cov})["elapsed"]
+  time[name]  <- system.time({Sigma_hat <- fitHeavyTail::fit_mvt(X, nu = "kurtosis")$cov})["elapsed"]
   MSE[name]   <- MSE(Sigma_hat)
   
-  # name        <- "fitHeavyTail::fit_mvt (factors = 6, nu=6)"
-  # time[name]  <- system.time({Sigma_hat <- fit_mvt(X, factors = 6, nu = 6)$cov})["elapsed"]
-  # MSE[name]   <- MSE(Sigma_hat)  
   
   return(list("MSE" = MSE, "time" = time))
 }
