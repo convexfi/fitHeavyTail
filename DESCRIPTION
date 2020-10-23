@@ -15,12 +15,16 @@ Authors@R: c(
   person("Rui", "Zhou", role =  "aut", email = "rzhouae@connect.ust.hk")
   )
 Maintainer: Daniel P. Palomar <daniel.p.palomar@gmail.com>
-URL: https://github.com/dppalomar/fitHeavyTail
+URL: https://CRAN.R-project.org/package=fitHeavyTail,
+     https://github.com/dppalomar/fitHeavyTail,
+     https://www.danielppalomar.com,
+     https://doi.org/10.1109/TSP.2014.2348944,
+     https://doi.org/10.1109/TSP.2015.2417513
 BugReports: https://github.com/dppalomar/fitHeavyTail/issues
 License: GPL-3
 Encoding: UTF-8
 LazyData: true
-RoxygenNote: 7.0.2
+RoxygenNote: 7.1.1
 Depends:
 Imports:
     ICSNP,
