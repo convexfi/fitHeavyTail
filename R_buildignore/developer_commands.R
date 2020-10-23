@@ -21,8 +21,9 @@ vignette(package = "fitHeavyTail")
 ##
 devtools::load_all()  #or Ctrl-Shift-L
 devtools::document()  #to generate all documentation via roxygen
-devtools::install()
+devtools::install(build_vignettes = TRUE)
 library(fitHeavyTail)
+#tools::showNonASCIIfile("fit_mvt.R")
 
 
 # Code tests
@@ -38,6 +39,6 @@ devtools::build()
 #devtools::revdep(pkg = "fitHeavyTail")  # to check reverse dependencies
 #devtools::check_win_release()  #to check under windows
 #R CMD build .  # this is to generate tarball
-#R CMD check fitHeavyTail_0.1.2.tar.gz --as-cran --run-donttest  # this is before submission to CRAN
-#R CMD install fitHeavyTail_0.1.2.tar.gz
+#R CMD check fitHeavyTail_0.1.2.9000.tar.gz --as-cran --run-donttest  # this is before submission to CRAN
+#R CMD install fitHeavyTail_0.1.2.9000.tar.gz
 #submit the tarball directly via the webform: https://cran.r-project.org/submit.html

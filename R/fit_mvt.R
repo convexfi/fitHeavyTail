@@ -22,7 +22,7 @@
 #' obtained from the expectation-maximization (EM) method.
 #'
 #' @details This function estimates the parameters of a multivariate Student's t distribution (\code{mu},
-#'          \code{cov}, \code{scatter}, and \code{nu}) to fit the data via the expectation–maximization (EM) algorithm.
+#'          \code{cov}, \code{scatter}, and \code{nu}) to fit the data via the expectation-maximization (EM) algorithm.
 #'          The data matrix \code{X} can contain missing values denoted by NAs.
 #'          The estimation of \code{nu} if very flexible: it can be directly passed as an argument (without being estimated),
 #'          it can be estimated with several one-shot methods (namely, \code{"kurtosis"}, \code{"MLE-diag"},
@@ -91,7 +91,7 @@
 #' @seealso \code{\link{fit_Tyler}} and \code{\link{fit_Cauchy}}
 #'
 #' @references
-#' Chuanhai Liu and Donald B. Rubin, “ML estimation of the t-distribution using EM and its extensions, ECM and ECME,”
+#' Chuanhai Liu and Donald B. Rubin, "ML estimation of the t-distribution using EM and its extensions, ECM and ECME,"
 #' Statistica Sinica (5), pp. 19-39, 1995.
 #'
 #' Rui Zhou, Junyan Liu, Sandeep Kumar, and Daniel P. Palomar, "Robust factor analysis parameter estimation,"
@@ -329,8 +329,10 @@ fit_mvt <- function(X, na_rm = TRUE,
     names(iterates_record) <- paste("iter", 0:(length(iterates_record)-1))
     vars_to_be_returned$iterates_record <- iterates_record
   }
-  if (exists("E_tau"))
-    vars_to_be_returned$Xcg <- sqrt(nu/(nu-2)) * sqrt(E_tau) * Xc
+  if (exists("E_tau")) {
+    vars_to_be_returned$E_tau <- E_tau
+    vars_to_be_returned$Xcg   <- sqrt(nu/(nu-2)) * sqrt(E_tau) * Xc
+  }
   return(vars_to_be_returned)
 }
 

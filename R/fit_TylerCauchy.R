@@ -32,7 +32,7 @@
 #' @seealso \code{\link{fit_Cauchy}} and \code{\link{fit_mvt}}
 #'
 #' @references
-#' Ying Sun, Prabhu Babu, and Daniel P. Palomar, “Regularized Tyler’s Scatter Estimator: Existence, Uniqueness, and Algorithms,”
+#' Ying Sun, Prabhu Babu, and Daniel P. Palomar, "Regularized Tyler's Scatter Estimator: Existence, Uniqueness, and Algorithms,"
 #' IEEE Trans. on Signal Processing, vol. 62, no. 19, pp. 5143-5156, Oct. 2014.
 #'
 #' @examples
@@ -165,7 +165,7 @@ fit_Tyler <- function(X, initial = NULL, max_iter = 100, ptol = 1e-3, ftol = Inf
 #' @seealso \code{\link{fit_Tyler}} and \code{\link{fit_mvt}}
 #'
 #' @references
-#' Ying Sun, Prabhu Babu, and Daniel P. Palomar, “Regularized Robust Estimation of Mean and Covariance Matrix Under Heavy-Tailed Distributions,”
+#' Ying Sun, Prabhu Babu, and Daniel P. Palomar, "Regularized Robust Estimation of Mean and Covariance Matrix Under Heavy-Tailed Distributions,"
 #' IEEE Trans. on Signal Processing, vol. 63, no. 12, pp. 3096-3109, June 2015.
 #'
 #' @examples

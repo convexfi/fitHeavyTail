@@ -71,7 +71,7 @@ fit_Cauchy(X)
 
 }
 \references{
-Ying Sun, Prabhu Babu, and Daniel P. Palomar, “Regularized Robust Estimation of Mean and Covariance Matrix Under Heavy-Tailed Distributions,”
+Ying Sun, Prabhu Babu, and Daniel P. Palomar, "Regularized Robust Estimation of Mean and Covariance Matrix Under Heavy-Tailed Distributions,"
 IEEE Trans. on Signal Processing, vol. 63, no. 12, pp. 3096-3109, June 2015.
 }
 \seealso{

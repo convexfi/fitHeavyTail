@@ -8,9 +8,9 @@ fit_mvt(
   X,
   na_rm = TRUE,
   nu = c("kurtosis", "MLE-diag", "MLE-diag-resampled", "iterative"),
-  nu_iterative_method = c("ECME-diag", "ECME", "ECM", "ECME-cov", "theta-0", "theta-1a",
-    "theta-1b", "theta-2a", "theta-2b"),
-  scale_minMSE = TRUE,
+  nu_iterative_method = c("ECME-diag", "ECME", "ECM", "ECME-cov", "theta-0",
+    "theta-1a", "theta-1b", "theta-2a", "theta-2b"),
+  scale_minMSE = FALSE,
   initial = NULL,
   factors = ncol(X),
   max_iter = 100,
@@ -40,7 +40,7 @@ method to compute it:
                                    a digonal scatter matrix (default method).}}}
 
 \item{scale_minMSE}{Logical value indicating whether to scale the scatter and covariance matrices to minimize the MSE
-estimation error by introducing bias (default is \code{TRUE}).}
+estimation error by introducing bias (default is \code{FALSE}).}
 
 \item{initial}{List of initial values of the parameters for the iterative EM estimation method (in case \code{nu = "iterative"}).
 Possible elements include:
@@ -100,7 +100,7 @@ obtained from the expectation-maximization (EM) method.
 }
 \details{
 This function estimates the parameters of a multivariate Student's t distribution (\code{mu},
-         \code{cov}, \code{scatter}, and \code{nu}) to fit the data via the expectation–maximization (EM) algorithm.
+         \code{cov}, \code{scatter}, and \code{nu}) to fit the data via the expectation-maximization (EM) algorithm.
          The data matrix \code{X} can contain missing values denoted by NAs.
          The estimation of \code{nu} if very flexible: it can be directly passed as an argument (without being estimated),
          it can be estimated with several one-shot methods (namely, \code{"kurtosis"}, \code{"MLE-diag"},
@@ -116,7 +116,7 @@ fit_mvt(X)
 
 }
 \references{
-Chuanhai Liu and Donald B. Rubin, “ML estimation of the t-distribution using EM and its extensions, ECM and ECME,”
+Chuanhai Liu and Donald B. Rubin, "ML estimation of the t-distribution using EM and its extensions, ECM and ECME,"
 Statistica Sinica (5), pp. 19-39, 1995.
 
 Rui Zhou, Junyan Liu, Sandeep Kumar, and Daniel P. Palomar, "Robust factor analysis parameter estimation,"
