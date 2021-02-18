@@ -10,8 +10,8 @@ fit_mvt(
   nu = c("kurtosis", "MLE-diag", "MLE-diag-resampled", "iterative"),
   nu_iterative_method = c("ECME-diag", "ECME", "ECM", "ECME-cov", "theta-0",
     "theta-1a", "theta-1b", "theta-2a", "theta-2b"),
-  scale_minMSE = FALSE,
   initial = NULL,
+  scale_minMSE = FALSE,
   factors = ncol(X),
   max_iter = 100,
   ptol = 0.001,
@@ -23,8 +23,8 @@ fit_mvt(
 \arguments{
 \item{X}{Data matrix containing the multivariate time series (each column is one time series).}
 
-\item{na_rm}{Logical value indicating whether to remove observations with some NAs (default) or not, in which
-case they will be imputed at a higher computational cost.}
+\item{na_rm}{Logical value indicating whether to remove observations with some NAs (default).
+Otherwise, the NAs will be imputed at a higher computational cost.}
 
 \item{nu}{Degrees of freedom of the \eqn{t} distribution. Either a number (\code{>2}) or a string indicating the
 method to compute it:
@@ -39,10 +39,7 @@ method to compute it:
          \item{\code{"ECME-diag"}: maximization of the log-likelihood function assuming
                                    a digonal scatter matrix (default method).}}}
 
-\item{scale_minMSE}{Logical value indicating whether to scale the scatter and covariance matrices to minimize the MSE
-estimation error by introducing bias (default is \code{FALSE}).}
-
-\item{initial}{List of initial values of the parameters for the iterative EM estimation method (in case \code{nu = "iterative"}).
+\item{initial}{List of initial values of the parameters for the iterative estimation method (in case \code{nu = "iterative"}).
 Possible elements include:
 \itemize{\item{\code{mu}: default is the data sample mean,}
          \item{\code{cov}: default is the data sample covariance matrix,}
@@ -52,6 +49,9 @@ Possible elements include:
                                    multiplied by the sqrt of the eigenvalues,}
          \item{\code{psi}: default is
                           \code{diag(initial$cov - initial$B \%*\% t(initial$B)).}}}}
+
+\item{scale_minMSE}{Logical value indicating whether to scale the scatter and covariance matrices to minimize the MSE
+estimation error by introducing bias (default is \code{FALSE}).}
 
 \item{factors}{Integer indicating number of factors (default is \code{ncol(X)}, so no factor model assumption).}
 

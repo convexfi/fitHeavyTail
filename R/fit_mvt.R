@@ -1,5 +1,6 @@
 #
 # lower and upper bounds for the optimization of nu
+#  (to change use: options(nu_min = 4.2))
 #
 .onLoad <- function(libname, pkgname) {
   op <- options()
@@ -30,8 +31,8 @@
 #'          algorithm.
 #'
 #' @param X Data matrix containing the multivariate time series (each column is one time series).
-#' @param na_rm Logical value indicating whether to remove observations with some NAs (default) or not, in which
-#'              case they will be imputed at a higher computational cost.
+#' @param na_rm Logical value indicating whether to remove observations with some NAs (default).
+#'              Otherwise, the NAs will be imputed at a higher computational cost.
 #' @param nu Degrees of freedom of the \eqn{t} distribution. Either a number (\code{>2}) or a string indicating the
 #'           method to compute it:
 #'           \itemize{\item{\code{"kurtosis"}: based on the kurtosis obtained from the sampled moments (default method);}
@@ -45,7 +46,7 @@
 #'                                                     a digonal scatter matrix (default method).}}
 #' @param scale_minMSE Logical value indicating whether to scale the scatter and covariance matrices to minimize the MSE
 #'                     estimation error by introducing bias (default is \code{FALSE}).
-#' @param initial List of initial values of the parameters for the iterative EM estimation method (in case \code{nu = "iterative"}).
+#' @param initial List of initial values of the parameters for the iterative estimation method (in case \code{nu = "iterative"}).
 #'                Possible elements include:
 #'                \itemize{\item{\code{mu}: default is the data sample mean,}
 #'                         \item{\code{cov}: default is the data sample covariance matrix,}
@@ -110,8 +111,8 @@ fit_mvt <- function(X, na_rm = TRUE,
                     nu = c("kurtosis", "MLE-diag", "MLE-diag-resampled", "iterative"),
                     nu_iterative_method = c("ECME-diag", "ECME", "ECM", "ECME-cov",
                                             "theta-0", "theta-1a", "theta-1b", "theta-2a", "theta-2b"),
-                    scale_minMSE = FALSE,
                     initial = NULL,
+                    scale_minMSE = FALSE,
                     factors = ncol(X),
                     max_iter = 100, ptol = 1e-3, ftol = Inf,
                     return_iterates = FALSE, verbose = FALSE) {
@@ -127,7 +128,7 @@ fit_mvt <- function(X, na_rm = TRUE,
       X <- X[!mask_NA, , drop = FALSE]
     }
   if (nrow(X) <= ncol(X)) stop("Cannot deal with T <= N (after removing NAs), too few samples.")
-  if (is.numeric(nu) && nu <= 2) stop("Non-valid value for nu.")
+  if (is.numeric(nu) && nu <= 2) stop("Non-valid value for nu (should be >2).")
   factors <- round(factors)
   if (factors < 1 || factors > ncol(X)) stop("\"factors\" must be no less than 1 and no more than column number of \"X\".")
   max_iter <- round(max_iter)
@@ -156,10 +157,12 @@ fit_mvt <- function(X, na_rm = TRUE,
                  stop("Method to estimate nu unknown."))
     if (verbose) message(sprintf("Automatically setting nu = %.2f", nu))
   } else if (nu == Inf) nu <- 1e15  # for numerical stability (for the Gaussian case)
-  mu <- if (is.null(initial$mu)) colMeans(X, na.rm = TRUE) else initial$mu
-  Sigma <- if (is.null(initial$cov)) (nu-2)/nu * var(X, na.rm = TRUE) else (nu-2)/nu * initial$cov
+  mu <- if (is.null(initial$mu)) colMeans(X, na.rm = TRUE)
+        else initial$mu
+  Sigma <- if (is.null(initial$cov)) (nu-2)/nu * var(X, na.rm = TRUE)
+           else (nu-2)/nu * initial$cov
   if (!is.null(initial$scatter)) Sigma <- initial$scatter
-  if (FA_struct) {  # Sigma is the scatter matrix, not the covariance matrix
+  if (FA_struct) {  # recall that Sigma is the scatter matrix, not the covariance matrix
     Sigma_eigen <- eigen(Sigma, symmetric = TRUE)
     B <- if (is.null(initial$B)) Sigma_eigen$vectors[, 1:factors] %*% diag(sqrt(Sigma_eigen$values[1:factors]), factors)
          else initial$B
@@ -193,7 +196,7 @@ fit_mvt <- function(X, na_rm = TRUE,
     else {
       Xc <- X - matrix(mu, T, N, byrow = TRUE)
       delta2 <- rowSums(Xc * (Xc %*% inv(Sigma)))  # diag( Xc %*% inv(Sigma) %*% t(Xc) )
-      E_tau <- (N + nu) / (nu + delta2)  # u_t(.)
+      E_tau <- (N + nu) / (nu + delta2)  # u_t(delta2)
       ave_E_tau <- mean(E_tau)
       ave_E_tau_X <- (1/T)*as.vector(E_tau %*% X)
     }
@@ -233,40 +236,62 @@ fit_mvt <- function(X, na_rm = TRUE,
                        },
                      "ECME-diag" = {  # using only the diag of Sigma
                        nu_mle(Xc = Xc, method = "MLE-mv-diagscat", Sigma_scatter = Sigma)
-                     },
+                       },
                      "ECME-cov" = {  # this variation is worse than ECME
                        nu_mle(Xc = Xc, method = "MLE-mv-cov", Sigma_cov = nu/(nu-2)*Sigma)
-                     },
+                       },
                      "theta-0" = {
-                       var_X <- T/(T-1)*apply(Xc^2, 2, mean)  # could be computed just once
+                       var_X <- 1/(T-1)*apply(Xc^2, 2, sum)  # could be computed just once
                        eta <- sum(var_X)/sum(diag(Sigma))  # eta <- scaling_fitting_ka_with_b(a = diag(Sigma), b = var_X)
                        min(getOption("nu_max"), max(getOption("nu_min"), 2*eta/(eta - 1)))
-                     },
+                       },
                      "theta-1a" = {
                        r2 <- rowSums(Xc * (Xc %*% solve(Sigma)))  # diag( Xc %*% inv(Sigma) %*% t(Xc) )
-                       theta <- mean(r2)/N
+                       theta <- sum(r2)/T/N
                        min(getOption("nu_max"), max(getOption("nu_min"), 2*theta/(theta - 1)))
-                     },
+                       },
                      "theta-1b" = {
                        r2 <- rowSums(Xc * (Xc %*% solve(Sigma)))  # diag( Xc %*% inv(Sigma) %*% t(Xc) )
-                       theta <- T/(T-1)*mean(r2)/N
+                       theta <- T/(T-1)*sum(r2)/T/N
                        min(getOption("nu_max"), max(getOption("nu_min"), 2*theta/(theta - 1)))
-                     },
+                       },
                      "theta-2a" = {
                        r2 <- rowSums(Xc * (Xc %*% solve(Sigma)))  # diag( Xc %*% inv(Sigma) %*% t(Xc) )
                        u <- (N + nu)/(nu + r2)
                        r2i <- r2/(1 - r2*u/T)
-                       theta <- (1 - N/T) * mean(r2i) / N
+
+                       # r2i <- vector("numeric", length = T)
+                       # u <- E_tau
+                       # for (ii in 1:T) {
+                       #   Sigmai <- Sigma - (1/T/alpha) * u[ii] * Xc[ii, ] %*% t(Xc[ii, ])
+                       #   delta2i <- rowSums(Xc * (Xc %*% inv(Sigmai)))  # diag( Xc %*% inv(Sigmai) %*% t(Xc) )
+                       #   u <- (N + nu) / (nu + delta2i)
+                       #   Sigmai <- 1/T/alpha * crossprod(sqrt(u[-ii]) * Xc[-ii, ])
+                       #   r2i[ii] <- as.numeric(Xc[ii, ] %*% solve(Sigmai, Xc[ii, ]))
+                       # }
+
+                       theta <- (1 - N/T) * sum(r2i)/T/N
                        min(getOption("nu_max"), max(getOption("nu_min"), 2*theta/(theta - 1)))
-                     },
+                       },
                      "theta-2b" = {
                        r2 <- rowSums(Xc * (Xc %*% solve(Sigma)))  # diag( Xc %*% inv(Sigma) %*% t(Xc) )
                        u <- (N + nu)/(nu + r2)
                        r2i <- r2/(1 - r2*u/T)
-                       theta <- (T - N + 2)*T/(T - 1)/(T + 1) * mean(r2i) / N
+
+                       # r2i <- vector("numeric", length = T)
+                       # u <- E_tau
+                       # for (ii in 1:T) {
+                       #   Sigmai <- Sigma - (1/T/alpha) * u[ii] * Xc[ii, ] %*% t(Xc[ii, ])
+                       #   delta2i <- rowSums(Xc * (Xc %*% inv(Sigmai)))  # diag( Xc %*% inv(Sigmai) %*% t(Xc) )
+                       #   u <- (N + nu) / (nu + delta2i)
+                       #   Sigmai <- 1/T/alpha * crossprod(sqrt(u[-ii]) * Xc[-ii, ])
+                       #   r2i[ii] <- as.numeric(Xc[ii, ] %*% solve(Sigmai, Xc[ii, ]))
+                       # }
+
+                       theta <- (T - N + 2)*T/(T - 1)/(T + 1) * sum(r2i)/T/N
                        #theta <- (T - N - 2)/T * mean(r2i) / N
                        min(getOption("nu_max"), max(getOption("nu_min"), 2*theta/(theta - 1)))
-                     },
+                       },
                      stop("Method to estimate nu unknown."))
     }
 
