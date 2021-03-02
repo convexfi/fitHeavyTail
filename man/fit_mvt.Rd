@@ -11,6 +11,7 @@ fit_mvt(
   nu_iterative_method = c("ECME-diag", "ECME", "ECM", "ECME-cov", "theta-0",
     "theta-1a", "theta-1b", "theta-2a", "theta-2b"),
   initial = NULL,
+  optimize_mu = TRUE,
   scale_minMSE = FALSE,
   factors = ncol(X),
   max_iter = 100,
@@ -49,6 +50,8 @@ Possible elements include:
                                    multiplied by the sqrt of the eigenvalues,}
          \item{\code{psi}: default is
                           \code{diag(initial$cov - initial$B \%*\% t(initial$B)).}}}}
+
+\item{optimize_mu}{Boolean indicating whether to optimize \code{mu} (default is \code{TRUE}).}
 
 \item{scale_minMSE}{Logical value indicating whether to scale the scatter and covariance matrices to minimize the MSE
 estimation error by introducing bias (default is \code{FALSE}).}

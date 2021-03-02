@@ -56,6 +56,7 @@
 #'                                                   multiplied by the sqrt of the eigenvalues,}
 #'                         \item{\code{psi}: default is
 #'                                          \code{diag(initial$cov - initial$B \%*\% t(initial$B)).}}}
+#' @param optimize_mu Boolean indicating whether to optimize \code{mu} (default is \code{TRUE}).
 #' @param factors Integer indicating number of factors (default is \code{ncol(X)}, so no factor model assumption).
 #' @param max_iter Integer indicating the maximum number of iterations for the iterative estimation
 #'                 method (default is \code{100}).
@@ -112,6 +113,7 @@ fit_mvt <- function(X, na_rm = TRUE,
                     nu_iterative_method = c("ECME-diag", "ECME", "ECM", "ECME-cov",
                                             "theta-0", "theta-1a", "theta-1b", "theta-2a", "theta-2b"),
                     initial = NULL,
+                    optimize_mu = TRUE,
                     scale_minMSE = FALSE,
                     factors = ncol(X),
                     max_iter = 100, ptol = 1e-3, ftol = Inf,
@@ -157,8 +159,10 @@ fit_mvt <- function(X, na_rm = TRUE,
                  stop("Method to estimate nu unknown."))
     if (verbose) message(sprintf("Automatically setting nu = %.2f", nu))
   } else if (nu == Inf) nu <- 1e15  # for numerical stability (for the Gaussian case)
-  mu <- if (is.null(initial$mu)) colMeans(X, na.rm = TRUE)
-        else initial$mu
+  if (optimize_mu) {
+    mu <- if (is.null(initial$mu)) colMeans(X, na.rm = TRUE)
+          else initial$mu
+  } else mu <- rep(0, N)
   Sigma <- if (is.null(initial$cov)) (nu-2)/nu * var(X, na.rm = TRUE)
            else (nu-2)/nu * initial$cov
   if (!is.null(initial$scatter)) Sigma <- initial$scatter
@@ -195,7 +199,7 @@ fit_mvt <- function(X, na_rm = TRUE,
       Q <- Estep(mu, Sigma, psi, nu, X)
     else {
       Xc <- X - matrix(mu, T, N, byrow = TRUE)
-      delta2 <- rowSums(Xc * (Xc %*% inv(Sigma)))  # diag( Xc %*% inv(Sigma) %*% t(Xc) )
+      delta2 <- rowSums(Xc * (Xc %*% solve(Sigma)))  # diag( Xc %*% inv(Sigma) %*% t(Xc) )
       E_tau <- (N + nu) / (nu + delta2)  # u_t(delta2)
       ave_E_tau <- mean(E_tau)
       ave_E_tau_X <- (1/T)*as.vector(E_tau %*% X)
@@ -204,7 +208,8 @@ fit_mvt <- function(X, na_rm = TRUE,
     ## -------------- M-step --------------
     # update mu, alpha, nu
     if (X_has_NA || FA_struct) {
-      mu <- Q$ave_E_tau_X / Q$ave_E_tau
+      if (optimize_mu)
+        mu <- Q$ave_E_tau_X / Q$ave_E_tau
       alpha <- Q$ave_E_tau
       S <- Q$ave_E_tau_XX - cbind(mu) %*% rbind(Q$ave_E_tau_X) - cbind(Q$ave_E_tau_X) %*% rbind(mu) + Q$ave_E_tau * cbind(mu) %*% rbind(mu)
       S <- S / alpha
@@ -219,7 +224,8 @@ fit_mvt <- function(X, na_rm = TRUE,
         nu <- optimize(Q_nu, interval = c(getOption("nu_min"), getOption("nu_max")))$minimum
       }
     } else {
-      mu <- ave_E_tau_X / ave_E_tau
+      if (optimize_mu)
+        mu <- ave_E_tau_X / ave_E_tau
       alpha <- ave_E_tau  # acceleration
       Xc <- X - matrix(mu, T, N, byrow = TRUE)  # this is slower: sweep(X, 2, FUN = "-", STATS = mu)  #Xc <- X - rep(mu, each = TRUE)  # this is wrong?
       ave_E_tau_XX <- (1/T) * crossprod(sqrt(E_tau) * Xc)  # (1/T) * t(Xc) %*% diag(E_tau) %*% Xc
@@ -270,7 +276,8 @@ fit_mvt <- function(X, na_rm = TRUE,
                        #   r2i[ii] <- as.numeric(Xc[ii, ] %*% solve(Sigmai, Xc[ii, ]))
                        # }
 
-                       theta <- (1 - N/T) * sum(r2i)/T/N
+                       #theta <- (1 - N/T) * sum(r2i)/T/N
+                       theta <- (1 - (N + 2)/T) * sum(r2i)/T/N
                        min(getOption("nu_max"), max(getOption("nu_min"), 2*theta/(theta - 1)))
                        },
                      "theta-2b" = {
@@ -289,7 +296,7 @@ fit_mvt <- function(X, na_rm = TRUE,
                        # }
 
                        theta <- (T - N + 2)*T/(T - 1)/(T + 1) * sum(r2i)/T/N
-                       #theta <- (T - N - 2)/T * mean(r2i) / N
+                       #theta <- (1 - (N + 2)/T) * sum(r2i)/T/N
                        min(getOption("nu_max"), max(getOption("nu_min"), 2*theta/(theta - 1)))
                        },
                      stop("Method to estimate nu unknown."))
