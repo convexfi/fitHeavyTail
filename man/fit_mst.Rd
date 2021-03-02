@@ -12,7 +12,7 @@ fit_mst(
   ftol = Inf,
   PXEM = TRUE,
   return_iterates = FALSE,
-  verbose = TRUE
+  verbose = FALSE
 )
 }
 \arguments{
@@ -67,6 +67,8 @@ This function estimates the parameters of a (generalized hyperbolic) multivariat
          \code{scatter}, \code{gamme} and \code{nu}) to fit the data via the expectation-maximization (EM) algorithm.
 }
 \examples{
+set.seed(2)
+
 # parameter setting
 N <- 5
 T <- 200
@@ -74,12 +76,14 @@ nu <- 6
 mu <- rnorm(N)
 scatter <- diag(N)
 gamma <- rnorm(N)
+
 # generate GH Skew t data
-set.seed(2)
 taus <- rgamma(n = T, shape = nu/2, rate = nu/2)
 X <- matrix(data = mu, nrow = T, ncol = N, byrow = TRUE) +
   matrix(data = gamma, nrow = T, ncol = N, byrow = TRUE) / taus +
   mvtnorm::rmvnorm(n = T, mean = rep(0, N), sigma = scatter) / sqrt(taus)
+
+# fit GH Skew t model
 fit_mst(X)
 
 }

@@ -44,6 +44,8 @@
 #' @author Daniel P. Palomar and Rui Zhou
 #'
 #' @examples
+#' set.seed(2)
+#'
 #' # parameter setting
 #' N <- 5
 #' T <- 200
@@ -51,12 +53,14 @@
 #' mu <- rnorm(N)
 #' scatter <- diag(N)
 #' gamma <- rnorm(N)
+#'
 #' # generate GH Skew t data
-#' set.seed(2)
 #' taus <- rgamma(n = T, shape = nu/2, rate = nu/2)
 #' X <- matrix(data = mu, nrow = T, ncol = N, byrow = TRUE) +
 #'   matrix(data = gamma, nrow = T, ncol = N, byrow = TRUE) / taus +
 #'   mvtnorm::rmvnorm(n = T, mean = rep(0, N), sigma = scatter) / sqrt(taus)
+#'
+#' # fit GH Skew t model
 #' fit_mst(X)
 #'
 #' @importFrom stats optimize
@@ -65,7 +69,7 @@
 
 
 fit_mst <- function(X, initial = NULL, max_iter = 100, ptol = 1e-3, ftol = Inf,
-                    PXEM = TRUE, return_iterates = FALSE, verbose = TRUE) {
+                    PXEM = TRUE, return_iterates = FALSE, verbose = FALSE) {
 
   T <- nrow(X)
   N <- ncol(X)
@@ -106,11 +110,11 @@ fit_mst <- function(X, initial = NULL, max_iter = 100, ptol = 1e-3, ftol = Inf,
     Q_nu <- function(nu) (nu/2)*sum(expect$E_logtau - log(alpha) - expect$E_tau/alpha) + T*((nu/2)*log(nu/2) - log(base::gamma(nu/2)))
     nu <- optimize(Q_nu, interval = c(2 + 1e-12, 50), maximum = TRUE)$maximum
 
-    # gamma
-    gamma <- (colSums(X) - T*mu) / sum(expect$E_invtau)
-
     # mu
     mu <- (colSums(X * expect$E_tau) - T*gamma) / sum(expect$E_tau)
+
+    # gamma
+    gamma <- (colSums(X) - T*mu) / sum(expect$E_invtau)
 
     # scatter
     X_ <- X - matrix(data = mu, nrow = T, ncol = N, byrow = TRUE)
@@ -130,9 +134,15 @@ fit_mst <- function(X, initial = NULL, max_iter = 100, ptol = 1e-3, ftol = Inf,
       all(abs(gamma - last_status$gamma)     <= .5 * ptol * (abs(gamma) + abs(last_status$gamma))) &&
       all(abs(scatter - last_status$scatter) <= .5 * ptol * (abs(scatter) + abs(last_status$scatter)))
 
+    if (ftol < Inf) {
+      log_likelihood_current <- snapshot()$obj
+      log_likelihood_old     <- last_status$obj
+      has_fun_converged <- abs(log_likelihood_current - log_likelihood_old) <= .5 * ftol * (abs(log_likelihood_current) + abs(log_likelihood_old))
+    } else has_fun_converged <- TRUE
+
     elapsed_times <- c(elapsed_times, proc.time()[3] - start_time)
 
-    if (have_params_converged) break
+    if (have_params_converged && has_fun_converged) break
   }
 
 
@@ -172,6 +182,7 @@ dST <- function(X, nu = 3, gamma = 1, mu = 0, scatter = 1) {
 
 # expectation step of the EM algorithm for fitting a GH MST distribution
 #' @importFrom numDeriv grad
+#' @importFrom stats mahalanobis
 Estep_mst <- function(X, nu, gamma, mu, scatter, alpha) {
   N <- ncol(X)
   T <- nrow(X)
