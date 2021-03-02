@@ -315,7 +315,7 @@ for(T in T_sweep) {
 }
 ```
 
-```{r, warning=FALSE, echo=FALSE}
+```{r, warning=FALSE, message=FALSE, echo=FALSE}
 library(reshape2)
 library(dplyr)
 
