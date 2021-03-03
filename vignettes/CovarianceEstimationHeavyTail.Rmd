@@ -416,6 +416,13 @@ The overall winner is `fitHeavyTail::fit_mvt()` by a big margin.
 
 
 
+
+# Extension to skewed distributions
+TBD: Rui
+
+
+
+
 # Algorithms
 In essence, all the algorithms are based on the maximum likelihood estimation (MLE) of some assumed distribution given the observed data. The difficulty comes from the fact that the optimal solution to such MLE formulations becomes too involved in the form of a fixed-point equation and the framework of Majorization-Minimization (MM) algorithms [@SunBabPal2017] becomes key to derive efficient algorithms. 
 
