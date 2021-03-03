@@ -24,21 +24,25 @@
 #'             value to determine convergence of the iterative method (default is \code{Inf}, so it is
 #'             not active). Note that using this argument might have a computational cost as a convergence
 #'             criterion due to the computation of the log-likelihood (especially when \code{X} is high-dimensional).
-#' @param PXEM Logical value indicating whether to use the parameter expansion (PX) EM method for accelerating.
+#' @param PXEM Logical value indicating whether to use the parameter expansion (PX) EM method to accelerating the convergence.
 #' @param return_iterates Logical value indicating whether to record the values of the parameters (and possibly the
 #'                        log-likelihood if \code{ftol < Inf}) at each iteration (default is \code{FALSE}).
 #' @param verbose Logical value indicating whether to allow the function to print messages (default is \code{FALSE}).
 #'
 #' @return A list containing possibly the following elements:
-#'         \item{\code{nu}}{Degrees of freedom estimate.}
 #'         \item{\code{mu}}{Location vector estimate.}
-#'         \item{\code{gamme}}{Skewness vector estimate.}
+#'         \item{\code{gamma}}{Skewness vector estimate.}
 #'         \item{\code{scatter}}{Scatter matrix estimate.}
+#'         \item{\code{cov}}{Covarance matrix estimate.}
+#'         \item{\code{nu}}{Degrees of freedom estimate.}
 #'         \item{\code{converged}}{Boolean denoting whether the algorithm has converged (\code{TRUE}) or the maximum number
 #'                                 of iterations \code{max_iter} has been reached (\code{FALSE}).}
 #'         \item{\code{num_iterations}}{Number of iterations executed.}
 #'         \item{\code{cpu_time}}{Elapsed overall CPU time.}
-#'         \item{\code{cpu_time_at_iter}}{Elapsed CPU time at each iteration.}
+#'         \item{\code{iterates_record}}{Iterates of the parameters (\code{mu}, \code{scatter}, \code{nu},
+#'                                       and possibly \code{log_likelihood} (if \code{ftol < Inf})) along the iterations
+#'                                       (if \code{return_iterates = TRUE}).}
+#'         \item{\code{cpu_time_at_iter}}{Elapsed CPU time at each iteration (if \code{return_iterates = TRUE}).}
 #'
 #'
 #' @author Rui Zhou and Daniel P. Palomar
@@ -63,8 +67,8 @@
 #' # generate GH Skew t data
 #' taus <- rgamma(n = T, shape = nu/2, rate = nu/2)
 #' X <- matrix(data = mu, nrow = T, ncol = N, byrow = TRUE) +
-#'   matrix(data = gamma, nrow = T, ncol = N, byrow = TRUE) / taus +
-#'   rmvnorm(n = T, mean = rep(0, N), sigma = scatter) / sqrt(taus)
+#'      matrix(data = gamma, nrow = T, ncol = N, byrow = TRUE) / taus +
+#'      rmvnorm(n = T, mean = rep(0, N), sigma = scatter) / sqrt(taus)
 #'
 #' # fit GH Skew t model
 #' fit_mst(X)
@@ -150,22 +154,31 @@ fit_mst <- function(X, initial = NULL, max_iter = 100, ptol = 1e-3, ftol = Inf,
 
 
   # return results -------------
-  vars_to_be_returned <- list("nu"               = nu,
-                              "mu"               = mu,
-                              "gamma"            = gamma / alpha,
-                              "scatter"          = scatter / alpha,
+  gamma <- gamma / alpha
+  scatter <- scatter / alpha
+  # cov matrix
+  if (nu > 2)
+    Sigma_cov <- nu/(nu-2) * scatter  #<--- Rui: TBC
+  else
+    Sigma_cov <- NA
+
+  vars_to_be_returned <- list("mu"               = mu,
+                              "gamma"            = gamma,
+                              "scatter"          = scatter,
+                              "cov"              = Sigma_cov,
+                              "nu"               = nu,
                               "converged"        = (iter < max_iter),
                               "num_iterations"   = iter,
-                              "cpu_time"         = sum(elapsed_times),
-                              "cpu_time_at_iter" = elapsed_times)
+                              "cpu_time"         = sum(elapsed_times))
   if (return_iterates) {
     names(iterates_record) <- paste("iter", 0:(length(iterates_record)-1))
     vars_to_be_returned$iterates_record <- iterates_record
+    vars_to_be_returned$cpu_time_at_iterelapsed_times
   }
-
   return(vars_to_be_returned)
-
 }
+
+
 
 # sample estimator for skewness vector
 sampleSkewness <- function(X) {
