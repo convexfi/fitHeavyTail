@@ -266,6 +266,7 @@ fit_mvt <- function(X, na_rm = TRUE,
                        u <- (N + nu)/(nu + r2)
                        r2i <- r2/(1 - r2*u/T)
 
+                       # # more exact computation
                        # r2i <- vector("numeric", length = T)
                        # u <- E_tau
                        # for (ii in 1:T) {
@@ -276,8 +277,8 @@ fit_mvt <- function(X, na_rm = TRUE,
                        #   r2i[ii] <- as.numeric(Xc[ii, ] %*% solve(Sigmai, Xc[ii, ]))
                        # }
 
-                       #theta <- (1 - N/T) * sum(r2i)/T/N
-                       theta <- (1 - (N + 2)/T) * sum(r2i)/T/N
+                       theta <- (1 - N/T) * sum(r2i)/T/N
+                       #theta <- (1 - (N + 2)/T) * sum(r2i)/T/N  #<-- worse
                        min(getOption("nu_max"), max(getOption("nu_min"), 2*theta/(theta - 1)))
                        },
                      "theta-2b" = {
@@ -285,6 +286,7 @@ fit_mvt <- function(X, na_rm = TRUE,
                        u <- (N + nu)/(nu + r2)
                        r2i <- r2/(1 - r2*u/T)
 
+                       # # more exact computation
                        # r2i <- vector("numeric", length = T)
                        # u <- E_tau
                        # for (ii in 1:T) {
@@ -296,7 +298,7 @@ fit_mvt <- function(X, na_rm = TRUE,
                        # }
 
                        theta <- (T - N + 2)*T/(T - 1)/(T + 1) * sum(r2i)/T/N
-                       #theta <- (1 - (N + 2)/T) * sum(r2i)/T/N
+                       #theta <- (1 - (N + 2)/T) * sum(r2i)/T/N  #<-- worse
                        min(getOption("nu_max"), max(getOption("nu_min"), 2*theta/(theta - 1)))
                        },
                      stop("Method to estimate nu unknown."))
