@@ -1,6 +1,6 @@
-#' @title Estimate parameters of a (generalized hyperbolic) multivariate Skew t distribution to fit data
+#' @title Estimate parameters of a multivariate (generalized hyperbolic) skewed t distribution to fit data
 #'
-#' @description Estimate parameters of a (generalized hyperbolic) multivariate Student's t distribution to fit data,
+#' @description Estimate parameters of a multivariate (generalized hyperbolic) skewed Student's t distribution to fit data,
 #' namely, the location vector, the scatter matrix, the skewness vector, and the degrees of freedom.
 #' The estimation is based on the maximum likelihood estimation (MLE) and the algorithm is
 #' obtained from the expectation-maximization (EM) method.
@@ -41,10 +41,16 @@
 #'         \item{\code{cpu_time_at_iter}}{Elapsed CPU time at each iteration.}
 #'
 #'
-#' @author Daniel P. Palomar and Rui Zhou
+#' @author Rui Zhou and Daniel P. Palomar
+#'
+#' @seealso \code{\link{fit_mvt}}
+#'
+#' @references
+#' TBD
 #'
 #' @examples
-#' set.seed(2)
+#' library(mvtnorm)       # to generate heavy-tailed data
+#' library(fitHeavyTail)
 #'
 #' # parameter setting
 #' N <- 5
@@ -52,22 +58,19 @@
 #' nu <- 6
 #' mu <- rnorm(N)
 #' scatter <- diag(N)
-#' gamma <- rnorm(N)
+#' gamma <- rnorm(N)   # skewness vector
 #'
 #' # generate GH Skew t data
 #' taus <- rgamma(n = T, shape = nu/2, rate = nu/2)
 #' X <- matrix(data = mu, nrow = T, ncol = N, byrow = TRUE) +
 #'   matrix(data = gamma, nrow = T, ncol = N, byrow = TRUE) / taus +
-#'   mvtnorm::rmvnorm(n = T, mean = rep(0, N), sigma = scatter) / sqrt(taus)
+#'   rmvnorm(n = T, mean = rep(0, N), sigma = scatter) / sqrt(taus)
 #'
 #' # fit GH Skew t model
 #' fit_mst(X)
 #'
 #' @importFrom stats optimize
 #' @export
-
-
-
 fit_mst <- function(X, initial = NULL, max_iter = 100, ptol = 1e-3, ftol = Inf,
                     PXEM = TRUE, return_iterates = FALSE, verbose = FALSE) {
 
