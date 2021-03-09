@@ -90,7 +90,7 @@
 #'
 #' @author Daniel P. Palomar and Rui Zhou
 #'
-#' @seealso \code{\link{fit_Tyler}}, \code{\link{fit_Cauchy}}, and \code{\link{fit_mst}}
+#' @seealso \code{\link{fit_Tyler}}, \code{\link{fit_Cauchy}}, and \code{\link{fit_mvst}}
 #'
 #' @references
 #' Chuanhai Liu and Donald B. Rubin, "ML estimation of the t-distribution using EM and its extensions, ECM and ECME,"

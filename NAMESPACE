@@ -2,7 +2,7 @@
 
 export(fit_Cauchy)
 export(fit_Tyler)
-export(fit_mst)
+export(fit_mvst)
 export(fit_mvt)
 importFrom(ICSNP,spatial.median)
 importFrom(ghyp,dghyp)

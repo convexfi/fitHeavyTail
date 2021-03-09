@@ -1,6 +1,6 @@
 ## Changes in fitHeavyTail version 0.1.2.9000
 
-* New method for skewed t distributions: fit_mst()
+* New method for skewed t distributions: fit_mvst()
 
 * Fixed description regarding covariance matrix for Cauchy distribution.
 

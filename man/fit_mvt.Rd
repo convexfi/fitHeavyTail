@@ -126,7 +126,7 @@ Rui Zhou, Junyan Liu, Sandeep Kumar, and Daniel P. Palomar, "Robust factor analy
 Lecture Notes in Computer Science (LNCS), 2019. <https://arxiv.org/abs/1909.12530>
 }
 \seealso{
-\code{\link{fit_Tyler}}, \code{\link{fit_Cauchy}}, and \code{\link{fit_mst}}
+\code{\link{fit_Tyler}}, \code{\link{fit_Cauchy}}, and \code{\link{fit_mvst}}
 }
 \author{
 Daniel P. Palomar and Rui Zhou

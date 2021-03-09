@@ -420,7 +420,7 @@ The overall winner is `fitHeavyTail::fit_mvt()` by a big margin.
 
 
 # Extension to Skewed Distributions
-The empirical distribution of daily returns from financial market variables such as exchange rates, equity prices, and interest rates, is often skewed. There are several different formulations of multivariate skewed $t$ distributions appearing in the literature [@lee2014finite] [@aas2006generalized]. The package now supports the multivariate generalized hyperbolic (GH) skewed $t$ distribution and provides a method to estimate the parameters of such distribution. It is implemented in the function `fitHeavyTail::fit_mst()`. Below is a simple example to illustrate its usage:
+The empirical distribution of daily returns from financial market variables such as exchange rates, equity prices, and interest rates, is often skewed. There are several different formulations of multivariate skewed $t$ distributions appearing in the literature [@lee2014finite] [@aas2006generalized]. The package now supports the multivariate generalized hyperbolic (GH) skewed $t$ distribution and provides a method to estimate the parameters of such distribution. It is implemented in the function `fitHeavyTail::fit_mvst()`. Below is a simple example to illustrate its usage:
 
 ```{r, eval=FALSE}
 set.seed(2)
@@ -440,7 +440,7 @@ X <- matrix(data = mu, nrow = T, ncol = N, byrow = TRUE) +
      mvtnorm::rmvnorm(n = T, mean = rep(0, N), sigma = scatter) / sqrt(taus)
 
 # fit GH Skew t model
-fitted <- fit_mst(X)
+fitted <- fit_mvst(X)
 ```
 
 
@@ -570,7 +570,7 @@ The algorithm with missing values in $\mathbf{x}_t$ becomes more cumbersome but 
 This function can also incorporate a factor model structure on the covariance matrix $\boldsymbol{\Sigma} = \mathbf{B}\mathbf{B}^T + {\sf Diag}(\boldsymbol{\psi})$, which requires a more sophisticated algorithm [@ZhouLiuKumarPalomar2019] (available in [arXiv](https://arxiv.org/abs/1909.12530)).
 
 
-- The function `fitHeavyTail::fit_mst()` assumes the data follows a multivariate skew $t$ distribution and performs an MLE based on the EM algorithm [@aas2006generalized]. Suppose $\mathbf{x}_{t}$ is a random vector following the GH Skew t distribution, its probability density function (pdf) is decided by four parameters, namely, location vector $\boldsymbol{\mu}$, scatter matrix $\boldsymbol{\Sigma}$, degrees of freedom $\nu$, and skewness vector $\boldsymbol{\gamma}$. When $\boldsymbol{\gamma} = \boldsymbol{0}$, the GH skew $t$ reduces to the Student's $t$ distribution (considered in `fitHeavyTail::fit_mvt()`). The expression of the GH skew $t$ pdf is rather complicated:
+- The function `fitHeavyTail::fit_mvst()` assumes the data follows a multivariate skew $t$ distribution and performs an MLE based on the EM algorithm [@aas2006generalized]. Suppose $\mathbf{x}_{t}$ is a random vector following the GH Skew t distribution, its probability density function (pdf) is decided by four parameters, namely, location vector $\boldsymbol{\mu}$, scatter matrix $\boldsymbol{\Sigma}$, degrees of freedom $\nu$, and skewness vector $\boldsymbol{\gamma}$. When $\boldsymbol{\gamma} = \boldsymbol{0}$, the GH skew $t$ reduces to the Student's $t$ distribution (considered in `fitHeavyTail::fit_mvt()`). The expression of the GH skew $t$ pdf is rather complicated:
 $$f\left(\mathbf{x}\right)=\frac{2^{1-\frac{\nu+N}{2}}}{\Gamma\left(\frac{\nu}{2}\right)\left(\pi\nu\right)^{\frac{N}{2}}\vert\boldsymbol{\Sigma}\vert^{\frac{1}{2}}}\frac{K_{\frac{\nu+N}{2}}\left(\left[\left(\nu+d\left(\mathbf{x}\right)\right)\boldsymbol{\gamma}^{T}\boldsymbol{\Sigma}^{-1}\boldsymbol{\gamma}\right]^{\frac{1}{2}}\right)\exp\left(\left(\mathbf{x}-\boldsymbol{\mu}\right)^{T}\boldsymbol{\Sigma}^{-1}\boldsymbol{\gamma}\right)}{\left[\left(\nu+d\left(\mathbf{x}\right)\right)\boldsymbol{\gamma}^{T}\boldsymbol{\Sigma}^{-1}\boldsymbol{\gamma}\right]^{-\frac{\nu+N}{4}}\left(1+\frac{d\left(\mathbf{x}\right)}{\nu}\right)^{\frac{\nu+N}{2}}},$$
 where $K_{\alpha}$ is the modified Bessel function and $d\left(\mathbf{x}\right)=\left(\mathbf{x}-\boldsymbol{\mu}\right)^{T}\boldsymbol{\Sigma}^{-1}\left(\mathbf{x}-\boldsymbol{\mu}\right)$. Fortunately, $\mathbf{x}_{t}$ can be represented in a hierarchical structure:
 $$\begin{aligned}

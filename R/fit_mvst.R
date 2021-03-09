@@ -72,12 +72,12 @@
 #'      rmvnorm(n = T, mean = rep(0, N), sigma = scatter) / sqrt(taus)
 #'
 #' # fit GH Skew t model
-#' fit_mst(X)
+#' fit_mvst(X)
 #'
 #' @importFrom stats optimize
 #' @export
-fit_mst <- function(X, initial = NULL, max_iter = 100, ptol = 1e-3, ftol = Inf,
-                    PXEM = TRUE, return_iterates = FALSE, verbose = FALSE) {
+fit_mvst <- function(X, initial = NULL, max_iter = 100, ptol = 1e-3, ftol = Inf,
+                     PXEM = TRUE, return_iterates = FALSE, verbose = FALSE) {
 
   T <- nrow(X)
   N <- ncol(X)
