@@ -93,7 +93,8 @@ fit_mst(X)
 
 }
 \references{
-TBD
+Aas, Kjersti and Ingrid Hobæk Haff. "The generalized hyperbolic skew student’st-distribution,"
+Journal of financial econometrics, pp. 275-309, 2006.
 }
 \seealso{
 \code{\link{fit_mvt}}
