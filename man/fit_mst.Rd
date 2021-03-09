@@ -2,7 +2,7 @@
 % Please edit documentation in R/fit_mst.R
 \name{fit_mst}
 \alias{fit_mst}
-\title{Estimate parameters of a (generalized hyperbolic) multivariate Skew t distribution to fit data}
+\title{Estimate parameters of a multivariate (generalized hyperbolic) skewed t distribution to fit data}
 \usage{
 fit_mst(
   X,
@@ -37,7 +37,7 @@ value to determine convergence of the iterative method (default is \code{Inf}, s
 not active). Note that using this argument might have a computational cost as a convergence
 criterion due to the computation of the log-likelihood (especially when \code{X} is high-dimensional).}
 
-\item{PXEM}{Logical value indicating whether to use the parameter expansion (PX) EM method for accelerating.}
+\item{PXEM}{Logical value indicating whether to use the parameter expansion (PX) EM method to accelerating the convergence.}
 
 \item{return_iterates}{Logical value indicating whether to record the values of the parameters (and possibly the
 log-likelihood if \code{ftol < Inf}) at each iteration (default is \code{FALSE}).}
@@ -46,18 +46,22 @@ log-likelihood if \code{ftol < Inf}) at each iteration (default is \code{FALSE})
 }
 \value{
 A list containing possibly the following elements:
-        \item{\code{nu}}{Degrees of freedom estimate.}
         \item{\code{mu}}{Location vector estimate.}
-        \item{\code{gamme}}{Skewness vector estimate.}
+        \item{\code{gamma}}{Skewness vector estimate.}
         \item{\code{scatter}}{Scatter matrix estimate.}
+        \item{\code{cov}}{Covarance matrix estimate.}
+        \item{\code{nu}}{Degrees of freedom estimate.}
         \item{\code{converged}}{Boolean denoting whether the algorithm has converged (\code{TRUE}) or the maximum number
                                 of iterations \code{max_iter} has been reached (\code{FALSE}).}
         \item{\code{num_iterations}}{Number of iterations executed.}
         \item{\code{cpu_time}}{Elapsed overall CPU time.}
-        \item{\code{cpu_time_at_iter}}{Elapsed CPU time at each iteration.}
+        \item{\code{iterates_record}}{Iterates of the parameters (\code{mu}, \code{scatter}, \code{nu},
+                                      and possibly \code{log_likelihood} (if \code{ftol < Inf})) along the iterations
+                                      (if \code{return_iterates = TRUE}).}
+        \item{\code{cpu_time_at_iter}}{Elapsed CPU time at each iteration (if \code{return_iterates = TRUE}).}
 }
 \description{
-Estimate parameters of a (generalized hyperbolic) multivariate Student's t distribution to fit data,
+Estimate parameters of a multivariate (generalized hyperbolic) skewed Student's t distribution to fit data,
 namely, the location vector, the scatter matrix, the skewness vector, and the degrees of freedom.
 The estimation is based on the maximum likelihood estimation (MLE) and the algorithm is
 obtained from the expectation-maximization (EM) method.
@@ -67,7 +71,8 @@ This function estimates the parameters of a (generalized hyperbolic) multivariat
          \code{scatter}, \code{gamme} and \code{nu}) to fit the data via the expectation-maximization (EM) algorithm.
 }
 \examples{
-set.seed(2)
+library(mvtnorm)       # to generate heavy-tailed data
+library(fitHeavyTail)
 
 # parameter setting
 N <- 5
@@ -75,18 +80,24 @@ T <- 200
 nu <- 6
 mu <- rnorm(N)
 scatter <- diag(N)
-gamma <- rnorm(N)
+gamma <- rnorm(N)   # skewness vector
 
 # generate GH Skew t data
 taus <- rgamma(n = T, shape = nu/2, rate = nu/2)
 X <- matrix(data = mu, nrow = T, ncol = N, byrow = TRUE) +
-  matrix(data = gamma, nrow = T, ncol = N, byrow = TRUE) / taus +
-  mvtnorm::rmvnorm(n = T, mean = rep(0, N), sigma = scatter) / sqrt(taus)
+     matrix(data = gamma, nrow = T, ncol = N, byrow = TRUE) / taus +
+     rmvnorm(n = T, mean = rep(0, N), sigma = scatter) / sqrt(taus)
 
 # fit GH Skew t model
 fit_mst(X)
 
 }
+\references{
+TBD
+}
+\seealso{
+\code{\link{fit_mvt}}
+}
 \author{
-Daniel P. Palomar and Rui Zhou
+Rui Zhou and Daniel P. Palomar
 }
