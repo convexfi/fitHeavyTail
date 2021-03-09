@@ -13,7 +13,8 @@
 ^vignettes/CovarianceEstimationHeavyTail_files$
 ^vignettes/CovarianceEstimationHeavyTail\.Rmd$
 ^vignettes/CovarianceEstimationHeavyTail_v.*\.html$
-^vignettes/ieee\.csl$
+^vignettes/econometrica\.csl$
+^vignettes/journal-of-econometrics\.csl$
 ^vignettes/refs\.bib$
 ^vignettes/nu_estimation.*\.Rmd$
 ^vignettes/nu_estimation.*\.html$
