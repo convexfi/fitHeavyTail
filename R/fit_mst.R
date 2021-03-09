@@ -50,7 +50,8 @@
 #' @seealso \code{\link{fit_mvt}}
 #'
 #' @references
-#' TBD
+#' Aas, Kjersti and Ingrid Hobæk Haff. "The generalized hyperbolic skew student’st-distribution,"
+#' Journal of financial econometrics, pp. 275-309, 2006.
 #'
 #' @examples
 #' library(mvtnorm)       # to generate heavy-tailed data
@@ -157,8 +158,8 @@ fit_mst <- function(X, initial = NULL, max_iter = 100, ptol = 1e-3, ftol = Inf,
   gamma <- gamma / alpha
   scatter <- scatter / alpha
   # cov matrix
-  if (nu > 2)
-    Sigma_cov <- nu/(nu-2) * scatter  #<--- Rui: TBC
+  if (nu > 4)
+    Sigma_cov <- nu/(nu-2) * scatter + 2*nu^2 / (nu-2)^2 / (nu-4) * cbind(gamma) %*% rbind(gamma)
   else
     Sigma_cov <- NA
 
