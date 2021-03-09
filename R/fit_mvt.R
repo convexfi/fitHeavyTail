@@ -230,7 +230,7 @@ fit_mvt <- function(X, na_rm = TRUE,
       Xc <- X - matrix(mu, T, N, byrow = TRUE)  # this is slower: sweep(X, 2, FUN = "-", STATS = mu)  #Xc <- X - rep(mu, each = TRUE)  # this is wrong?
       ave_E_tau_XX <- (1/T) * crossprod(sqrt(E_tau) * Xc)  # (1/T) * t(Xc) %*% diag(E_tau) %*% Xc
       Sigma <- ave_E_tau_XX / alpha
-      if (optimize_nu)
+      if (optimize_nu && iter %% 5 == 0)
         nu <- switch(nu_iterative_method,
                      "ECM" = {  # based on minus the Q function of nu
                        ave_E_log_tau_minus_E_tau <- digamma((N+nu)/2) - log((N+nu)/2) + mean(log(E_tau) - E_tau)  # equal to Q$ave_E_logtau - Q$ave_E_tau
@@ -270,7 +270,8 @@ fit_mvt <- function(X, na_rm = TRUE,
                        # r2i <- vector("numeric", length = T)
                        # u <- E_tau
                        # for (ii in 1:T) {
-                       #   Sigmai <- Sigma - (1/T/alpha) * u[ii] * Xc[ii, ] %*% t(Xc[ii, ])
+                       #   #Sigmai <- Sigma - (1/T/alpha) * u[ii] * Xc[ii, ] %*% t(Xc[ii, ])
+                       #   Sigmai <- (1/T/alpha) * crossprod(sqrt(E_tau[-ii]) * Xc[-ii, ])
                        #   delta2i <- rowSums(Xc * (Xc %*% inv(Sigmai)))  # diag( Xc %*% inv(Sigmai) %*% t(Xc) )
                        #   u <- (N + nu) / (nu + delta2i)
                        #   Sigmai <- 1/T/alpha * crossprod(sqrt(u[-ii]) * Xc[-ii, ])
@@ -278,27 +279,14 @@ fit_mvt <- function(X, na_rm = TRUE,
                        # }
 
                        theta <- (1 - N/T) * sum(r2i)/T/N
-                       #theta <- (1 - (N + 2)/T) * sum(r2i)/T/N  #<-- worse
                        min(getOption("nu_max"), max(getOption("nu_min"), 2*theta/(theta - 1)))
                        },
                      "theta-2b" = {
                        r2 <- rowSums(Xc * (Xc %*% solve(Sigma)))  # diag( Xc %*% inv(Sigma) %*% t(Xc) )
                        u <- (N + nu)/(nu + r2)
                        r2i <- r2/(1 - r2*u/T)
-
-                       # # more exact computation
-                       # r2i <- vector("numeric", length = T)
-                       # u <- E_tau
-                       # for (ii in 1:T) {
-                       #   Sigmai <- Sigma - (1/T/alpha) * u[ii] * Xc[ii, ] %*% t(Xc[ii, ])
-                       #   delta2i <- rowSums(Xc * (Xc %*% inv(Sigmai)))  # diag( Xc %*% inv(Sigmai) %*% t(Xc) )
-                       #   u <- (N + nu) / (nu + delta2i)
-                       #   Sigmai <- 1/T/alpha * crossprod(sqrt(u[-ii]) * Xc[-ii, ])
-                       #   r2i[ii] <- as.numeric(Xc[ii, ] %*% solve(Sigmai, Xc[ii, ]))
-                       # }
-
-                       theta <- (T - N + 2)*T/(T - 1)/(T + 1) * sum(r2i)/T/N
-                       #theta <- (1 - (N + 2)/T) * sum(r2i)/T/N  #<-- worse
+                       theta <- (1 - (N + 2)/T) * sum(r2i)/T/N
+                       #theta <- (T - N + 2)*T/(T - 1)/(T + 1) * sum(r2i)/T/N
                        min(getOption("nu_max"), max(getOption("nu_min"), 2*theta/(theta - 1)))
                        },
                      stop("Method to estimate nu unknown."))
