@@ -111,7 +111,8 @@
 fit_mvt <- function(X, na_rm = TRUE,
                     nu = c("kurtosis", "MLE-diag", "MLE-diag-resampled", "iterative"),
                     nu_iterative_method = c("ECME-diag", "ECME", "ECM", "ECME-cov",
-                                            "theta-0", "theta-1a", "theta-1b", "theta-2a", "theta-2b"),
+                                            "theta-0", "theta-1a", "theta-1b", "theta-2a", "theta-2b",
+                                            "POP", "POP-sigma-corrected", "POP-sigma-corrected-true"),
                     initial = NULL,
                     optimize_mu = TRUE,
                     scale_minMSE = FALSE,
@@ -143,6 +144,7 @@ fit_mvt <- function(X, na_rm = TRUE,
   FA_struct <- (factors != N)
   if (!is.numeric(nu)) nu <- match.arg(nu)
   nu_iterative_method <- match.arg(nu_iterative_method)
+  if (nu_iterative_method == "theta-2a") nu_iterative_method <- "POP"
   optimize_nu <- (nu == "iterative")
 
   # initialize all parameters
@@ -261,7 +263,7 @@ fit_mvt <- function(X, na_rm = TRUE,
                        theta <- T/(T-1)*sum(r2)/T/N
                        min(getOption("nu_max"), max(getOption("nu_min"), 2*theta/(theta - 1)))
                        },
-                     "theta-2a" = {
+                     "POP" = {
                        r2 <- rowSums(Xc * (Xc %*% solve(Sigma)))  # diag( Xc %*% inv(Sigma) %*% t(Xc) )
                        u <- (N + nu)/(nu + r2)
                        r2i <- r2/(1 - r2*u/T)
@@ -281,6 +283,36 @@ fit_mvt <- function(X, na_rm = TRUE,
                        theta <- (1 - N/T) * sum(r2i)/T/N
                        min(getOption("nu_max"), max(getOption("nu_min"), 2*theta/(theta - 1)))
                        },
+                     "POP-sigma-corrected" = {
+                       r2 <- rowSums(Xc * (Xc %*% solve(Sigma)))  # diag( Xc %*% inv(Sigma) %*% t(Xc) )
+                       u <- (N + nu)/(nu + r2)
+                       r2i <- r2/(1 - r2*u/T)
+                       theta <- (1 - N/T) * sum(r2i)/T/N
+                       # correction with sigma
+                       psi <- function(t) (N + nu)/(nu + t) * t
+                       F <- function(sigma) mean(psi(r2i/sigma)) - N
+                       sigma <- uniroot(F, lower = 0.1, upper = 1000)$root
+                       #print(sigma)
+                       theta <- theta * sigma
+                       min(getOption("nu_max"), max(getOption("nu_min"), 2*theta/(theta - 1)))
+                       },
+                     "POP-sigma-corrected-true" = {
+                       r2 <- rowSums(Xc * (Xc %*% solve(Sigma)))  # diag( Xc %*% inv(Sigma) %*% t(Xc) )
+                       u <- (N + nu)/(nu + r2)
+                       r2i <- r2/(1 - r2*u/T)
+                       theta <- (1 - N/T) * sum(r2i)/T/N
+                       # correction with sigma
+                       T_ <- 10000
+                       X_ <- mvtnorm::rmvt(n = T_, delta = rep(0, N), sigma = diag(N), df = nu_true)  # heavy-tailed data
+                       r2 <- rowSums(X_^2)
+                       u <- (N + nu)/(nu + r2)
+                       r2i <- r2/(1 - r2*u/T_)
+                       psi <- function(t) (N + nu)/(nu + t) * t
+                       F <- function(sigma) mean(psi(r2i/sigma)) - N
+                       sigma <- uniroot(F, lower = 0.1, upper = 1000)$root
+                       theta <- theta * sigma
+                       min(getOption("nu_max"), max(getOption("nu_min"), 2*theta/(theta - 1)))
+                     },
                      "theta-2b" = {
                        r2 <- rowSums(Xc * (Xc %*% solve(Sigma)))  # diag( Xc %*% inv(Sigma) %*% t(Xc) )
                        u <- (N + nu)/(nu + r2)
@@ -288,7 +320,7 @@ fit_mvt <- function(X, na_rm = TRUE,
                        theta <- (1 - (N + 2)/T) * sum(r2i)/T/N
                        #theta <- (T - N + 2)*T/(T - 1)/(T + 1) * sum(r2i)/T/N
                        min(getOption("nu_max"), max(getOption("nu_min"), 2*theta/(theta - 1)))
-                       },
+                     },
                      stop("Method to estimate nu unknown."))
     }
 
@@ -514,7 +546,7 @@ excess_kurtosis_unbiased <- function(x) {
 
 nu_from_kurtosis <- function(X) {
   kurt <- apply(X, 2, excess_kurtosis_unbiased)
-  kappa <- max(0, mean(kurt)/3)
+  kappa <- max(0, mean(kurt, na.rm = TRUE)/3)
   nu <- 2 / kappa + 4
   nu <- min(getOption("nu_max"), max(getOption("nu_min"), nu))
   return(nu)
