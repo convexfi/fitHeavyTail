@@ -13,7 +13,7 @@
 #'                Possible elements include:
 #'                \itemize{\item{\code{nu}: default is \code{4},}
 #'                         \item{\code{mu}: default is the data sample mean,}
-#'                         \item{\code{gamme}: default is the sample skewness vector,}
+#'                         \item{\code{gamma}: default is the sample skewness vector,}
 #'                         \item{\code{scatter}: default follows from the scaled sample covariance matrix,}
 #'                         }
 #' @param max_iter Integer indicating the maximum number of iterations for the iterative estimation
@@ -29,12 +29,13 @@
 #'                        log-likelihood if \code{ftol < Inf}) at each iteration (default is \code{FALSE}).
 #' @param verbose Logical value indicating whether to allow the function to print messages (default is \code{FALSE}).
 #'
-#' @return A list containing possibly the following elements:
-#'         \item{\code{mu}}{Location vector estimate.}
+#' @return A list containing (possibly) the following elements:
+#'         \item{\code{mu}}{Location vector estimate (not the mean).}
 #'         \item{\code{gamma}}{Skewness vector estimate.}
 #'         \item{\code{scatter}}{Scatter matrix estimate.}
-#'         \item{\code{cov}}{Covarance matrix estimate.}
 #'         \item{\code{nu}}{Degrees of freedom estimate.}
+#'         \item{\code{mean}}{Mean vector estimate: \preformatted{  mean = mu + nu/(nu-2) * gamma}}
+#'         \item{\code{cov}}{Covariance matrix estimate: \preformatted{  cov = nu/(nu-2) * scatter + 2*nu^2 / (nu-2)^2 / (nu-4) * gamma*gamma'}}
 #'         \item{\code{converged}}{Boolean denoting whether the algorithm has converged (\code{TRUE}) or the maximum number
 #'                                 of iterations \code{max_iter} has been reached (\code{FALSE}).}
 #'         \item{\code{num_iterations}}{Number of iterations executed.}
@@ -110,7 +111,6 @@ fit_mvst <- function(X, initial = NULL, max_iter = 100, ptol = 1e-3, ftol = Inf,
 
     # E-step ----------------------------------------
     # for the observed data
-    # browser()
     expect <- Estep_mst(X = X, nu = nu, gamma = gamma, mu = mu, scatter = scatter, alpha = alpha)
 
     # M-step ----------------------------------------
@@ -128,7 +128,7 @@ fit_mvst <- function(X, initial = NULL, max_iter = 100, ptol = 1e-3, ftol = Inf,
     X_ <- X - matrix(data = mu, nrow = T, ncol = N, byrow = TRUE)
     S <- - t(X_) %*% (X_ * expect$E_tau) / 2 +
       t(X_) %*% matrix(data = gamma, nrow = T, ncol = N, byrow = TRUE) +
-      - sum(expect$E_invtau) * cbind(gamma) %*% rbind(gamma) / 2
+      - sum(expect$E_invtau) * gamma %o% gamma / 2
     scatter <- - 2 * S / T
     scatter <- (scatter + t(scatter)) / 2
 
@@ -157,17 +157,18 @@ fit_mvst <- function(X, initial = NULL, max_iter = 100, ptol = 1e-3, ftol = Inf,
   # return results -------------
   gamma <- gamma / alpha
   scatter <- scatter / alpha
-  # cov matrix
-  if (nu > 4)
-    Sigma_cov <- nu/(nu-2) * scatter + 2*nu^2 / (nu-2)^2 / (nu-4) * cbind(gamma) %*% rbind(gamma)
-  else
-    Sigma_cov <- NA
+  # mean and cov matrix
+  mean <- if (nu > 2)  mu +  nu/(nu-2) * gamma
+          else NA
+  cov <- if (nu > 4)  nu/(nu-2) * scatter + 2*nu^2 / (nu-2)^2 / (nu-4) * gamma %o% gamma
+         else NA
 
   vars_to_be_returned <- list("mu"               = mu,
                               "gamma"            = gamma,
                               "scatter"          = scatter,
-                              "cov"              = Sigma_cov,
                               "nu"               = nu,
+                              "mean"             = mean,
+                              "cov"              = cov,
                               "converged"        = (iter < max_iter),
                               "num_iterations"   = iter,
                               "cpu_time"         = sum(elapsed_times))

@@ -22,7 +22,7 @@ fit_mvst(
 Possible elements include:
 \itemize{\item{\code{nu}: default is \code{4},}
          \item{\code{mu}: default is the data sample mean,}
-         \item{\code{gamme}: default is the sample skewness vector,}
+         \item{\code{gamma}: default is the sample skewness vector,}
          \item{\code{scatter}: default follows from the scaled sample covariance matrix,}
          }}
 
@@ -45,12 +45,13 @@ log-likelihood if \code{ftol < Inf}) at each iteration (default is \code{FALSE})
 \item{verbose}{Logical value indicating whether to allow the function to print messages (default is \code{FALSE}).}
 }
 \value{
-A list containing possibly the following elements:
-        \item{\code{mu}}{Location vector estimate.}
+A list containing (possibly) the following elements:
+        \item{\code{mu}}{Location vector estimate (not the mean).}
         \item{\code{gamma}}{Skewness vector estimate.}
         \item{\code{scatter}}{Scatter matrix estimate.}
-        \item{\code{cov}}{Covarance matrix estimate.}
         \item{\code{nu}}{Degrees of freedom estimate.}
+        \item{\code{mean}}{Mean vector estimate: \preformatted{  mean = mu + nu/(nu-2) * gamma}}
+        \item{\code{cov}}{Covariance matrix estimate: \preformatted{  cov = nu/(nu-2) * scatter + 2*nu^2 / (nu-2)^2 / (nu-4) * gamma*gamma'}}
         \item{\code{converged}}{Boolean denoting whether the algorithm has converged (\code{TRUE}) or the maximum number
                                 of iterations \code{max_iter} has been reached (\code{FALSE}).}
         \item{\code{num_iterations}}{Number of iterations executed.}
