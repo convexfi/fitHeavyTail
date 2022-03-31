@@ -2,7 +2,7 @@ context("Function \"fit_Tyler()\"")
 #library(testthat)
 
 
-load("X.RData")
+load("X_mvt.RData")
 
 test_that("error control works", {
   expect_error(fit_Tyler(X = median),

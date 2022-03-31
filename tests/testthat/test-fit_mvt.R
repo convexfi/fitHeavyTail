@@ -9,9 +9,9 @@ context("Function \"fit_mvt()\"")
 # X <- mvtnorm::rmvt(n = T, sigma = diag(N), df = nu, delta = rep(0, N))
 # colnames(X) <- c(1:N)
 # X_xts <- xts::as.xts(X, order.by = as.Date("1975-04-28") + 1:nrow(X))
-# save(X, X_xts, file = "X.RData", version = 2, compress = "xz")
+# save(X, X_xts, file = "X_mvt.RData", version = 2, compress = "xz")
 
-load("X.RData")
+load("X_mvt.RData")
 
 test_that("error control works", {
   expect_error(fit_mvt(X = median), "\"X\" must be a matrix or coercible to a matrix.")
@@ -22,7 +22,7 @@ test_that("error control works", {
                "Cannot deal with T <= N (after removing NAs), too few samples.", fixed = TRUE)
   expect_error(fit_mvt(X = X, max_iter = -1), "\"max_iter\" must be greater than 1.")
   expect_error(fit_mvt(X = X, factors = -1), "\"factors\" must be no less than 1 and no more than column number of \"X\".")
-  expect_error(fit_mvt(X = X, nu = "lala"), "'arg' should be one of \"kurtosis\", \"MLE-diag\", \"MLE-diag-resampled\", \"iterative\"")
+  expect_error(fit_mvt(X = X, nu = "lala"), "'arg' should be one of “kurtosis”, “MLE-diag”, “MLE-diag-resampled”, “iterative”")
   expect_error(fit_mvt(X = X, nu = 1), "Non-valid value for nu.")
 })
 
@@ -46,6 +46,24 @@ test_that("default mode works", {
   fitted_vector <- fit_mvt(as.vector(X[, 1]))
   expect_identical(fitted_1colmatrix[c("mu", "cov", "scatter", "nu", "converged", "num_iterations")],
                    fitted_vector[c("mu", "cov", "scatter", "nu", "converged", "num_iterations")])
+})
+
+test_that("bounds on nu work", {
+  options(nu_min = 2.5)
+  mvt_model <- fit_mvt(X, nu = "iterative")
+  expect_false(mvt_model$nu > 9.37)
+
+  mvt_model <- fit_mvt(X)
+  expect_false(mvt_model$nu > 9.37)
+
+  options(nu_min = 9.37)
+  mvt_model <- fit_mvt(X)
+  expect_true(mvt_model$nu > 9.37 - 1e-8)
+
+  mvt_model <- fit_mvt(X, nu = "iterative")
+  expect_true(mvt_model$nu > 9.37 - 1e-8)
+
+  options(nu_min = 2.5)
 })
 
 
