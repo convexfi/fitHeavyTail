@@ -70,11 +70,13 @@
 #'                        log-likelihood if \code{ftol < Inf}) at each iteration (default is \code{FALSE}).
 #' @param verbose Logical value indicating whether to allow the function to print messages (default is \code{FALSE}).
 #'
-#' @return A list containing possibly the following elements:
-#'         \item{\code{mu}}{Mean vector estimate.}
-#'         \item{\code{cov}}{Covariance matrix estimate.}
+#' @return A list containing (possibly) the following elements:
+#'         \item{\code{mu}}{Mu vector estimate.}
 #'         \item{\code{scatter}}{Scatter matrix estimate.}
 #'         \item{\code{nu}}{Degrees of freedom estimate.}
+#'         \item{\code{mean}}{Mean vector estimate: \preformatted{mean = mu}}
+#'         \item{\code{cov}}{Covariance matrix estimate: \preformatted{cov = nu/(nu-2) * scatter}}
+#'
 #'         \item{\code{converged}}{Boolean denoting whether the algorithm has converged (\code{TRUE}) or the maximum number
 #'                                 of iterations \code{max_iter} has been reached (\code{FALSE}).}
 #'         \item{\code{num_iterations}}{Number of iterations executed.}
@@ -83,7 +85,7 @@
 #'                         (only if factor model requested).}
 #'         \item{\code{psi}}{Factor model idiosynchratic variances estimates according to \code{cov = (B \%*\% t(B) + diag(psi)}
 #'                           (only if factor model requested).}
-#'         \item{\code{log_likelihood}}{Value of log-likelihood after converge of the estimation algorithm (if \code{ftol < Inf}).}
+#'         \item{\code{log_likelihood_vs_iterations}}{Value of log-likelihood over the iterations (if \code{ftol < Inf}).}
 #'         \item{\code{iterates_record}}{Iterates of the parameters (\code{mu}, \code{scatter}, \code{nu},
 #'                                       and possibly \code{log_likelihood} (if \code{ftol < Inf})) along the iterations
 #'                                       (if \code{return_iterates = TRUE}).}
@@ -96,6 +98,9 @@
 #' Chuanhai Liu and Donald B. Rubin, "ML estimation of the t-distribution using EM and its extensions, ECM and ECME,"
 #' Statistica Sinica (5), pp. 19-39, 1995.
 #'
+#' Chuanhai Liu, Donald B. Rubin, and Ying Nian Wu, "Parameter Expansion to Accelerate EM: The PX-EM Algorithm,"
+#' Biometrika, Vol. 85, No. 4, pp. 755-770, Dec., 1998
+#'
 #' Rui Zhou, Junyan Liu, Sandeep Kumar, and Daniel P. Palomar, "Robust factor analysis parameter estimation,"
 #' Lecture Notes in Computer Science (LNCS), 2019. <https://arxiv.org/abs/1909.12530>
 #'
@@ -106,6 +111,10 @@
 #' X <- rmvt(n = 1000, df = 6)  # generate Student's t data
 #' fit_mvt(X)
 #'
+#' # setting lower limit for nu
+#' options(nu_min = 4.01)
+#' fit_mvt(X, nu = "iterative")
+#'
 #' @importFrom stats optimize
 #' @export
 fit_mvt <- function(X, na_rm = TRUE,
@@ -115,6 +124,7 @@ fit_mvt <- function(X, na_rm = TRUE,
                                             "POP", "POP-sigma-corrected", "POP-sigma-corrected-true"),
                     initial = NULL,
                     optimize_mu = TRUE,
+                    weights = NULL,
                     scale_minMSE = FALSE,
                     factors = ncol(X),
                     max_iter = 100, ptol = 1e-3, ftol = Inf,
@@ -136,6 +146,14 @@ fit_mvt <- function(X, na_rm = TRUE,
   if (factors < 1 || factors > ncol(X)) stop("\"factors\" must be no less than 1 and no more than column number of \"X\".")
   max_iter <- round(max_iter)
   if (max_iter < 1) stop("\"max_iter\" must be greater than 1.")
+  if (!is.null(weights)) {
+    if (length(weights) != nrow(X))
+      stop("Weight length is wrong.")
+    if (any(weights < 0))
+      stop("Weights cannot be negative.")
+    weights <- weights/sum(weights) * nrow(X)
+  } else
+    weights <- 1
   ##############################
 
   T <- nrow(X)
@@ -147,7 +165,10 @@ fit_mvt <- function(X, na_rm = TRUE,
   if (nu_iterative_method == "theta-2a") nu_iterative_method <- "POP"
   optimize_nu <- (nu == "iterative")
 
+
+  #
   # initialize all parameters
+  #
   start_time <- proc.time()[3]
   if (optimize_nu) {  # initial point
     nu <- if (!is.null(initial$nu)) initial$nu
@@ -165,9 +186,11 @@ fit_mvt <- function(X, na_rm = TRUE,
     mu <- if (is.null(initial$mu)) colMeans(X, na.rm = TRUE)
           else initial$mu
   } else mu <- rep(0, N)
-  Sigma <- if (is.null(initial$cov)) (nu-2)/nu * var(X, na.rm = TRUE)
-           else (nu-2)/nu * initial$cov
   if (!is.null(initial$scatter)) Sigma <- initial$scatter
+  else {
+    Sigma <- if (is.null(initial$cov)) (max(nu, 2.1)-2)/max(nu, 2.1) * var(X, na.rm = TRUE)
+             else (max(nu, 2.1)-2)/max(nu, 2.1) * initial$cov
+  }
   if (FA_struct) {  # recall that Sigma is the scatter matrix, not the covariance matrix
     Sigma_eigen <- eigen(Sigma, symmetric = TRUE)
     B <- if (is.null(initial$B)) Sigma_eigen$vectors[, 1:factors] %*% diag(sqrt(Sigma_eigen$values[1:factors]), factors)
@@ -176,9 +199,6 @@ fit_mvt <- function(X, na_rm = TRUE,
            else initial$psi
     Sigma <- B %*% t(B) + diag(psi, N)
   }
-  if (ftol < Inf) log_likelihood <- ifelse(X_has_NA,
-                                           dmvt_withNA(X = X, delta = mu, sigma = Sigma, df = nu),
-                                           sum(mvtnorm::dmvt(X, delta = mu, sigma = Sigma, df = nu, log = TRUE, type = "shifted")))
   alpha <- 1  # an extra variable for PX-EM acceleration
 
   # aux function to save iterates
@@ -187,7 +207,13 @@ fit_mvt <- function(X, na_rm = TRUE,
     else list(mu = mu, scatter = Sigma, nu = nu)
   }
 
+  #
   # loop
+  #
+  if (ftol < Inf)
+    log_likelihood_record <- log_likelihood <- ifelse(X_has_NA,
+                                                      dmvt_withNA(X = X, delta = mu, sigma = Sigma, df = nu),
+                                                      sum(mvtnorm::dmvt(X, delta = mu, sigma = Sigma, df = nu, log = TRUE, type = "shifted")))
   if (return_iterates) iterates_record <- list(snapshot())
   for (iter in 1:max_iter) {
     # record the current status
@@ -203,6 +229,7 @@ fit_mvt <- function(X, na_rm = TRUE,
       Xc <- X - matrix(mu, T, N, byrow = TRUE)
       delta2 <- rowSums(Xc * (Xc %*% solve(Sigma)))  # diag( Xc %*% inv(Sigma) %*% t(Xc) )
       E_tau <- (N + nu) / (nu + delta2)  # u_t(delta2)
+      E_tau <- E_tau * weights
       ave_E_tau <- mean(E_tau)
       ave_E_tau_X <- (1/T)*as.vector(E_tau %*% X)
     }
@@ -213,7 +240,7 @@ fit_mvt <- function(X, na_rm = TRUE,
       if (optimize_mu)
         mu <- Q$ave_E_tau_X / Q$ave_E_tau
       alpha <- Q$ave_E_tau
-      S <- Q$ave_E_tau_XX - cbind(mu) %*% rbind(Q$ave_E_tau_X) - cbind(Q$ave_E_tau_X) %*% rbind(mu) + Q$ave_E_tau * cbind(mu) %*% rbind(mu)
+      S <- Q$ave_E_tau_XX - mu %o% Q$ave_E_tau_X - Q$ave_E_tau_X %o% mu + Q$ave_E_tau * mu %o% mu
       S <- S / alpha
       if (FA_struct) {
         B   <- optB(S = S, factors = factors, psi_vec = psi)
@@ -233,7 +260,7 @@ fit_mvt <- function(X, na_rm = TRUE,
       ave_E_tau_XX <- (1/T) * crossprod(sqrt(E_tau) * Xc)  # (1/T) * t(Xc) %*% diag(E_tau) %*% Xc
       Sigma <- ave_E_tau_XX / alpha
       if (optimize_nu && iter %% 5 == 0)
-        nu <- switch(nu_iterative_method,
+        nu <- switch(nu_iterative_method,  # note that nu estimation has not been updated to work with weights
                      "ECM" = {  # based on minus the Q function of nu
                        ave_E_log_tau_minus_E_tau <- digamma((N+nu)/2) - log((N+nu)/2) + mean(log(E_tau) - E_tau)  # equal to Q$ave_E_logtau - Q$ave_E_tau
                        Q_nu <- function(nu) - (nu/2)*log(nu/2) + lgamma(nu/2) - (nu/2)*ave_E_log_tau_minus_E_tau
@@ -324,22 +351,23 @@ fit_mvt <- function(X, na_rm = TRUE,
                      stop("Method to estimate nu unknown."))
     }
 
+    # record the current the variables/loglikelihood if required
+    if (ftol < Inf) {
+      log_likelihood <- ifelse(X_has_NA,
+                               dmvt_withNA(X = X, delta = mu, sigma = Sigma, df = nu),
+                               sum(mvtnorm::dmvt(X, delta = mu, sigma = Sigma, df = nu, log = TRUE, type = "shifted")))
+      has_fun_converged <- abs(log_likelihood - log_likelihood_old) <= .5 * ftol * (abs(log_likelihood) + abs(log_likelihood_old))
+    } else has_fun_converged <- TRUE
+    if (ftol < Inf)
+      log_likelihood_record <- c(log_likelihood_record, log_likelihood)
+    names(mu) <- colnames(Sigma) <- rownames(Sigma) <- colnames(X)  # add names first
+    if (return_iterates) iterates_record[[iter + 1]] <- snapshot()
+
     ## -------- stopping criterion --------
     have_params_converged <-
       all(abs(mu - mu_old)       <= .5 * ptol * (abs(mu_old) + abs(mu))) &&
       abs(fnu(nu) - fnu(nu_old)) <= .5 * ptol * (abs(fnu(nu_old)) + abs(fnu(nu))) &&
       all(abs(Sigma - Sigma_old) <= .5 * ptol * (abs(Sigma_old) + abs(Sigma)))
-
-    if (ftol < Inf) {
-      log_likelihood <- ifelse(X_has_NA,
-                               dmvt_withNA(X = X, delta = mu, sigma = Sigma, df = nu),
-                               sum(mvtnorm::dmvt(X, delta = mu, sigma = Sigma, df = nu, log = TRUE, type = "shifted")))
-
-      has_fun_converged <- abs(log_likelihood - log_likelihood_old) <= .5 * ftol * (abs(log_likelihood) + abs(log_likelihood_old))
-    } else has_fun_converged <- TRUE
-    # record the current the variables/loglikelihood if required
-    names(mu) <- colnames(Sigma) <- rownames(Sigma) <- colnames(X)  # add names first
-    if (return_iterates) iterates_record[[iter + 1]] <- snapshot()
     if (have_params_converged && has_fun_converged) break
   }
   elapsed_time <- proc.time()[3] - start_time
@@ -365,9 +393,10 @@ fit_mvt <- function(X, na_rm = TRUE,
   ## -------- return variables --------
   #Sigma <- T/(T-1) * Sigma  # unbiased estimator
   vars_to_be_returned <- list("mu"             = mu,
-                              "cov"            = Sigma_cov,
                               "scatter"        = Sigma,
                               "nu"             = nu,
+                              "mean"           = mu,
+                              "cov"            = Sigma_cov,
                               "converged"      = (iter < max_iter),
                               "num_iterations" = iter,
                               "cpu_time"       = elapsed_time)
@@ -378,14 +407,15 @@ fit_mvt <- function(X, na_rm = TRUE,
     vars_to_be_returned$psi <- nu/(nu-2) * psi
   }
   if (ftol < Inf)
-    vars_to_be_returned$log_likelihood <- log_likelihood
+    vars_to_be_returned$log_likelihood_vs_iterations <- log_likelihood_record
   if (return_iterates) {
     names(iterates_record) <- paste("iter", 0:(length(iterates_record)-1))
     vars_to_be_returned$iterates_record <- iterates_record
   }
-  if (exists("E_tau")) {
+  if (return_iterates && exists("E_tau")) {
     vars_to_be_returned$E_tau <- E_tau
-    vars_to_be_returned$Xcg   <- sqrt(nu/(nu-2)) * sqrt(E_tau) * Xc
+    vars_to_be_returned$Xmu_  <- (E_tau/ave_E_tau) * X                          # so that mu  = (1/T)*colSums(Xmu_) = colMeans(Xmu_)
+    vars_to_be_returned$Xcov_ <- sqrt(nu/(nu-2)) * sqrt(E_tau/ave_E_tau) * Xc   # so that cov = (1/T)*t(Xcov_) %*% Xcov_
   }
   return(vars_to_be_returned)
 }

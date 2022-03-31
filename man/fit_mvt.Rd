@@ -13,6 +13,7 @@ fit_mvt(
     "POP-sigma-corrected-true"),
   initial = NULL,
   optimize_mu = TRUE,
+  weights = NULL,
   scale_minMSE = FALSE,
   factors = ncol(X),
   max_iter = 100,
@@ -76,11 +77,13 @@ log-likelihood if \code{ftol < Inf}) at each iteration (default is \code{FALSE})
 \item{verbose}{Logical value indicating whether to allow the function to print messages (default is \code{FALSE}).}
 }
 \value{
-A list containing possibly the following elements:
-        \item{\code{mu}}{Mean vector estimate.}
-        \item{\code{cov}}{Covariance matrix estimate.}
+A list containing (possibly) the following elements:
+        \item{\code{mu}}{Mu vector estimate.}
         \item{\code{scatter}}{Scatter matrix estimate.}
         \item{\code{nu}}{Degrees of freedom estimate.}
+        \item{\code{mean}}{Mean vector estimate: \preformatted{mean = mu}}
+        \item{\code{cov}}{Covariance matrix estimate: \preformatted{cov = nu/(nu-2) * scatter}}
+
         \item{\code{converged}}{Boolean denoting whether the algorithm has converged (\code{TRUE}) or the maximum number
                                 of iterations \code{max_iter} has been reached (\code{FALSE}).}
         \item{\code{num_iterations}}{Number of iterations executed.}
@@ -89,7 +92,7 @@ A list containing possibly the following elements:
                         (only if factor model requested).}
         \item{\code{psi}}{Factor model idiosynchratic variances estimates according to \code{cov = (B \%*\% t(B) + diag(psi)}
                           (only if factor model requested).}
-        \item{\code{log_likelihood}}{Value of log-likelihood after converge of the estimation algorithm (if \code{ftol < Inf}).}
+        \item{\code{log_likelihood_vs_iterations}}{Value of log-likelihood over the iterations (if \code{ftol < Inf}).}
         \item{\code{iterates_record}}{Iterates of the parameters (\code{mu}, \code{scatter}, \code{nu},
                                       and possibly \code{log_likelihood} (if \code{ftol < Inf})) along the iterations
                                       (if \code{return_iterates = TRUE}).}
@@ -118,10 +121,17 @@ library(fitHeavyTail)
 X <- rmvt(n = 1000, df = 6)  # generate Student's t data
 fit_mvt(X)
 
+# setting lower limit for nu
+options(nu_min = 4.01)
+fit_mvt(X, nu = "iterative")
+
 }
 \references{
 Chuanhai Liu and Donald B. Rubin, "ML estimation of the t-distribution using EM and its extensions, ECM and ECME,"
 Statistica Sinica (5), pp. 19-39, 1995.
+
+Chuanhai Liu, Donald B. Rubin, and Ying Nian Wu, "Parameter Expansion to Accelerate EM: The PX-EM Algorithm,"
+Biometrika, Vol. 85, No. 4, pp. 755-770, Dec., 1998
 
 Rui Zhou, Junyan Liu, Sandeep Kumar, and Daniel P. Palomar, "Robust factor analysis parameter estimation,"
 Lecture Notes in Computer Science (LNCS), 2019. <https://arxiv.org/abs/1909.12530>
