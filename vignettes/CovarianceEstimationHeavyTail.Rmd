@@ -515,7 +515,7 @@ and initial point $\boldsymbol{\mu}_{0} = \frac{1}{T}\sum_{t=1}^{T}\mathbf{x}_t$
 The iterations converge to the solution if and only if the conditions of Corollary 3 in [@SunBabPal2015] are satisfied.
 
 
-- The function `fitHeavyTail::fit_mvt()` assumes the data follows a multivariate Student's $t$ distribution and performs an MLE based on the EM algorithm [@LiuRubin95]. The MLE formulation (without missing values) is
+- The function `fitHeavyTail::fit_mvt()` assumes the data follows a multivariate Student's $t$ distribution and performs an MLE based on the EM algorithm [@LiuRubin95; @LiuRubinWu98]. The MLE formulation (without missing values) is
 $$
 \begin{array}{ll}
 \underset{\boldsymbol{\mu},\boldsymbol{\Sigma},\nu}{\textsf{minimize}} & 
