@@ -6,6 +6,8 @@
 \usage{
 fit_mvst(
   X,
+  nu = NULL,
+  gamma = NULL,
   initial = NULL,
   max_iter = 100,
   ptol = 0.001,
@@ -17,6 +19,10 @@ fit_mvst(
 }
 \arguments{
 \item{X}{Data matrix containing the multivariate time series (each column is one time series).}
+
+\item{nu}{Degrees of freedom of the skewed \eqn{t} distribution (otherwise it will be iteratively estimated).}
+
+\item{gamma}{Skewness vector of the skewed \eqn{t} distribution (otherwise it will be iteratively estimated).}
 
 \item{initial}{List of initial values of the parameters for the iterative estimation method.
 Possible elements include:
@@ -56,6 +62,7 @@ A list containing (possibly) the following elements:
                                 of iterations \code{max_iter} has been reached (\code{FALSE}).}
         \item{\code{num_iterations}}{Number of iterations executed.}
         \item{\code{cpu_time}}{Elapsed overall CPU time.}
+        \item{\code{log_likelihood_vs_iterations}}{Value of log-likelihood over the iterations (if \code{ftol < Inf}).}
         \item{\code{iterates_record}}{Iterates of the parameters (\code{mu}, \code{scatter}, \code{nu},
                                       and possibly \code{log_likelihood} (if \code{ftol < Inf})) along the iterations
                                       (if \code{return_iterates = TRUE}).}
@@ -69,7 +76,7 @@ obtained from the expectation-maximization (EM) method.
 }
 \details{
 This function estimates the parameters of a (generalized hyperbolic) multivariate Student's t distribution (\code{mu},
-         \code{scatter}, \code{gamme} and \code{nu}) to fit the data via the expectation-maximization (EM) algorithm.
+         \code{scatter}, \code{gamma} and \code{nu}) to fit the data via the expectation-maximization (EM) algorithm.
 }
 \examples{
 library(mvtnorm)       # to generate heavy-tailed data
@@ -89,12 +96,16 @@ X <- matrix(data = mu, nrow = T, ncol = N, byrow = TRUE) +
      matrix(data = gamma, nrow = T, ncol = N, byrow = TRUE) / taus +
      rmvnorm(n = T, mean = rep(0, N), sigma = scatter) / sqrt(taus)
 
-# fit GH Skew t model
+# fit skew t model
 fit_mvst(X)
+
+# setting lower limit for nu (e.g., to guarantee existence of co-skewness and co-kurtosis matrices)
+options(nu_min = 8.01)
+fit_mvst(X, nu = "iterative")
 
 }
 \references{
-Aas, Kjersti and Ingrid Hobæk Haff. "The generalized hyperbolic skew student’st-distribution,"
+Aas, Kjersti and Ingrid Hobæk Haff. "The generalized hyperbolic skew Student’s t-distribution,"
 Journal of financial econometrics, pp. 275-309, 2006.
 }
 \seealso{

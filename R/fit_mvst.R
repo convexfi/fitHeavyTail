@@ -6,9 +6,11 @@
 #' obtained from the expectation-maximization (EM) method.
 #'
 #' @details This function estimates the parameters of a (generalized hyperbolic) multivariate Student's t distribution (\code{mu},
-#'          \code{scatter}, \code{gamme} and \code{nu}) to fit the data via the expectation-maximization (EM) algorithm.
+#'          \code{scatter}, \code{gamma} and \code{nu}) to fit the data via the expectation-maximization (EM) algorithm.
 #'
 #' @param X Data matrix containing the multivariate time series (each column is one time series).
+#' @param nu Degrees of freedom of the skewed \eqn{t} distribution (otherwise it will be iteratively estimated).
+#' @param gamma Skewness vector of the skewed \eqn{t} distribution (otherwise it will be iteratively estimated).
 #' @param initial List of initial values of the parameters for the iterative estimation method.
 #'                Possible elements include:
 #'                \itemize{\item{\code{nu}: default is \code{4},}
@@ -40,6 +42,7 @@
 #'                                 of iterations \code{max_iter} has been reached (\code{FALSE}).}
 #'         \item{\code{num_iterations}}{Number of iterations executed.}
 #'         \item{\code{cpu_time}}{Elapsed overall CPU time.}
+#'         \item{\code{log_likelihood_vs_iterations}}{Value of log-likelihood over the iterations (if \code{ftol < Inf}).}
 #'         \item{\code{iterates_record}}{Iterates of the parameters (\code{mu}, \code{scatter}, \code{nu},
 #'                                       and possibly \code{log_likelihood} (if \code{ftol < Inf})) along the iterations
 #'                                       (if \code{return_iterates = TRUE}).}
@@ -51,7 +54,7 @@
 #' @seealso \code{\link{fit_mvt}}
 #'
 #' @references
-#' Aas, Kjersti and Ingrid Hobæk Haff. "The generalized hyperbolic skew student’st-distribution,"
+#' Aas, Kjersti and Ingrid Hobæk Haff. "The generalized hyperbolic skew Student’s t-distribution,"
 #' Journal of financial econometrics, pp. 275-309, 2006.
 #'
 #' @examples
@@ -72,91 +75,139 @@
 #'      matrix(data = gamma, nrow = T, ncol = N, byrow = TRUE) / taus +
 #'      rmvnorm(n = T, mean = rep(0, N), sigma = scatter) / sqrt(taus)
 #'
-#' # fit GH Skew t model
+#' # fit skew t model
+#' fit_mvst(X)
+#'
+#' # setting lower limit for nu (e.g., to guarantee existence of co-skewness and co-kurtosis matrices)
+#' options(nu_min = 8.01)
 #' fit_mvst(X)
 #'
 #' @importFrom stats optimize
 #' @export
-fit_mvst <- function(X, initial = NULL, max_iter = 100, ptol = 1e-3, ftol = Inf,
+fit_mvst <- function(X,
+                     nu = NULL, gamma = NULL, initial = NULL,
+                     max_iter = 100, ptol = 1e-3, ftol = Inf,
                      PXEM = TRUE, return_iterates = FALSE, verbose = FALSE) {
+  ####### error control ########
+  X <- try(as.matrix(X), silent = TRUE)
+  if (!is.matrix(X)) stop("\"X\" must be a matrix or coercible to a matrix.")
+  if (is.null(colnames(X))) colnames(X) <- paste0("Var", 1:ncol(X))
+  if (!is.numeric(X)) stop("\"X\" only allows numerical or NA values.")
+  if (anyNA(X)) {
+    if (verbose) message("X contains NAs, dropping those observations.")
+    mask_NA <- apply(X, 1, anyNA)
+    X <- X[!mask_NA, , drop = FALSE]
+  }
+  if (nrow(X) <= ncol(X)) stop("Cannot deal with T <= N (after removing NAs), too few samples.")
+  if (is.numeric(nu) && nu <= 2) stop("Non-valid value for nu (should be >2).")
+  max_iter <- round(max_iter)
+  if (max_iter < 1) stop("\"max_iter\" must be greater than 1.")
+  ##############################
 
   T <- nrow(X)
   N <- ncol(X)
 
+  #
   # initialize parameters
-  alpha   <- 1
-  nu      <- if (is.null(initial$nu))      4                   else initial$nu
-  mu      <- if (is.null(initial$mu))      colMeans(X)         else initial$mu
-  gamma   <- if (is.null(initial$gamma))   sampleSkewness(X)   else initial$gamma
-  scatter <- if (is.null(initial$scatter)) cov(X)              else initial$scatter
+  #
+  alpha <- 1
+  optimize_nu <- is.null(nu)
+  if (optimize_nu) {
+    nu    <- if (is.null(initial$nu)) 4 else initial$nu
+  }
+  if (nu == Inf) nu <- 1e2  # to avoid numerical issues with besselK()
+  optimize_gamma <- is.null(gamma)
+  if (optimize_gamma) {
+    gamma_unscaled <- if (is.null(initial$gamma)) rep(0, N)  # sampleSkewness(X)
+                      else initial$gamma
+  } else
+    gamma_unscaled <- gamma
+  rm(gamma)  # to be removed
+  # # since mean = mu +  nu/(nu-2) * gamma:
+  mu      <- if (is.null(initial$mu)) colMeans(X) - max(nu, 2.1)/(max(nu, 2.1)-2) * gamma_unscaled/alpha
+             else initial$mu
+  #mu      <- if (is.null(initial$mu)) colMeans(X) else initial$mu
+  # since cov = nu/(nu-2) * scatter + 2*nu^2 / (nu-2)^2 / (nu-4) * gamma %o% gamma:
+  scatter_unscaled <- if (is.null(initial$scatter)) (max(nu, 2.1)-2)/max(nu, 2.1) * cov(X)
+                      else initial$scatter
+  #scatter_unscaled <- if (is.null(initial$scatter)) cov(X) else initial$scatter
 
   # define tools for simplifying codes
   snapshot <- function() {
-    snap <- list(nu = nu, mu = mu, gamma = gamma/alpha, scatter = scatter/alpha, alpha = alpha)
-    if (verbose || ftol < Inf) snap$obj = sum(dST(X = X, nu = nu, gamma = gamma/alpha, mu = mu, scatter = scatter/alpha))
-    return(snap)
+    if (ftol < Inf) list(mu = mu, gamma = gamma_unscaled/alpha, scatter = scatter_unscaled/alpha, nu = nu, alpha = alpha, obj = log_likelihood)
+    else list(mu = mu, gamma = gamma_unscaled/alpha, scatter = scatter_unscaled/alpha, nu = nu, alpha = alpha)
   }
 
-  # let's loop
+
+  #
+  # loop
+  #
+  if (ftol < Inf)
+    log_likelihood_record <- log_likelihood <- sum(dST(X = X, nu = nu, gamma = gamma_unscaled/alpha, mu = mu, scatter = scatter_unscaled/alpha))
   if (return_iterates) iterates_record <- list(snapshot())
   elapsed_times <- c(0)
 
   for (iter in 1:max_iter) {
-
-    start_time <- proc.time()[3]  # record start time
-
+    # record the current status
+    start_time <- proc.time()[3]
     last_status <- snapshot()
-
     if (verbose) message(sprintf("iteration: %3d, objective: %.3f", iter, last_status$obj))
 
     # E-step ----------------------------------------
     # for the observed data
-    expect <- Estep_mst(X = X, nu = nu, gamma = gamma, mu = mu, scatter = scatter, alpha = alpha)
+    expect <- Estep_mst(X = X, nu = nu, gamma_unscaled = gamma_unscaled, mu = mu, scatter_unscaled = scatter_unscaled, alpha = alpha)
 
     # M-step ----------------------------------------
     # nu
-    Q_nu <- function(nu) (nu/2)*sum(expect$E_logtau - log(alpha) - expect$E_tau/alpha) + T*((nu/2)*log(nu/2) - log(base::gamma(nu/2)))
-    nu <- optimize(Q_nu, interval = c(2 + 1e-12, 50), maximum = TRUE)$maximum
+    if (optimize_nu) {
+      Q_nu <- function(nu) (nu/2)*sum(expect$E_logtau - log(alpha) - expect$E_tau/alpha) + T*((nu/2)*log(nu/2) - log(base::gamma(nu/2)))
+      nu <- optimize(Q_nu, interval = c(getOption("nu_min"), getOption("nu_max")), maximum = TRUE)$maximum
+    }
 
     # mu
-    mu <- (colSums(X * expect$E_tau) - T*gamma) / sum(expect$E_tau)
+    mu <- (colSums(X * expect$E_tau) - T*gamma_unscaled) / sum(expect$E_tau)
 
     # gamma
-    gamma <- (colSums(X) - T*mu) / sum(expect$E_invtau)
+    if (optimize_gamma)
+      gamma_unscaled <- (colSums(X) - T*mu) / sum(expect$E_invtau)
 
     # scatter
     X_ <- X - matrix(data = mu, nrow = T, ncol = N, byrow = TRUE)
     S <- - t(X_) %*% (X_ * expect$E_tau) / 2 +
-      t(X_) %*% matrix(data = gamma, nrow = T, ncol = N, byrow = TRUE) +
-      - sum(expect$E_invtau) * gamma %o% gamma / 2
-    scatter <- - 2 * S / T
-    scatter <- (scatter + t(scatter)) / 2
+      t(X_) %*% matrix(data = gamma_unscaled, nrow = T, ncol = N, byrow = TRUE) +
+      - sum(expect$E_invtau) * gamma_unscaled %o% gamma_unscaled / 2
+    scatter_unscaled <- - 2 * S / T
+    scatter_unscaled <- (scatter_unscaled + t(scatter_unscaled)) / 2
 
-    if (PXEM) alpha <- mean(expect$E_tau)
+    if (PXEM)
+      alpha <- mean(expect$E_tau)
 
+
+    # record the current the variables/loglikelihood if required
+    if (ftol < Inf) {
+      log_likelihood <- sum(dST(X = X, nu = nu, gamma = gamma_unscaled/alpha, mu = mu, scatter = scatter_unscaled/alpha))
+      log_likelihood_old <- last_status$obj
+      has_fun_converged <- abs(log_likelihood - log_likelihood_old) <= .5 * ftol * (abs(log_likelihood) + abs(log_likelihood_old))
+    } else has_fun_converged <- TRUE
+    if (ftol < Inf)
+      log_likelihood_record <- c(log_likelihood_record, log_likelihood)
     if (return_iterates) iterates_record[[iter + 1]] <- snapshot()
+    elapsed_times <- c(elapsed_times, proc.time()[3] - start_time)
 
+
+    ## -------- stopping criterion --------
     have_params_converged <-
       all(abs(fnu(nu) - fnu(last_status$nu)) <= .5 * ptol * (abs(fnu(last_status$nu)) + abs(fnu(nu)))) &&
       all(abs(mu - last_status$mu)           <= .5 * ptol * (abs(mu) + abs(last_status$mu))) &&
-      all(abs(gamma - last_status$gamma)     <= .5 * ptol * (abs(gamma) + abs(last_status$gamma))) &&
-      all(abs(scatter - last_status$scatter) <= .5 * ptol * (abs(scatter) + abs(last_status$scatter)))
-
-    if (ftol < Inf) {
-      log_likelihood_current <- snapshot()$obj
-      log_likelihood_old     <- last_status$obj
-      has_fun_converged <- abs(log_likelihood_current - log_likelihood_old) <= .5 * ftol * (abs(log_likelihood_current) + abs(log_likelihood_old))
-    } else has_fun_converged <- TRUE
-
-    elapsed_times <- c(elapsed_times, proc.time()[3] - start_time)
-
+      all(abs(gamma_unscaled/alpha - last_status$gamma)     <= .5 * ptol * (abs(gamma_unscaled/alpha) + abs(last_status$gamma))) &&
+      all(abs(scatter_unscaled/alpha - last_status$scatter) <= .5 * ptol * (abs(scatter_unscaled/alpha) + abs(last_status$scatter)))
     if (have_params_converged && has_fun_converged) break
   }
 
 
   # return results -------------
-  gamma <- gamma / alpha
-  scatter <- scatter / alpha
+  gamma <- gamma_unscaled / alpha
+  scatter <- scatter_unscaled / alpha
   # mean and cov matrix
   mean <- if (nu > 2)  mu +  nu/(nu-2) * gamma
           else NA
@@ -172,10 +223,12 @@ fit_mvst <- function(X, initial = NULL, max_iter = 100, ptol = 1e-3, ftol = Inf,
                               "converged"        = (iter < max_iter),
                               "num_iterations"   = iter,
                               "cpu_time"         = sum(elapsed_times))
+  if (ftol < Inf)
+    vars_to_be_returned$log_likelihood_vs_iterations <- log_likelihood_record
   if (return_iterates) {
     names(iterates_record) <- paste("iter", 0:(length(iterates_record)-1))
     vars_to_be_returned$iterates_record <- iterates_record
-    vars_to_be_returned$cpu_time_at_iterelapsed_times
+    vars_to_be_returned$cpu_time_at_iter <- elapsed_times
   }
   return(vars_to_be_returned)
 }
@@ -200,14 +253,12 @@ dST <- function(X, nu = 3, gamma = 1, mu = 0, scatter = 1) {
 
 # expectation step of the EM algorithm for fitting a GH MST distribution
 #' @importFrom numDeriv grad
-#' @importFrom stats mahalanobis
-Estep_mst <- function(X, nu, gamma, mu, scatter, alpha) {
+Estep_mst <- function(X, nu, gamma_unscaled, mu, scatter_unscaled, alpha) {
   N <- ncol(X)
   T <- nrow(X)
 
-  gamma <- gamma / alpha
-  scatter <- scatter / alpha
-
+  gamma <- gamma_unscaled / alpha
+  scatter <- scatter_unscaled / alpha
   scatter_inv <- solve(scatter)
 
   start_time <- proc.time()[3]  # record start time
@@ -215,16 +266,36 @@ Estep_mst <- function(X, nu, gamma, mu, scatter, alpha) {
   # three temporary values
   lambda <- (nu + N) / 2
   delta  <- as.numeric(sqrt(gamma %*% scatter_inv %*% gamma))
-  kappa  <- sqrt(nu + mahalanobis(x = X, center = mu, cov = scatter_inv, inverted = TRUE))
+  Xc <- X - matrix(mu, T, N, byrow = TRUE)
+  kappa <- sqrt(nu + rowSums(Xc * (Xc %*% scatter_inv)))
+  # kappa_  <- sqrt(nu + stats::mahalanobis(x = X, center = mu, cov = scatter_inv, inverted = TRUE))
+  # if (!all.equal(kappa, kappa_))
+  #   browser()
 
-  E_tau    <- (delta / kappa) * besselK(x = delta * kappa, nu = lambda + 1, expon.scaled = TRUE) / besselK(x = delta * kappa, nu = lambda, expon.scaled = TRUE)
-  E_invtau <- (kappa / delta) * besselK(x = delta * kappa, nu = lambda - 1, expon.scaled = TRUE) / besselK(x = delta * kappa, nu = lambda, expon.scaled = TRUE)
+  # dirty fixes to avoid numerical issues with besselK()
+  delta_times_kappa <- max(1e-4, delta) * kappa
+  lambda <- min(lambda, 50)
 
-  dev_cal <- function(val) numDeriv::grad(func = function(lmd) log(besselK(x = val, nu = lmd, expon.scaled = TRUE)), x = lambda, method = "simple", method.args = list(eps = 1e-10))
-  E_logtau <- log(delta / kappa) + sapply(delta*kappa, dev_cal)
+  # the terms "+ 1e-6", "+ 1e-4", "+ 1e-100" are just to avoid numerical issues...
+  besselK_lambda <- besselK(x = delta_times_kappa, nu = lambda, expon.scaled = TRUE)
+  E_tau    <- ((delta + 1e-6) / kappa) * besselK(x = delta_times_kappa, nu = lambda + 1, expon.scaled = TRUE) / besselK_lambda
+  E_invtau <- (kappa / (delta + 1e-6)) * besselK(x = delta_times_kappa, nu = lambda - 1, expon.scaled = TRUE) / besselK_lambda
 
-  list("E_tau"    = E_tau * alpha,
-       "E_invtau" = E_invtau / alpha,
-       "E_logtau" = E_logtau + log(alpha))
+  dev_cal <- function(val) numDeriv::grad(func = function(lmd) log(besselK(x = pmax(1e-4, val), nu = lmd, expon.scaled = TRUE)), x = lambda, method = "simple", method.args = list(eps = 1e-10))
+  E_logtau <- log((delta + 1e-100) / kappa) + sapply(delta*kappa, dev_cal)
+
+  # return
+  list_to_return <- list("E_tau"    = E_tau * alpha,
+                         "E_invtau" = E_invtau / alpha,
+                         "E_logtau" = E_logtau + log(alpha))
+
+  if (any(is.infinite(besselK_lambda)) ||
+      any(is.infinite(list_to_return$E_invtau)) || is.infinite(sum(list_to_return$E_invtau)) ||
+      any(is.nan(list_to_return$E_invtau))) {
+    message("Problem with the computation of E[tau], probably because of very small numbers in the evaluation of the bessel function.")
+    browser()
+  }
+
+  return(list_to_return)
 }
 
