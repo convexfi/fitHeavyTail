@@ -2,9 +2,11 @@
 
 * New method for skewed t distributions: fit_mvst()
 
+* fit_mvt() and fit_mvst(): Now the bounds for nu estimation can be set as a global option: options(nu_min = 4.2).
+
 * Fixed description regarding covariance matrix for Cauchy distribution.
 
-* fit_mvt(): Now the bounds for nu estimation can be set as a global option: options(nu_min = 4.2).
+* fit_mvt(): It accepts weights as argument to weight differently the samples (as opposed to uniform weights).
 
 * fit_mvt(): Many more methods to estimate nu iteratively (via argument nu_iterative_method).
 
