@@ -101,7 +101,7 @@ fit_mvst(X)
 
 # setting lower limit for nu (e.g., to guarantee existence of co-skewness and co-kurtosis matrices)
 options(nu_min = 8.01)
-fit_mvst(X, nu = "iterative")
+fit_mvst(X)
 
 }
 \references{

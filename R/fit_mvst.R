@@ -54,7 +54,7 @@
 #' @seealso \code{\link{fit_mvt}}
 #'
 #' @references
-#' Aas, Kjersti and Ingrid Hobæk Haff. "The generalized hyperbolic skew Student’s t-distribution,"
+#' Aas Kjersti and Ingrid Hobæk Haff. "The generalized hyperbolic skew Student’s t-distribution,"
 #' Journal of financial econometrics, pp. 275-309, 2006.
 #'
 #' @examples
