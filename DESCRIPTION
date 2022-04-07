@@ -12,7 +12,8 @@ Description: Robust estimation methods for the mean vector, scatter matrix,
     Zhou, Liu, Kumar, and Palomar (2019).
 Authors@R: c(
   person(c("Daniel", "P."), "Palomar", role = c("cre", "aut"), email = "daniel.p.palomar@gmail.com"),
-  person("Rui", "Zhou", role =  "aut", email = "rzhouae@connect.ust.hk")
+  person("Rui", "Zhou", role =  "aut", email = "rzhouae@connect.ust.hk"),
+  person("Xiwen", "Wang", role =  "aut", email = "xwangew@connect.ust.hk")
   )
 Maintainer: Daniel P. Palomar <daniel.p.palomar@gmail.com>
 URL: https://CRAN.R-project.org/package=fitHeavyTail,

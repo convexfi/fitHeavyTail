@@ -34,15 +34,16 @@ test_that("error control works", {
 
 
 test_that("default mode works", {
-  # mvst_model_check <- fit_mvst(X)
+  # mvst_model_check <- fit_mvst(X, ptol = 1e-4)
   # save(mvst_model_check, file = "fitted_mvst_check.RData", version = 2, compress = "xz")
   load("fitted_mvst_check.RData")
 
-  mvst_model <- fit_mvst(X)
+  mvst_model <- fit_mvst(X, ptol = 1e-4)
   expect_equal(mvst_model[c("mu", "gamma", "scatter", "nu", "mean", "cov", "converged", "num_iterations")],
                mvst_model_check[c("mu", "gamma", "scatter", "nu", "mean", "cov", "converged", "num_iterations")])  #, tolerance = 0.1)
 
   # test for xts
+  mvst_model <- fit_mvst(X)
   fitted_xts <- fit_mvst(X_xts)
   expect_identical(mvst_model[c("mu", "gamma", "scatter", "nu", "mean", "cov", "converged", "num_iterations")],
                    fitted_xts[c("mu", "gamma", "scatter", "nu", "mean", "cov", "converged", "num_iterations")])
@@ -64,10 +65,14 @@ test_that("Gaussian case fits", {
   # expect_equal(mvt_model$mu, colMeans(X))
   # expect_equal(mvt_model$cov, (nrow(X)-1)/nrow(X) * cov(X))
 
-  mvt_model  <- fit_mvt(X, nu = 1e2, ftol = 1e-3)
-  mvst_model <- fit_mvst(X, nu = 1e2, gamma = rep(0, ncol(X)), ftol = 1e-3)
+  mvt_model  <- fit_mvt(X, nu = Inf, ftol = 1e-3)
+  mvst_model <- fit_mvst(X, nu = Inf, gamma = rep(0, ncol(X)), ftol = 1e-3)
   expect_equal(mvt_model$mu,  mvst_model$mu)
   expect_equal(mvt_model$cov, mvst_model$cov)
+
+
+  # sanity check for large nu:
+  mvst_model <- fit_mvst(X, nu = 1e5, gamma = rep(1e-6, ncol(X)), ftol = 1e-3)
 })
 
 

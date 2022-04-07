@@ -19,7 +19,7 @@
 #'                         \item{\code{scatter}: default follows from the scaled sample covariance matrix,}
 #'                         }
 #' @param max_iter Integer indicating the maximum number of iterations for the iterative estimation
-#'                 method (default is \code{100}).
+#'                 method (default is \code{500}).
 #' @param ptol Positive number indicating the relative tolerance for the change of the variables
 #'             to determine convergence of the iterative method (default is \code{1e-3}).
 #' @param ftol Positive number indicating the relative tolerance for the change of the log-likelihood
@@ -49,7 +49,7 @@
 #'         \item{\code{cpu_time_at_iter}}{Elapsed CPU time at each iteration (if \code{return_iterates = TRUE}).}
 #'
 #'
-#' @author Rui Zhou and Daniel P. Palomar
+#' @author Rui Zhou, Xiwen Wang, and Daniel P. Palomar
 #'
 #' @seealso \code{\link{fit_mvt}}
 #'
@@ -86,7 +86,7 @@
 #' @export
 fit_mvst <- function(X,
                      nu = NULL, gamma = NULL, initial = NULL,
-                     max_iter = 100, ptol = 1e-3, ftol = Inf,
+                     max_iter = 500, ptol = 1e-3, ftol = Inf,
                      PXEM = TRUE, return_iterates = FALSE, verbose = FALSE) {
   ####### error control ########
   X <- try(as.matrix(X), silent = TRUE)
@@ -115,14 +115,13 @@ fit_mvst <- function(X,
   if (optimize_nu) {
     nu    <- if (is.null(initial$nu)) 4 else initial$nu
   }
-  if (nu == Inf) nu <- 1e2  # to avoid numerical issues with besselK()
+  if (nu == Inf) nu <- 1e15  # for numerical stability (for the Gaussian case)
   optimize_gamma <- is.null(gamma)
   if (optimize_gamma) {
     gamma_unscaled <- if (is.null(initial$gamma)) rep(0, N)  # sampleSkewness(X)
                       else initial$gamma
   } else
     gamma_unscaled <- gamma
-  rm(gamma)  # to be removed
   # # since mean = mu +  nu/(nu-2) * gamma:
   mu      <- if (is.null(initial$mu)) colMeans(X) - max(nu, 2.1)/(max(nu, 2.1)-2) * gamma_unscaled/alpha
              else initial$mu
@@ -155,7 +154,7 @@ fit_mvst <- function(X,
 
     # E-step ----------------------------------------
     # for the observed data
-    expect <- Estep_mst(X = X, nu = nu, gamma_unscaled = gamma_unscaled, mu = mu, scatter_unscaled = scatter_unscaled, alpha = alpha)
+    expect <- Estep_mvst(X = X, nu = nu, gamma_unscaled = gamma_unscaled, mu = mu, scatter_unscaled = scatter_unscaled, alpha = alpha)
 
     # M-step ----------------------------------------
     # nu
@@ -186,6 +185,8 @@ fit_mvst <- function(X,
     # record the current the variables/loglikelihood if required
     if (ftol < Inf) {
       log_likelihood <- sum(dST(X = X, nu = nu, gamma = gamma_unscaled/alpha, mu = mu, scatter = scatter_unscaled/alpha))
+      if (is.na(log_likelihood) || is.infinite(log_likelihood))
+        stop("Error in computation of log-likelihood")
       log_likelihood_old <- last_status$obj
       has_fun_converged <- abs(log_likelihood - log_likelihood_old) <= .5 * ftol * (abs(log_likelihood) + abs(log_likelihood_old))
     } else has_fun_converged <- TRUE
@@ -201,6 +202,8 @@ fit_mvst <- function(X,
       all(abs(mu - last_status$mu)           <= .5 * ptol * (abs(mu) + abs(last_status$mu))) &&
       all(abs(gamma_unscaled/alpha - last_status$gamma)     <= .5 * ptol * (abs(gamma_unscaled/alpha) + abs(last_status$gamma))) &&
       all(abs(scatter_unscaled/alpha - last_status$scatter) <= .5 * ptol * (abs(scatter_unscaled/alpha) + abs(last_status$scatter)))
+    if (is.na(have_params_converged) || is.na(has_fun_converged))
+      browser()
     if (have_params_converged && has_fun_converged) break
   }
 
@@ -251,9 +254,12 @@ dST <- function(X, nu = 3, gamma = 1, mu = 0, scatter = 1) {
 }
 
 
+
+
+
 # expectation step of the EM algorithm for fitting a GH MST distribution
 #' @importFrom numDeriv grad
-Estep_mst <- function(X, nu, gamma_unscaled, mu, scatter_unscaled, alpha) {
+Estep_mvst <- function(X, nu, gamma_unscaled, mu, scatter_unscaled, alpha) {
   N <- ncol(X)
   T <- nrow(X)
 
@@ -268,34 +274,52 @@ Estep_mst <- function(X, nu, gamma_unscaled, mu, scatter_unscaled, alpha) {
   delta  <- as.numeric(sqrt(gamma %*% scatter_inv %*% gamma))
   Xc <- X - matrix(mu, T, N, byrow = TRUE)
   kappa <- sqrt(nu + rowSums(Xc * (Xc %*% scatter_inv)))
-  # kappa_  <- sqrt(nu + stats::mahalanobis(x = X, center = mu, cov = scatter_inv, inverted = TRUE))
-  # if (!all.equal(kappa, kappa_))
-  #   browser()
+  # kappa  <- sqrt(nu + stats::mahalanobis(x = X, center = mu, cov = scatter_inv, inverted = TRUE))
 
-  # dirty fixes to avoid numerical issues with besselK()
-  delta_times_kappa <- max(1e-4, delta) * kappa
-  lambda <- min(lambda, 50)
+  if (delta == 0) {
+    E_tau <- ((kappa**2)/2)*lambda
+    E_invtau <- (1/((kappa**2)/2)) * (1/lambda)
+    E_logtau <- digamma(lambda) - log((kappa**2)/4)
+  } else {
+    tmp <- besselK_ratio(delta * kappa, lmd = lambda)
+    E_tau    <- (delta / kappa) * tmp
+    #E_invtau  <- (kappa / delta) * 1/besselK_ratio(delta * kappa, lmd = lambda - 1)
+    E_invtau <- (kappa / delta) * (tmp - (2*lambda)/delta/kappa)
 
-  # the terms "+ 1e-6", "+ 1e-4", "+ 1e-100" are just to avoid numerical issues...
-  besselK_lambda <- besselK(x = delta_times_kappa, nu = lambda, expon.scaled = TRUE)
-  E_tau    <- ((delta + 1e-6) / kappa) * besselK(x = delta_times_kappa, nu = lambda + 1, expon.scaled = TRUE) / besselK_lambda
-  E_invtau <- (kappa / (delta + 1e-6)) * besselK(x = delta_times_kappa, nu = lambda - 1, expon.scaled = TRUE) / besselK_lambda
-
-  dev_cal <- function(val) numDeriv::grad(func = function(lmd) log(besselK(x = pmax(1e-4, val), nu = lmd, expon.scaled = TRUE)), x = lambda, method = "simple", method.args = list(eps = 1e-10))
-  E_logtau <- log((delta + 1e-100) / kappa) + sapply(delta*kappa, dev_cal)
+    if (lambda < 150) {
+      dev_cal <- function(val) numDeriv::grad(func = function(lmd) log(besselK(x = val, nu = lmd, expon.scaled = FALSE)), x = lambda, method = "simple", method.args = list(eps = 1e-10))
+      E_logtau <- log(delta / kappa) + sapply(delta * kappa, dev_cal)
+    } else
+      E_logtau <- log(delta / kappa) + log(besselK_ratio(delta * kappa, lmd = lambda))
+  }
 
   # return
   list_to_return <- list("E_tau"    = E_tau * alpha,
                          "E_invtau" = E_invtau / alpha,
                          "E_logtau" = E_logtau + log(alpha))
 
-  if (any(is.infinite(besselK_lambda)) ||
-      any(is.infinite(list_to_return$E_invtau)) || is.infinite(sum(list_to_return$E_invtau)) ||
+  if (any(is.infinite(list_to_return$E_invtau)) || is.infinite(sum(list_to_return$E_invtau)) ||
       any(is.nan(list_to_return$E_invtau))) {
     message("Problem with the computation of E[tau], probably because of very small numbers in the evaluation of the bessel function.")
     browser()
   }
 
   return(list_to_return)
+}
+
+
+# https://www.researchgate.net/journal/Journal-of-Inequalities-and-Applications-1029-242X[…]mating-the-modified-Bessel-function-of-the-second-kind.pdf
+besselK_ratio <- function(x, lmd) {
+  if (lmd > 100) {
+    # from lmd_i
+    lmd_i <- lmd - round(lmd, 0.1) + 10
+    R_i <- besselK(x = x, nu = lmd_i + 1, expon.scaled = TRUE) / besselK(x = x, nu = lmd_i, expon.scaled = TRUE)
+    while (lmd_i != lmd) {
+      R_i <- 1/R_i + (2 * lmd_i + 2)/x
+      lmd_i <- lmd_i + 1
+    }
+    return(R_i)
+  } else
+    return(besselK(x = x, nu = lmd + 1, expon.scaled = TRUE) / besselK(x = x, nu = lmd, expon.scaled = TRUE))
 }
 

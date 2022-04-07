@@ -9,7 +9,7 @@ fit_mvst(
   nu = NULL,
   gamma = NULL,
   initial = NULL,
-  max_iter = 100,
+  max_iter = 500,
   ptol = 0.001,
   ftol = Inf,
   PXEM = TRUE,
@@ -33,7 +33,7 @@ Possible elements include:
          }}
 
 \item{max_iter}{Integer indicating the maximum number of iterations for the iterative estimation
-method (default is \code{100}).}
+method (default is \code{500}).}
 
 \item{ptol}{Positive number indicating the relative tolerance for the change of the variables
 to determine convergence of the iterative method (default is \code{1e-3}).}
@@ -105,12 +105,12 @@ fit_mvst(X)
 
 }
 \references{
-Aas, Kjersti and Ingrid Hobæk Haff. "The generalized hyperbolic skew Student’s t-distribution,"
+Aas Kjersti and Ingrid Hobæk Haff. "The generalized hyperbolic skew Student’s t-distribution,"
 Journal of financial econometrics, pp. 275-309, 2006.
 }
 \seealso{
 \code{\link{fit_mvt}}
 }
 \author{
-Rui Zhou and Daniel P. Palomar
+Rui Zhou, Xiwen Wang, and Daniel P. Palomar
 }
