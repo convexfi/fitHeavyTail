@@ -115,7 +115,7 @@ fit_mvst <- function(X,
   if (optimize_nu) {
     nu    <- if (is.null(initial$nu)) 4 else initial$nu
   }
-  if (nu == Inf) nu <- 1e15  # for numerical stability (for the Gaussian case)
+  if (nu == Inf) nu <- 1e5  # for numerical stability (for the Gaussian case)
   optimize_gamma <- is.null(gamma)
   if (optimize_gamma) {
     gamma_unscaled <- if (is.null(initial$gamma)) rep(0, N)  # sampleSkewness(X)
@@ -142,7 +142,7 @@ fit_mvst <- function(X,
   # loop
   #
   if (ftol < Inf)
-    log_likelihood_record <- log_likelihood <- sum(dST(X = X, nu = nu, gamma = gamma_unscaled/alpha, mu = mu, scatter = scatter_unscaled/alpha))
+    log_likelihood_record <- log_likelihood <- sum(dmvst(X = X, nu = nu, gamma = gamma_unscaled/alpha, mu = mu, scatter = scatter_unscaled/alpha))
   if (return_iterates) iterates_record <- list(snapshot())
   elapsed_times <- c(0)
 
@@ -184,9 +184,9 @@ fit_mvst <- function(X,
 
     # record the current the variables/loglikelihood if required
     if (ftol < Inf) {
-      log_likelihood <- sum(dST(X = X, nu = nu, gamma = gamma_unscaled/alpha, mu = mu, scatter = scatter_unscaled/alpha))
+      log_likelihood <- sum(dmvst(X = X, nu = nu, gamma = gamma_unscaled/alpha, mu = mu, scatter = scatter_unscaled/alpha))
       if (is.na(log_likelihood) || is.infinite(log_likelihood))
-        stop("Error in computation of log-likelihood")
+        stop("Error in computation of log-likelihood (nu = ", nu, ").")
       log_likelihood_old <- last_status$obj
       has_fun_converged <- abs(log_likelihood - log_likelihood_old) <= .5 * ftol * (abs(log_likelihood) + abs(log_likelihood_old))
     } else has_fun_converged <- TRUE
@@ -248,12 +248,35 @@ sampleSkewness <- function(X) {
 
 # log scaled probability density of give data if assumed to follow a GH MST distribution
 #' @importFrom ghyp ghyp dghyp
-dST <- function(X, nu = 3, gamma = 1, mu = 0, scatter = 1) {
+dmvst_orig <- function(X, nu = 3, gamma = 1, mu = 0, scatter = 1) {
   model <- ghyp::ghyp(lambda = -nu/2, chi = nu, psi = 0, mu = mu, sigma = scatter, gamma = gamma)
   ghyp::dghyp(x = X, object = model, logvalue = TRUE)
 }
 
-
+dmvst <- function(X, nu = 3, gamma = 1, mu = 0, scatter = 1) {
+  X <- as.matrix(X)
+  N <- ncol(X)
+  T <- nrow(X)
+  Xc <- X - matrix(mu, T, N, byrow = TRUE)
+  if (nu < 50000) {
+    # model <- ghyp::ghyp(lambda = -nu/2, chi = nu, psi = 0, mu = mu, sigma = scatter, gamma = gamma)
+    # return(ghyp::dghyp(x = X, object = model, logvalue = TRUE))
+    scatter_inv <- solve(scatter)
+    delta  <- as.numeric(sqrt(gamma %*% scatter_inv %*% gamma))
+    if(delta == 0) {  # gamma = 0, student t case
+      first_term <- lgamma((nu + N)/2) - lgamma(nu/2) -(N/2)*log(nu) - (N/2)*log(pi)-0.5* sum(log(eigen((scatter))$values) )
+      second_term <- -((nu + N)/2) * log(1+(1/nu) * (rowSums(Xc * (Xc %*% scatter_inv))))
+      return(first_term + second_term)
+    } else {
+      kappa <- sqrt(nu + rowSums(Xc * (Xc %*% scatter_inv)))
+      first_term <-Xc %*% solve(scatter) %*% gamma - (N/2) * log(2*pi) - 0.5 * sum(log(eigen((scatter))$values) )
+      second_term <- log(2) + (nu/2) * log(nu/2) - lgamma(nu/2)
+      third_term <- -((nu+N)/2) * log(kappa/delta) + log_besselK(delta*kappa, -((nu+N)/2))
+      return(first_term + second_term + third_term)
+    }
+  } else  # Gaussian case
+    return(-0.5 * sum(log(eigen((2*pi*scatter))$values)) - 0.5 * rowSums(Xc * (Xc %*% solve(scatter))))
+}
 
 
 
@@ -284,7 +307,7 @@ Estep_mvst <- function(X, nu, gamma_unscaled, mu, scatter_unscaled, alpha) {
     tmp <- besselK_ratio(delta * kappa, lmd = lambda)
     E_tau    <- (delta / kappa) * tmp
     #E_invtau  <- (kappa / delta) * 1/besselK_ratio(delta * kappa, lmd = lambda - 1)
-    E_invtau <- (kappa / delta) * (tmp - (2*lambda)/delta/kappa)
+    E_invtau <- (kappa / delta) * (tmp - (2*lambda)/delta/kappa)  # this saves computing bessel functions again
 
     if (lambda < 150) {
       dev_cal <- function(val) numDeriv::grad(func = function(lmd) log(besselK(x = val, nu = lmd, expon.scaled = FALSE)), x = lambda, method = "simple", method.args = list(eps = 1e-10))
@@ -308,18 +331,41 @@ Estep_mvst <- function(X, nu, gamma_unscaled, mu, scatter_unscaled, alpha) {
 }
 
 
+
+
 # https://www.researchgate.net/journal/Journal-of-Inequalities-and-Applications-1029-242X[…]mating-the-modified-Bessel-function-of-the-second-kind.pdf
 besselK_ratio <- function(x, lmd) {
-  if (lmd > 100) {
-    # from lmd_i
-    lmd_i <- lmd - round(lmd, 0.1) + 10
+  if (lmd < 100)
+    return(besselK(x = x, nu = lmd + 1, expon.scaled = TRUE) / besselK(x = x, nu = lmd, expon.scaled = TRUE))
+  else {
+    lmd_i <- lmd - floor(lmd) + 10
     R_i <- besselK(x = x, nu = lmd_i + 1, expon.scaled = TRUE) / besselK(x = x, nu = lmd_i, expon.scaled = TRUE)
     while (lmd_i != lmd) {
       R_i <- 1/R_i + (2 * lmd_i + 2)/x
       lmd_i <- lmd_i + 1
     }
     return(R_i)
-  } else
-    return(besselK(x = x, nu = lmd + 1, expon.scaled = TRUE) / besselK(x = x, nu = lmd, expon.scaled = TRUE))
+  }
 }
+
+
+
+log_besselK <- function(x, lmd) {
+  if (lmd >= 0)
+    stop("lmd should be negative in this function.")
+  lmd_i <- lmd - floor(lmd) - 1
+  K_lmd_i <- besselK(x, nu = lmd_i)    # K_{lmd_i}(x)
+  log_values <- log(K_lmd_i)
+  R_lmd_i <- K_lmd_i/besselK(x, nu = lmd_i - 1)  # R_{lmd_i -1}(x)
+  log_values <- log_values - log(R_lmd_i)
+  lmd_i <- lmd_i - 1
+  while(lmd_i != lmd) {
+    R_lmd_i_inv <- R_lmd_i - 2*lmd_i/x
+    R_lmd_i <- 1/R_lmd_i_inv   # R_{i -1}(x)
+    log_values <- log_values - log(R_lmd_i)
+    lmd_i <- lmd_i - 1
+  }
+  return(log_values)
+}
+
 

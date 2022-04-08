@@ -65,14 +65,22 @@ test_that("Gaussian case fits", {
   # expect_equal(mvt_model$mu, colMeans(X))
   # expect_equal(mvt_model$cov, (nrow(X)-1)/nrow(X) * cov(X))
 
-  mvt_model  <- fit_mvt(X, nu = Inf, ftol = 1e-3)
-  mvst_model <- fit_mvst(X, nu = Inf, gamma = rep(0, ncol(X)), ftol = 1e-3)
+  mvt_model  <- fit_mvt(X,  nu = 1e5, ftol = 1e-3)
+  mvst_model <- fit_mvst(X, nu = 1e5, gamma = rep(0, ncol(X)), ftol = 1e-3)
   expect_equal(mvt_model$mu,  mvst_model$mu)
   expect_equal(mvt_model$cov, mvst_model$cov)
 
 
   # sanity check for large nu:
-  mvst_model <- fit_mvst(X, nu = 1e5, gamma = rep(1e-6, ncol(X)), ftol = 1e-3)
+  mvt_model  <- fit_mvt(X,  nu = 10, ftol = 1e-3)
+  mvst_model <- fit_mvst(X, nu = 10, gamma = rep(0, ncol(X)), ftol = 1e-3)
+  expect_equal(mvt_model$mu,  mvst_model$mu)
+  expect_equal(mvt_model$cov, mvst_model$cov)
+
+
+  expect_silent(
+    mvst_model <- fit_mvst(X, nu = 1e5, gamma = rep(1e-6, ncol(X)), ftol = 1e-3)
+  )
 })
 
 
@@ -88,4 +96,18 @@ test_that("bounds on nu work", {
 
   options(nu_min = 2.5)
 })
+
+
+
+test_that("Bessel functions work", {
+  res1 <- sum(dmvst_orig(X = X, nu = 5.7, gamma = gamma, mu = mu, scatter = scatter))
+  res2 <- sum(dmvst(X = X, nu = 5.7, gamma = gamma, mu = mu, scatter = scatter))
+  expect_equal(res1, res2)
+
+  res1 <- sum(dmvst_orig(X = X, nu = 60.7, gamma = gamma, mu = mu, scatter = scatter))
+  res2 <- sum(dmvst(X = X, nu = 60.7, gamma = gamma, mu = mu, scatter = scatter))
+  expect_equal(res1, res2)
+})
+
+
 
