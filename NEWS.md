@@ -2,7 +2,7 @@
 
 * New method for skewed t distributions: fit_mvst()
 
-* fit_mvt() and fit_mvst(): Now the bounds for nu estimation can be set as a global option: options(nu_min = 4.2).
+* fit_mvt() and fit_mvst(): Now the bounds for nu estimation can be set as a global option, e.g.: options(nu_min = 4.2).
 
 * Fixed description regarding covariance matrix for Cauchy distribution.
 
@@ -10,7 +10,7 @@
 
 * fit_mvt(): Many more methods to estimate nu iteratively (via argument nu_iterative_method).
 
-* fit_mvt(): Working on correction factor for minimum MSE in covmat estimation (not ready).
+* fit_mvt(): New argument scale_minMSE to include a correction factor in the covariance matrix for minimum MSE (still in development).
 
 
 ## Changes in fitHeavyTail version 0.1.2 (2020-1-7)
