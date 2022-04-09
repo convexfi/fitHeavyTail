@@ -159,7 +159,7 @@ fit_mvst <- function(X,
     # M-step ----------------------------------------
     # nu
     if (optimize_nu) {
-      Q_nu <- function(nu) (nu/2)*sum(expect$E_logtau - log(alpha) - expect$E_tau/alpha) + T*((nu/2)*log(nu/2) - log(base::gamma(nu/2)))
+      Q_nu <- function(nu) (nu/2)*sum(expect$E_logtau - log(alpha) - expect$E_tau/alpha) + T*((nu/2)*log(nu/2) - lgamma(nu/2))
       nu <- optimize(Q_nu, interval = c(getOption("nu_min"), getOption("nu_max")), maximum = TRUE)$maximum
     }
 
@@ -351,9 +351,8 @@ besselK_ratio <- function(x, nu) {
 }
 
 
-
 log_besselK <- function(x, nu) {
-  if (nu <= 10 && nu >= -1) {
+  if (nu <= 10 && nu >= -10) {
     return(log(besselK(x, nu)))
   } else if (nu >= 0){
     nu_i <-  nu - floor(nu) + 9
@@ -384,4 +383,3 @@ log_besselK <- function(x, nu) {
     return(log_values)
   }
 }
-
