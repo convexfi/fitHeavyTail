@@ -57,6 +57,7 @@
 #'                         \item{\code{psi}: default is
 #'                                          \code{diag(initial$cov - initial$B \%*\% t(initial$B)).}}}
 #' @param optimize_mu Boolean indicating whether to optimize \code{mu} (default is \code{TRUE}).
+#' @param weights Optional weights for each of the observations (the length should be equal to the number of rows of X).
 #' @param factors Integer indicating number of factors (default is \code{ncol(X)}, so no factor model assumption).
 #' @param max_iter Integer indicating the maximum number of iterations for the iterative estimation
 #'                 method (default is \code{100}).
@@ -104,6 +105,9 @@
 #' Rui Zhou, Junyan Liu, Sandeep Kumar, and Daniel P. Palomar, "Robust factor analysis parameter estimation,"
 #' Lecture Notes in Computer Science (LNCS), 2019. <https://arxiv.org/abs/1909.12530>
 #'
+#' Esa Ollila, Daniel P. Palomar, and Frédéric Pascal, "Shrinking the Eigenvalues of M-estimators of Covariance Matrix,"
+#' IEEE Trans. on Signal Processing, vol. 69, pp. 256-269, Jan. 2021.
+#'
 #' @examples
 #' library(mvtnorm)       # to generate heavy-tailed data
 #' library(fitHeavyTail)
@@ -115,7 +119,7 @@
 #' options(nu_min = 4.01)
 #' fit_mvt(X, nu = "iterative")
 #'
-#' @importFrom stats optimize
+#' @importFrom stats optimize na.omit uniroot
 #' @export
 fit_mvt <- function(X, na_rm = TRUE,
                     nu = c("kurtosis", "MLE-diag", "MLE-diag-resampled", "iterative"),
@@ -330,7 +334,7 @@ fit_mvt <- function(X, na_rm = TRUE,
                        theta <- (1 - N/T) * sum(r2i)/T/N
                        # correction with sigma
                        T_ <- 10000
-                       X_ <- mvtnorm::rmvt(n = T_, delta = rep(0, N), sigma = diag(N), df = nu_true)  # heavy-tailed data
+                       X_ <- mvtnorm::rmvt(n = T_, delta = rep(0, N), sigma = diag(N), df = nu)  # heavy-tailed data
                        r2 <- rowSums(X_^2)
                        u <- (N + nu)/(nu + r2)
                        r2i <- r2/(1 - r2*u/T_)

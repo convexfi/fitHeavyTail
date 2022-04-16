@@ -1,12 +1,13 @@
 Package: fitHeavyTail
 Title: Mean and Covariance Matrix Estimation under Heavy Tails
-Version: 0.1.2.9000
-Date: 2020-1-7
+Version: 0.1.3
+Date: 2022-4-14
 Description: Robust estimation methods for the mean vector, scatter matrix,
     and covariance matrix (if it exists) from data (possibly containing NAs) 
     under multivariate heavy-tailed distributions such as angular Gaussian 
     (via Tyler's method), Cauchy, and Student's t distributions. Additionally, 
-    a factor model structure can be specified for the covariance matrix.
+    a factor model structure can be specified for the covariance matrix. The
+    latest revision also includes the multivariate skewed t distribution.
     The package is based on the papers: Sun, Babu, and Palomar (2014),
     Sun, Babu, and Palomar (2015), Liu and Rubin (1995), and 
     Zhou, Liu, Kumar, and Palomar (2019).
@@ -24,7 +25,6 @@ URL: https://CRAN.R-project.org/package=fitHeavyTail,
 BugReports: https://github.com/dppalomar/fitHeavyTail/issues
 License: GPL-3
 Encoding: UTF-8
-LazyData: true
 RoxygenNote: 7.1.1
 Depends:
 Imports:

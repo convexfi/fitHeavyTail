@@ -3,14 +3,15 @@ citHeader("To cite 'fitHeavyTail' in publications, please use:")
 citEntry(entry = "Manual",
          title        = "{fitHeavyTail: Mean and Covariance Matrix Estimation under Heavy Tails}",
          author       = personList(as.person("D. P. Palomar"),
-                                   as.person("Rui ZHOU")),
-         note         = "R package version 0.1.2",
-         year         = "2020",
+                                   as.person("Rui Zhou"),
+                                   as.person("Xiwen Wang")),
+         note         = "R package version 0.1.3",
+         year         = "2022",
          url          = "https://CRAN.R-project.org/package=fitHeavyTail",
          textVersion  =
-           paste("D. P. Palomar and Rui Zhou (2020).",
+           paste("D. P. Palomar, Rui Zhou, and Xiwen Wang (2022).",
                  "fitHeavyTail: Mean and Covariance Matrix Estimation under Heavy Tails.",
-                 "R package version 0.1.2.",
+                 "R package version 0.1.3.",
                  "https://CRAN.R-project.org/package=fitHeavyTail")
 )
 
@@ -51,3 +52,22 @@ citEntry(entry = "Article",
                  "vol. 63, no. 12, pp. 3096-3109.",
                  "https://doi.org/10.1109/TSP.2015.2417513")
 )
+
+citEntry(entry = "Article",
+         title        = "Shrinking the Eigenvalues of M-estimators of Covariance Matrix",
+         author       = personList(as.person("E. Ollila"),
+                                   as.person("D. P. Palomar"),
+                                   as.person("F. Pascal")),
+         journal      = "IEEE Transactions on Signal Processing",
+         volume       = "69",
+         pages        = "256--269",
+         year         = "2021",
+         url          = "https://doi.org/10.1109/TSP.2020.3043952",
+         textVersion  =
+           paste("E. Ollila, D. P. Palomar, and F. Pascal (2021).",
+                 "Shrinking the Eigenvalues of M-estimators of Covariance Matrix.",
+                 "IEEE Transactions on Signal Processing,",
+                 "vol. 69, pp. 256-269.",
+                 "https://doi.org/10.1109/TSP.2020.3043952")
+)
+

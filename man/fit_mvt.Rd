@@ -55,6 +55,8 @@ Possible elements include:
 
 \item{optimize_mu}{Boolean indicating whether to optimize \code{mu} (default is \code{TRUE}).}
 
+\item{weights}{Optional weights for each of the observations (the length should be equal to the number of rows of X).}
+
 \item{scale_minMSE}{Logical value indicating whether to scale the scatter and covariance matrices to minimize the MSE
 estimation error by introducing bias (default is \code{FALSE}).}
 
@@ -135,6 +137,9 @@ Biometrika, Vol. 85, No. 4, pp. 755-770, Dec., 1998
 
 Rui Zhou, Junyan Liu, Sandeep Kumar, and Daniel P. Palomar, "Robust factor analysis parameter estimation,"
 Lecture Notes in Computer Science (LNCS), 2019. <https://arxiv.org/abs/1909.12530>
+
+Esa Ollila, Daniel P. Palomar, and Frédéric Pascal, "Shrinking the Eigenvalues of M-estimators of Covariance Matrix,"
+IEEE Trans. on Signal Processing, vol. 69, pp. 256-269, Jan. 2021.
 }
 \seealso{
 \code{\link{fit_Tyler}}, \code{\link{fit_Cauchy}}, and \code{\link{fit_mvst}}

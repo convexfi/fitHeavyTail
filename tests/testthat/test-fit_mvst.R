@@ -39,8 +39,10 @@ test_that("default mode works", {
   load("fitted_mvst_check.RData")
 
   mvst_model <- fit_mvst(X, ptol = 1e-4)
+
   expect_equal(mvst_model[c("mu", "gamma", "scatter", "nu", "mean", "cov", "converged", "num_iterations")],
-               mvst_model_check[c("mu", "gamma", "scatter", "nu", "mean", "cov", "converged", "num_iterations")])  #, tolerance = 0.1)
+               mvst_model_check[c("mu", "gamma", "scatter", "nu", "mean", "cov", "converged", "num_iterations")],
+               tolerance = 1e-5)
 
   # test for xts
   mvst_model <- fit_mvst(X)

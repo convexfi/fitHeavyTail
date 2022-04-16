@@ -22,7 +22,7 @@ test_that("error control works", {
                "Cannot deal with T <= N (after removing NAs), too few samples.", fixed = TRUE)
   expect_error(fit_mvt(X = X, max_iter = -1), "\"max_iter\" must be greater than 1.")
   expect_error(fit_mvt(X = X, factors = -1), "\"factors\" must be no less than 1 and no more than column number of \"X\".")
-  expect_error(fit_mvt(X = X, nu = "lala"), "'arg' should be one of “kurtosis”, “MLE-diag”, “MLE-diag-resampled”, “iterative”")
+  expect_error(fit_mvt(X = X, nu = "lala"), "'arg' should be one of \"kurtosis\", \"MLE-diag\", \"MLE-diag-resampled\", \"iterative\"")
   expect_error(fit_mvt(X = X, nu = 1), "Non-valid value for nu.")
 })
 

@@ -1,4 +1,4 @@
-## Changes in fitHeavyTail version 0.1.2.9000
+## Changes in fitHeavyTail version 0.1.3 (2022-4-14)
 
 * New method for skewed t distributions: fit_mvst()
 
