@@ -47,14 +47,16 @@ test_that("default mode works", {
   # test for xts
   mvst_model <- fit_mvst(X)
   fitted_xts <- fit_mvst(X_xts)
-  expect_identical(mvst_model[c("mu", "gamma", "scatter", "nu", "mean", "cov", "converged", "num_iterations")],
-                   fitted_xts[c("mu", "gamma", "scatter", "nu", "mean", "cov", "converged", "num_iterations")])
+  expect_equal(mvst_model[c("mu", "gamma", "scatter", "nu", "mean", "cov", "converged", "num_iterations")],
+               fitted_xts[c("mu", "gamma", "scatter", "nu", "mean", "cov", "converged", "num_iterations")],
+               tolerance = 1e-5)
 
   # test for vector
   fitted_1colmatrix <- fit_mvst(X[, 1])
   fitted_vector <- fit_mvst(as.vector(X[, 1]))
-  expect_identical(fitted_1colmatrix[c("mu", "gamma", "scatter", "nu", "mean", "cov", "converged", "num_iterations")],
-                   fitted_vector[c("mu", "gamma", "scatter", "nu", "mean", "cov", "converged", "num_iterations")])
+  expect_equal(fitted_1colmatrix[c("mu", "gamma", "scatter", "nu", "mean", "cov", "converged", "num_iterations")],
+               fitted_vector[c("mu", "gamma", "scatter", "nu", "mean", "cov", "converged", "num_iterations")],
+               tolerance = 1e-5)
 
 
   # mvst_model <- fit_mvst(X, ftol = 1e-6, return_iterates = TRUE)
