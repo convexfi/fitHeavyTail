@@ -102,4 +102,4 @@ Package: [CRAN](https://CRAN.R-project.org/package=fitHeavyTail) and [GitHub](ht
 
 README file: [GitHub-readme](https://github.com/dppalomar/fitHeavyTail/blob/master/README.md).
 
-Vignette: [CRAN-vignette](https://CRAN.R-project.org/package=fitHeavyTail/vignettes/CovarianceEstimationHeavyTail.html).
+Vignette: [CRAN-vignette](https://CRAN.R-project.org/package=fitHeavyTail/vignettes/CovarianceEstimationHeavyTail.html) and [GitHub-vignette](https://htmlpreview.github.io/?https://github.com/dppalomar/fitHeavyTail/blob/master/vignettes/CovarianceEstimationHeavyTail.html).
