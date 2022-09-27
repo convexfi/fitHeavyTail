@@ -1,3 +1,8 @@
+## Changes in fitHeavyTail version 0.1.4 (2022-5-11)
+
+No changes. Just that CRAN required to resubmit due to some issue with package ghyp.
+
+
 ## Changes in fitHeavyTail version 0.1.3 (2022-4-14)
 
 * New method for skewed t distributions: fit_mvst()
