@@ -136,7 +136,7 @@ fit_mvt <- function(X, na_rm = TRUE,
   ####### error control ########
   X <- try(as.matrix(X), silent = TRUE)
   if (!is.matrix(X)) stop("\"X\" must be a matrix or coercible to a matrix.")
-  if (is.null(colnames(X))) colnames(X) <- paste0("Var", 1:ncol(X))
+  if (is.null(colnames(X))) colnames(X) <- paste0("V", 1:ncol(X))
   if (!is.numeric(X)) stop("\"X\" only allows numerical or NA values.")
   if (anyNA(X))
     if (na_rm || ncol(X) == 1) {
