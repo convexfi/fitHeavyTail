@@ -31,21 +31,31 @@
 #'          algorithm.
 #'
 #' @param X Data matrix containing the multivariate time series (each column is one time series).
-#' @param na_rm Logical value indicating whether to remove observations with some NAs (default).
+#' @param na_rm Logical value indicating whether to remove observations with some NAs (default is \code{TRUE}).
 #'              Otherwise, the NAs will be imputed at a higher computational cost.
 #' @param nu Degrees of freedom of the \eqn{t} distribution. Either a number (\code{>2}) or a string indicating the
 #'           method to compute it:
-#'           \itemize{\item{\code{"kurtosis"}: based on the kurtosis obtained from the sampled moments (default method);}
-#'                    \item{\code{"MLE-diag"}: based on the MLE assuming a diagonal sample covariance;}
-#'                    \item{\code{"MLE-diag-resampled"}: method "MLE-diag" resampled for better stability;}
-#'                    \item{\code{"iterative"}: iterative estimation with the rest of the parameters via the EM algorithm.}}
+#'           \itemize{\item{\code{"iterative"}: iterative estimation (with method to be specified in argument
+#'                                              \code{nu_iterative_method}) with the rest of the parameters (default method);}
+#'                    \item{\code{"kurtosis"}: one-shot estimation based on the kurtosis obtained from the sampled moments;}
+#'                    \item{\code{"MLE-diag"}: one-shot estimation based on the MLE assuming a diagonal sample covariance;}
+#'                    \item{\code{"MLE-diag-resampled"}: like method \code{"MLE-diag"} but resampled for better stability.}}
+#'
 #' @param nu_iterative_method String indicating the method for iteratively estimating \code{nu} (in case \code{nu = "iterative"}):
-#'                  \itemize{\item{\code{"ECM"}: maximization of the Q function;}
-#'                           \item{\code{"ECME"}: maximization of the log-likelihood function;}
-#'                           \item{\code{"ECME-diag"}: maximization of the log-likelihood function assuming
-#'                                                     a digonal scatter matrix (default method).}}
-#' @param scale_minMSE Logical value indicating whether to scale the scatter and covariance matrices to minimize the MSE
-#'                     estimation error by introducing bias (default is \code{FALSE}).
+#'                  \itemize{\item{\code{"ECM"}: maximization of the Q function [Liu-Rubin, 1995];}
+#'                           \item{\code{"ECME"}: maximization of the log-likelihood function [Liu-Rubin, 1995];}
+#'                           \item{\code{"OPP"}: estimator from paper [Ollila-Palomar-Pascal, TSP2021, Alg. 1];}
+#'                           \item{\code{"POP"}: improved estimator as in paper
+#'                                               [Pascal-Ollila-Palomar, EUSIPCO2021, Alg. 1] (default method).}}
+#'
+#' @param nu_update_start_at_iter Starting iteration (default is 1) for
+#'                                iteratively estimating \code{nu} (in case \code{nu = "iterative"}).
+#' @param nu_update_every_num_iter Frequency (default is 1) for
+#'                                 iteratively estimating \code{nu} (in case \code{nu = "iterative"}).
+#' @param scale_covmat Logical value indicating whether to scale the scatter and covariance matrices to minimize the MSE
+#'                     estimation error by introducing bias (default is \code{TRUE}).
+#' @param PX_EM_acceleration Logical value indicating whether to accelerate the iterative method via
+#'                           the PX-EM acceleration technique (default is \code{TRUE}) [Liu-Rubin-Wu, 1998].
 #' @param initial List of initial values of the parameters for the iterative estimation method (in case \code{nu = "iterative"}).
 #'                Possible elements include:
 #'                \itemize{\item{\code{mu}: default is the data sample mean,}
@@ -108,6 +118,9 @@
 #' Esa Ollila, Daniel P. Palomar, and Frédéric Pascal, "Shrinking the Eigenvalues of M-estimators of Covariance Matrix,"
 #' IEEE Trans. on Signal Processing, vol. 69, pp. 256-269, Jan. 2021.
 #'
+#' Frédéric Pascal, Esa Ollila, and Daniel P. Palomar, "Improved estimation of the degree of freedom parameter of
+#' multivariate t-distribution," in Proc. European Signal Processing Conference (EUSIPCO), Dublin, Ireland, Aug. 23-27, 2021.
+#'
 #' @examples
 #' library(mvtnorm)       # to generate heavy-tailed data
 #' library(fitHeavyTail)
@@ -122,14 +135,17 @@
 #' @importFrom stats optimize na.omit uniroot
 #' @export
 fit_mvt <- function(X, na_rm = TRUE,
-                    nu = c("kurtosis", "MLE-diag", "MLE-diag-resampled", "iterative"),
-                    nu_iterative_method = c("ECME-diag", "ECME", "ECM", "ECME-cov",
-                                            "theta-0", "theta-1a", "theta-1b", "theta-2a", "theta-2b",
-                                            "POP", "POP-sigma-corrected", "POP-sigma-corrected-true"),
+                    nu = c("iterative", "kurtosis", "MLE-diag", "MLE-diag-resampled",
+                           "cross-cumulants", "all-cumulants", "Hill"),
+                    nu_iterative_method = c("POP", "OPP", "ECME", "ECM", "Tyler-harmonic",
+                                            "POP-approx-1", "POP-approx-2", "POP-approx-3", "POP-approx-4", "POP-exact", "POP-sigma-corrected", "POP-sigma-corrected-true"),
                     initial = NULL,
                     optimize_mu = TRUE,
                     weights = NULL,
-                    scale_minMSE = FALSE,
+                    scale_covmat = TRUE,
+                    PX_EM_acceleration = TRUE,
+                    nu_update_start_at_iter = 1,
+                    nu_update_every_num_iter = 1,
                     factors = ncol(X),
                     max_iter = 100, ptol = 1e-3, ftol = Inf,
                     return_iterates = FALSE, verbose = FALSE) {
@@ -145,7 +161,7 @@ fit_mvt <- function(X, na_rm = TRUE,
       X <- X[!mask_NA, , drop = FALSE]
     }
   if (nrow(X) <= ncol(X)) stop("Cannot deal with T <= N (after removing NAs), too few samples.")
-  if (is.numeric(nu) && nu <= 2) stop("Non-valid value for nu (should be >2).")
+  if (is.numeric(nu) && nu <= 2) warning("Non-valid value for nu (should be > 2).")
   factors <- round(factors)
   if (factors < 1 || factors > ncol(X)) stop("\"factors\" must be no less than 1 and no more than column number of \"X\".")
   max_iter <- round(max_iter)
@@ -164,23 +180,29 @@ fit_mvt <- function(X, na_rm = TRUE,
   N <- ncol(X)
   X_has_NA <- anyNA(X)
   FA_struct <- (factors != N)
-  if (!is.numeric(nu)) nu <- match.arg(nu)
-  nu_iterative_method <- match.arg(nu_iterative_method)
-  if (nu_iterative_method == "theta-2a") nu_iterative_method <- "POP"
+  if (!is.numeric(nu))
+    nu <- match.arg(nu)
   optimize_nu <- (nu == "iterative")
+  if (optimize_nu) {
+    nu_iterative_method <- match.arg(nu_iterative_method)
+    if (nu_iterative_method == "Tyler-harmonic")
+      initial$nu <- 0
+  }
 
-
-  #
-  # initialize all parameters
-  #
+  ############################################
+  #           initialize parameters          #
+  ############################################
   start_time <- proc.time()[3]
   if (optimize_nu) {  # initial point
-    nu <- if (!is.null(initial$nu)) initial$nu
-          else nu <- 4  # default initial point
+    nu <- if (is.null(initial$nu)) nu <- 4  # default initial point
+          else initial$nu
   }
   if (!is.numeric(nu)) {
     nu <- switch(nu,
-                 "kurtosis"           = nu_from_kurtosis(na.omit(X)),
+                 "kurtosis"              = nu_from_average_marginal_kurtosis(X),
+                 "cross-cumulants"       = nu_from_cross_cumulants(X),
+                 "all-cumulants"         = nu_from_all_cumulants(X),
+                 "Hill"                  = nu_Hill_estimator(X),
                  "MLE-diag"           = nu_mle(na.omit(X), method = "MLE-mv-diagcov"),
                  "MLE-diag-resampled" = nu_mle(na.omit(X), method = "MLE-mv-diagcov-resampled"),
                  stop("Method to estimate nu unknown."))
@@ -203,7 +225,6 @@ fit_mvt <- function(X, na_rm = TRUE,
            else initial$psi
     Sigma <- B %*% t(B) + diag(psi, N)
   }
-  alpha <- 1  # an extra variable for PX-EM acceleration
 
   # aux function to save iterates
   snapshot <- function() {
@@ -211,9 +232,9 @@ fit_mvt <- function(X, na_rm = TRUE,
     else list(mu = mu, scatter = Sigma, nu = nu)
   }
 
-  #
-  # loop
-  #
+  ###########################
+  #           loop          #
+  ###########################
   if (ftol < Inf)
     log_likelihood_record <- log_likelihood <- ifelse(X_has_NA,
                                                       dmvt_withNA(X = X, delta = mu, sigma = Sigma, df = nu),
@@ -231,21 +252,22 @@ fit_mvt <- function(X, na_rm = TRUE,
       Q <- Estep(mu, Sigma, psi, nu, X)
     else {
       Xc <- X - matrix(mu, T, N, byrow = TRUE)
-      delta2 <- rowSums(Xc * (Xc %*% solve(Sigma)))  # diag( Xc %*% inv(Sigma) %*% t(Xc) )
-      E_tau <- (N + nu) / (nu + delta2)  # u_t(delta2)
+      r2 <- rowSums(Xc * (Xc %*% solve(Sigma)))  # diag( Xc %*% inv(Sigma) %*% t(Xc) )
+      E_tau <- (N + nu) / (nu + r2)  # u_t(r2)
       E_tau <- E_tau * weights
       ave_E_tau <- mean(E_tau)
-      ave_E_tau_X <- (1/T)*as.vector(E_tau %*% X)
+      ave_E_tau_X <- colMeans(X * E_tau)
     }
 
     ## -------------- M-step --------------
-    # update mu, alpha, nu
     if (X_has_NA || FA_struct) {
       if (optimize_mu)
         mu <- Q$ave_E_tau_X / Q$ave_E_tau
-      alpha <- Q$ave_E_tau
       S <- Q$ave_E_tau_XX - mu %o% Q$ave_E_tau_X - Q$ave_E_tau_X %o% mu + Q$ave_E_tau * mu %o% mu
-      S <- S / alpha
+      if (PX_EM_acceleration) {
+        alpha <- Q$ave_E_tau
+        S <- S / alpha
+      }
       if (FA_struct) {
         B   <- optB(S = S, factors = factors, psi_vec = psi)
         psi <- pmax(0, diag(S - B %*% t(B)))
@@ -257,102 +279,68 @@ fit_mvt <- function(X, na_rm = TRUE,
         nu <- optimize(Q_nu, interval = c(getOption("nu_min"), getOption("nu_max")))$minimum
       }
     } else {
-      if (optimize_mu)
-        mu <- ave_E_tau_X / ave_E_tau
-      alpha <- ave_E_tau  # acceleration
-      Xc <- X - matrix(mu, T, N, byrow = TRUE)  # this is slower: sweep(X, 2, FUN = "-", STATS = mu)  #Xc <- X - rep(mu, each = TRUE)  # this is wrong?
-      ave_E_tau_XX <- (1/T) * crossprod(sqrt(E_tau) * Xc)  # (1/T) * t(Xc) %*% diag(E_tau) %*% Xc
-      Sigma <- ave_E_tau_XX / alpha
-      if (optimize_nu && iter %% 5 == 0)
+      # update nu
+      if (optimize_nu && iter >= nu_update_start_at_iter && iter %% nu_update_every_num_iter == 0)
         nu <- switch(nu_iterative_method,  # note that nu estimation has not been updated to work with weights
                      "ECM" = {  # based on minus the Q function of nu
-                       ave_E_log_tau_minus_E_tau <- digamma((N+nu)/2) - log((N+nu)/2) + mean(log(E_tau) - E_tau)  # equal to Q$ave_E_logtau - Q$ave_E_tau
+                       r2_ <- rowSums(Xc * (Xc %*% solve((1 - 0.1)*Sigma + 0.1*diag(diag(Sigma)))))
+                       E_tau_ <- (N + nu) / (nu + r2_)
+                       ave_E_log_tau_minus_E_tau <- digamma((N+nu)/2) - log((N+nu)/2) + mean(log(E_tau_) - E_tau_)  # equal to Q$ave_E_logtau - Q$ave_E_tau
                        Q_nu <- function(nu) - (nu/2)*log(nu/2) + lgamma(nu/2) - (nu/2)*ave_E_log_tau_minus_E_tau
                        optimize(Q_nu, interval = c(getOption("nu_min"), getOption("nu_max")))$minimum
                        },
+                     "ECM-diag" = {  # based on minus the Q function of nu
+                       r2_ <- colSums(t(Xc^2) / diag(Sigma))  # this amounts to using a diagonal scatter matrix
+                       E_tau_ <- (N + nu) / (nu + r2_)
+                       ave_E_log_tau_minus_E_tau <- digamma((N+nu)/2) - log((N+nu)/2) + mean(log(E_tau_) - E_tau_)  # equal to Q$ave_E_logtau - Q$ave_E_tau
+                       Q_nu <- function(nu) - (nu/2)*log(nu/2) + lgamma(nu/2) - (nu/2)*ave_E_log_tau_minus_E_tau
+                       optimize(Q_nu, interval = c(getOption("nu_min"), getOption("nu_max")))$minimum
+                     },
                      "ECME" = {  # based on minus log-likelihood of nu with mu and sigma fixed to mu[k+1] and sigma[k+1]
-                       nu_mle(Xc = Xc, method = "MLE-mv-scat", Sigma_scatter = Sigma)
+                       nu_mle(Xc = Xc, method = "MLE-mv-scat", Sigma_scatter = (1 - 0.1)*Sigma + 0.1*diag(diag(Sigma)))
                        },
                      "ECME-diag" = {  # using only the diag of Sigma
                        nu_mle(Xc = Xc, method = "MLE-mv-diagscat", Sigma_scatter = Sigma)
                        },
-                     "ECME-cov" = {  # this variation is worse than ECME
-                       nu_mle(Xc = Xc, method = "MLE-mv-cov", Sigma_cov = nu/(nu-2)*Sigma)
-                       },
-                     "theta-0" = {
-                       var_X <- 1/(T-1)*apply(Xc^2, 2, sum)  # could be computed just once
-                       eta <- sum(var_X)/sum(diag(Sigma))  # eta <- scaling_fitting_ka_with_b(a = diag(Sigma), b = var_X)
+                     "OPP" = {
+                       var_X <- 1/(T-1)*colSums(Xc^2)
+                       eta <- sum(var_X)/sum(diag(Sigma))  #eta <- scaling_fitting_ka_with_b(a = diag(Sigma), b = var_X)
                        min(getOption("nu_max"), max(getOption("nu_min"), 2*eta/(eta - 1)))
                        },
-                     "theta-1a" = {
-                       r2 <- rowSums(Xc * (Xc %*% solve(Sigma)))  # diag( Xc %*% inv(Sigma) %*% t(Xc) )
-                       theta <- sum(r2)/T/N
-                       min(getOption("nu_max"), max(getOption("nu_min"), 2*theta/(theta - 1)))
-                       },
-                     "theta-1b" = {
-                       r2 <- rowSums(Xc * (Xc %*% solve(Sigma)))  # diag( Xc %*% inv(Sigma) %*% t(Xc) )
-                       theta <- T/(T-1)*sum(r2)/T/N
-                       min(getOption("nu_max"), max(getOption("nu_min"), 2*theta/(theta - 1)))
-                       },
-                     "POP" = {
-                       r2 <- rowSums(Xc * (Xc %*% solve(Sigma)))  # diag( Xc %*% inv(Sigma) %*% t(Xc) )
-                       u <- (N + nu)/(nu + r2)
-                       r2i <- r2/(1 - r2*u/T)
-
-                       # # more exact computation
-                       # r2i <- vector("numeric", length = T)
-                       # u <- E_tau
-                       # for (ii in 1:T) {
-                       #   #Sigmai <- Sigma - (1/T/alpha) * u[ii] * Xc[ii, ] %*% t(Xc[ii, ])
-                       #   Sigmai <- (1/T/alpha) * crossprod(sqrt(E_tau[-ii]) * Xc[-ii, ])
-                       #   delta2i <- rowSums(Xc * (Xc %*% inv(Sigmai)))  # diag( Xc %*% inv(Sigmai) %*% t(Xc) )
-                       #   u <- (N + nu) / (nu + delta2i)
-                       #   Sigmai <- 1/T/alpha * crossprod(sqrt(u[-ii]) * Xc[-ii, ])
-                       #   r2i[ii] <- as.numeric(Xc[ii, ] %*% solve(Sigmai, Xc[ii, ]))
-                       # }
-
-                       theta <- (1 - N/T) * sum(r2i)/T/N
-                       min(getOption("nu_max"), max(getOption("nu_min"), 2*theta/(theta - 1)))
-                       },
-                     "POP-sigma-corrected" = {
-                       r2 <- rowSums(Xc * (Xc %*% solve(Sigma)))  # diag( Xc %*% inv(Sigma) %*% t(Xc) )
-                       u <- (N + nu)/(nu + r2)
-                       r2i <- r2/(1 - r2*u/T)
-                       theta <- (1 - N/T) * sum(r2i)/T/N
-                       # correction with sigma
-                       psi <- function(t) (N + nu)/(nu + t) * t
-                       F <- function(sigma) mean(psi(r2i/sigma)) - N
-                       sigma <- uniroot(F, lower = 0.1, upper = 1000)$root
-                       #print(sigma)
-                       theta <- theta * sigma
-                       min(getOption("nu_max"), max(getOption("nu_min"), 2*theta/(theta - 1)))
-                       },
-                     "POP-sigma-corrected-true" = {
-                       r2 <- rowSums(Xc * (Xc %*% solve(Sigma)))  # diag( Xc %*% inv(Sigma) %*% t(Xc) )
-                       u <- (N + nu)/(nu + r2)
-                       r2i <- r2/(1 - r2*u/T)
-                       theta <- (1 - N/T) * sum(r2i)/T/N
-                       # correction with sigma
-                       T_ <- 10000
-                       X_ <- mvtnorm::rmvt(n = T_, delta = rep(0, N), sigma = diag(N), df = nu)  # heavy-tailed data
-                       r2 <- rowSums(X_^2)
-                       u <- (N + nu)/(nu + r2)
-                       r2i <- r2/(1 - r2*u/T_)
-                       psi <- function(t) (N + nu)/(nu + t) * t
-                       F <- function(sigma) mean(psi(r2i/sigma)) - N
-                       sigma <- uniroot(F, lower = 0.1, upper = 1000)$root
-                       theta <- theta * sigma
-                       min(getOption("nu_max"), max(getOption("nu_min"), 2*theta/(theta - 1)))
+                     "POP"          = nu_POP_estimator(r2 = r2, nu = nu, N = N, method = "POP-approx-2"),
+                     "POP-approx-1" = nu_POP_estimator(r2 = r2, nu = nu, N = N, method = "POP-approx-1"),
+                     "POP-approx-2" = nu_POP_estimator(r2 = r2, nu = nu, N = N, method = "POP-approx-2"),
+                     "POP-approx-3" = nu_POP_estimator(Xc = Xc,                 method = "POP-approx-3"),
+                     "POP-approx-4" = nu_POP_estimator(r2 = r2, N = N,          method = "POP-approx-4"),
+                     "POP-exact"    = {
+                       if (PX_EM_acceleration)
+                         alpha <- ave_E_tau
+                       else
+                         alpha <- 1
+                       nu_POP_estimator(Xc = Xc, r2 = r2, nu = nu, N = N, alpha = alpha, method = "POP-exact")
                      },
-                     "theta-2b" = {
-                       r2 <- rowSums(Xc * (Xc %*% solve(Sigma)))  # diag( Xc %*% inv(Sigma) %*% t(Xc) )
-                       u <- (N + nu)/(nu + r2)
-                       r2i <- r2/(1 - r2*u/T)
-                       theta <- (1 - (N + 2)/T) * sum(r2i)/T/N
-                       #theta <- (T - N + 2)*T/(T - 1)/(T + 1) * sum(r2i)/T/N
-                       min(getOption("nu_max"), max(getOption("nu_min"), 2*theta/(theta - 1)))
+                     "POP-sigma-corrected"      = nu_POP_estimator(r2 = r2, nu = nu, N = N, method = "POP-sigma-corrected"),
+                     "POP-sigma-corrected-true" = nu_POP_estimator(r2 = r2, nu = nu, N = N, method = "POP-sigma-corrected-true"),
+                     "Tyler-harmonic" = {
+                       r2[r2 == 0] <- 1e-12  # to be safe because nu=0
+                       nu  # don't update nu until the last iteration for this method
                      },
                      stop("Method to estimate nu unknown."))
+    }
+    # update mu and Sigma (taking into account the new nu)
+    E_tau <- (N + nu) / (nu + r2) * weights
+    ave_E_tau <- mean(E_tau)
+    ave_E_tau_X <- colMeans(X * E_tau)
+    if (optimize_mu)
+      mu <- ave_E_tau_X / ave_E_tau
+    Xc <- X - matrix(mu, T, N, byrow = TRUE)
+    ave_E_tau_XX <- (1/T) * crossprod(sqrt(E_tau) * Xc)  # (1/T) * t(Xc) %*% diag(E_tau) %*% Xc
+    Sigma <- ave_E_tau_XX
+    if (optimize_nu && nu_iterative_method == "Tyler-harmonic")
+      Sigma <- Sigma * N/sum(diag(Sigma))
+    if (PX_EM_acceleration) {
+      alpha <- ave_E_tau
+      Sigma <- Sigma / alpha
     }
 
     # record the current the variables/loglikelihood if required
@@ -372,19 +360,40 @@ fit_mvt <- function(X, na_rm = TRUE,
       all(abs(mu - mu_old)       <= .5 * ptol * (abs(mu_old) + abs(mu))) &&
       abs(fnu(nu) - fnu(nu_old)) <= .5 * ptol * (abs(fnu(nu_old)) + abs(fnu(nu))) &&
       all(abs(Sigma - Sigma_old) <= .5 * ptol * (abs(Sigma_old) + abs(Sigma)))
-    if (have_params_converged && has_fun_converged) break
+
+    if (have_params_converged && has_fun_converged && iter >= nu_update_start_at_iter) break
   }
+
+  # update nu in the last iteration (Tyler-harmonic method)
+  if (optimize_nu && nu_iterative_method == "Tyler-harmonic") {
+    Sigma <- Sigma * N/sum(diag(Sigma))
+    r2 <- rowSums(Xc * (Xc %*% solve(Sigma)))
+    inv_w <- r2/N
+    tau <- 1/mean(1/inv_w)
+    var_X <- 1/(T-1)*colSums(Xc^2)
+    eta <- mean(var_X)/tau
+    nu <- min(getOption("nu_max"), max(getOption("nu_min"), 2*eta/(eta - 1)))
+    Sigma <- tau * Sigma
+    if (return_iterates) iterates_record[[iter + 1]] <- snapshot()
+  }
+
+  # save elapsed time
   elapsed_time <- proc.time()[3] - start_time
   if (verbose) message(sprintf("Number of iterations for mvt estimation = %d\n", iter))
+  if (verbose) message("Elapsed time = ", elapsed_time)
 
   # correction factor for scatter and cov matrices
-  if (scale_minMSE) {
+  if (scale_covmat) {
     if (!exists("Xc"))
       Xc <- X - matrix(mu, T, N, byrow = TRUE)
     kappa <- compute_kappa_from_marginals(Xc)
-    NMSE <- 1/T * (kappa*(2 + N) + 1 + N)
-    f <- 1/(NMSE + 1)
-    Sigma <- f*Sigma
+    # if (nu > 4.5)
+    #   kappa <- 2/(nu - 4)
+    # else
+    #   kappa <- compute_kappa_from_marginals(Xc)
+    gamma <- gamma_S_psi1(S = Sigma, T = T, psi1 = 1 + kappa)
+    NMSE <- (1/gamma) * (1/T) * (kappa*(2*gamma + N) + gamma + N)  #NMSE <- (1/T) * (kappa*(2 + N) + 1 + N)
+    Sigma <- 1/(NMSE + 1) * Sigma
   }
 
   # cov matrix
@@ -431,7 +440,6 @@ fit_mvt <- function(X, na_rm = TRUE,
 
 
 
-
 ##
 ## -------- Auxiliary functions --------
 ##
@@ -443,6 +451,21 @@ compute_kappa_from_marginals <- function(Xc) {
   k_improved <- (T-1)/((T-2)*(T-3)) * ((T+1)*k + 6)
   k_improved/3
 }
+
+gamma_S_psi1 <- function(S, T, psi1) {
+  N <- ncol(S)
+  S_norm <- S/sum(diag(S))
+
+  # consistent estimator of gamma
+  gamma_naive <- N*sum(S_norm^2)
+  #a <- psi1
+  #b <- T/(T-1)
+  a <- (T/(T+psi1-1))*psi1
+  b <- (T/(T-1))*(T+psi1-1)/(T+3*psi1-1)
+  gamma <- b * (gamma_naive - a*N/T)
+  min(N, max(1, gamma))  # gamma in [1, N]
+}
+
 
 
 fnu <- function(nu) {nu/(nu-2)}
@@ -566,51 +589,7 @@ dmvt_withNA <- function(X, delta, sigma, df) {
 }
 
 
-# estimate nu via the kurtosis of each variable
-excess_kurtosis_unbiased <- function(x) {
-  x <- as.vector(x)
-  T <- length(x)
-  x <- x - mean(x)
-  #excess_kurt <- mean(x^4)/(mean(x^2))^2 - 3
-  excess_kurt <- (T-1)*(T+1)/((T-2)*(T-3)) * (mean(x^4)/(mean(x^2))^2 - 3*(T-1)/(T+1))  # this is better
-  excess_kurt_unbiased <- (T-1) / (T-2) / (T-3) * ((T+1)*excess_kurt + 6)  # is this bias correction still necessary?
-  return(excess_kurt_unbiased)
-}
 
-
-nu_from_kurtosis <- function(X) {
-  kurt <- apply(X, 2, excess_kurtosis_unbiased)
-  kappa <- max(0, mean(kurt, na.rm = TRUE)/3)
-  nu <- 2 / kappa + 4
-  nu <- min(getOption("nu_max"), max(getOption("nu_min"), nu))
-  return(nu)
-}
-
-
-# estimate nu via Pareto-tail index
-alpha_Pareto_tail_index <- function(X, center = FALSE, method = c("WLS", "WLS-stacked", "MLE", "MLE-unbiased")) {
-  if (!is.matrix(X)) stop("X must be a matrix.")
-
-  # center data if necessary
-  if (center) {
-    mu <- colMeans(X)
-    X <- X - matrix(mu, nrow(X), ncol(X), byrow = TRUE)
-  }
-  T <- nrow(X)
-  N <- ncol(X)
-
-  # method
-  inv_alpha <- switch(match.arg(method),
-                      "MLE"          = mean(apply(abs(X), 2, function(x) mean(log(x/min(x))))),
-                      "MLE-unbiased" = mean(apply(abs(X), 2, function(x) T/(T-2)*mean(log(x/min(x))))),
-                      "WLS"          = mean(apply(abs(X), 2, function(x) mean(log(x/min(x)))/mean(log(T/(1:T))))),
-                      "WLS-stacked" = {
-                        absXdivXmin <- apply(abs(X), 2, function(x) x/min(x))
-                        mean(log(c(absXdivXmin)))/mean(log((N*T)/(1:(N*T))))
-                      },
-                      stop("Method to estimate Pareto-tail index unknown."))
-  return(1/inv_alpha)
-}
 
 
 
@@ -660,9 +639,7 @@ nu_mle <- function(X, Xc,
                },
                "MLE-mv-diagscat" = {
                  if (is.null(Sigma_scatter)) stop("Scatter matrix must be passed.")
-                 diagscat <- diag(Sigma_scatter)
-                 delta2_diagscat <- Xc^2 / matrix(diagscat, T, N, byrow = TRUE)
-                 delta2 <- rowSums(delta2_diagscat)  # this amounts to using a diagonal cov matrix
+                 delta2 <- colSums(t(Xc^2) / diag(Sigma_scatter))  # this amounts to using a diagonal cov matrix
                  negLL <- function(nu) ((N + nu)/2)*sum(log(nu + delta2)) - T*lgamma((N + nu)/2) + T*lgamma(nu/2) - (nu*T/2)*log(nu)
                  optimize(negLL, interval = c(getOption("nu_min"), getOption("nu_max")))$minimum
                },
