@@ -7,7 +7,7 @@
 fit_Cauchy(
   X,
   initial = NULL,
-  max_iter = 100,
+  max_iter = 200,
   ptol = 0.001,
   ftol = Inf,
   return_iterates = FALSE,

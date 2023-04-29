@@ -7,7 +7,8 @@
 fit_Tyler(
   X,
   initial = NULL,
-  max_iter = 100,
+  estimate_mu = TRUE,
+  max_iter = 200,
   ptol = 0.001,
   ftol = Inf,
   return_iterates = FALSE,
@@ -21,6 +22,8 @@ fit_Tyler(
 Possible elements include:
 \itemize{\item{\code{mu}: default is the data sample mean,}
          \item{\code{cov}: default is the data sample covariance matrix.}}}
+
+\item{estimate_mu}{Boolean indicating whether to estimate \code{mu} (default is \code{TRUE}).}
 
 \item{max_iter}{Integer indicating the maximum number of iterations for the iterative estimation
 method (default is \code{100}).}
@@ -41,6 +44,8 @@ log-likelihood if \code{ftol < Inf}) at each iteration (default is \code{FALSE})
 \value{
 A list containing possibly the following elements:
         \item{\code{mu}}{Mean vector estimate.}
+        \item{\code{scatter}}{Scatter matrix estimate.}
+        \item{\code{nu}}{Degrees of freedom estimate (assuming an underlying Student's t distribution).}
         \item{\code{cov}}{Covariance matrix estimate.}
         \item{\code{converged}}{Boolean denoting whether the algorithm has converged (\code{TRUE}) or the maximum number
                                 of iterations \code{max_iter} has reached (\code{FALSE}).}
