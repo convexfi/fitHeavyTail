@@ -24,24 +24,28 @@ test_that("error control works", {
                "\"max_iter\" must be greater than 1.")
   expect_error(fit_mvt(X = X, factors = -1),
                "\"factors\" must be no less than 1 and no more than column number of \"X\".")
-  expect_error(fit_mvt(X = X, nu = "lala"),
-               gettextf("'arg' should be one of %s", paste(dQuote(c("kurtosis", "MLE-diag", "MLE-diag-resampled", "iterative")),
-                                                           collapse = ", ")))
-  expect_error(fit_mvt(X = X, nu = 1), "Non-valid value for nu.")
+  expect_error(fit_mvt(X = X, nu = 1),
+               "Non-valid value for nu (should be > 2).", fixed = TRUE)
 })
 
 
 test_that("default mode works", {
   # mvt_model_check <- fit_mvt(X)
   # save(mvt_model_check, file = "fitted_mvt_check.RData", version = 2, compress = "xz")
-  mvt_model <- fit_mvt(X)
+  mvt_model <- fit_mvt(X, scale_covmat = FALSE)
 
   load("fitted_mvt_check.RData")
   expect_equal(mvt_model[c("mu", "cov", "scatter", "converged")],
                mvt_model_check[c("mu", "cov", "scatter", "converged")], tolerance = 0.1)
 
+  # norm(mvt_model_check$cov - cov_true, "F")
+  # norm(mvt_model$cov - cov_true, "F")
+  # norm(mvt_model_check$scatter - scatter_true, "F")
+  # norm(mvt_model$scatter - scatter_true, "F")
+
+
   # test for xts
-  fitted_xts <- fit_mvt(X_xts)
+  fitted_xts <- fit_mvt(X_xts, scale_covmat = FALSE)
   expect_identical(mvt_model[c("mu", "cov", "scatter", "nu", "converged", "num_iterations")],
                    fitted_xts[c("mu", "cov", "scatter", "nu", "converged", "num_iterations")])
 
@@ -72,7 +76,7 @@ test_that("bounds on nu work", {
 
 
 test_that("Gaussian case fits", {
-  mvt_model <- fit_mvt(X, nu = Inf)
+  mvt_model <- fit_mvt(X, nu = Inf, scale_covmat = FALSE)
   expect_equal(mvt_model$mu, colMeans(X))
   expect_equal(mvt_model$cov, (nrow(X)-1)/nrow(X) * cov(X))
 })
@@ -81,7 +85,7 @@ test_that("Gaussian case fits", {
 test_that("factor structure constraint on scatter matrix works", {
   # mvt_model_factor_check <- fit_mvt(X, factors = 3)
   # save(mvt_model_factor_check, file = "fitted_mvt_factor_check.RData", version = 2, compress = "xz")
-  mvt_model_factor <- fit_mvt(X, factors = 3)
+  mvt_model_factor <- fit_mvt(X, factors = 3, scale_covmat = FALSE)
   load("fitted_mvt_factor_check.RData")
   expect_equal(mvt_model_factor[c("mu", "cov", "scatter", "psi", "converged")],
                mvt_model_factor_check[c("mu", "cov", "scatter", "psi", "converged")], tolerance = 0.1)
@@ -93,29 +97,34 @@ test_that("factor structure constraint on scatter matrix works", {
 test_that("X with NAs works", {
   X_wNA <- X
   for (i in 1:5) X_wNA[i, i] <- NA
-  # mvt_model_wNA_check <- fit_mvt(X_wNA)
+  # mvt_model_wNA_check <- fit_mvt(X_wNA, scale_covmat = FALSE, na_rm = FALSE)
   # save(mvt_model_wNA_check, file = "fitted_mvt_wNA_check.RData", version = 2, compress = "xz")
-  mvt_model_wNA <- fit_mvt(X_wNA)
+
+  expect_warning(mvt_model_wNA <- fit_mvt(X_wNA, scale_covmat = FALSE, na_rm = FALSE),
+                 "NAs detected and nu will be optimized via ECM.")
+
   load("fitted_mvt_wNA_check.RData")
   expect_equal(mvt_model_wNA[c("mu", "cov", "scatter", "nu", "converged", "num_iterations")],
                mvt_model_wNA_check[c("mu", "cov", "scatter", "nu", "converged", "num_iterations")])
 })
 
 
+
 test_that("fixed nu works", {
   # mvt_model_fixednu_check <- fit_mvt(X, nu = fitHeavyTail:::nu_from_kurtosis(X))
   # save(mvt_model_fixednu_check, file = "fitted_mvt_fixednu_kurtosis_check.RData", version = 2, compress = "xz")
   load("fitted_mvt_fixednu_kurtosis_check.RData")
-  mvt_model_fixednu <- fit_mvt(X, nu = "kurtosis")
+  mvt_model_fixednu <- fit_mvt(X, nu = "kurtosis", scale_covmat = FALSE)
   expect_equal(mvt_model_fixednu[c("mu", "cov", "scatter", "nu", "converged", "num_iterations")],
                mvt_model_fixednu_check[c("mu", "cov", "scatter", "nu", "converged", "num_iterations")])
 
   # mvt_model_fixednu_check <- fit_mvt(X, nu = fitHeavyTail:::nu_mle(X))
   # save(mvt_model_fixednu_check, file = "fitted_mvt_fixednu_mle_check.RData", version = 2, compress = "xz")
   load("fitted_mvt_fixednu_mle_check.RData")
-  mvt_model_fixednu <- fit_mvt(X, nu = "MLE-diag-resampled")
+  mvt_model_fixednu <- fit_mvt(X, nu = "MLE-diag-resampled", scale_covmat = FALSE)
   expect_equal(mvt_model_fixednu[c("mu", "cov", "scatter", "converged", "num_iterations")],
                mvt_model_fixednu_check[c("mu", "cov", "scatter", "converged", "num_iterations")], tolerance = 0.3)
+
   expect_equal(mvt_model_fixednu["nu"], mvt_model_fixednu_check["nu"], tolerance = 0.4)
 })
 

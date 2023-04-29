@@ -20,6 +20,10 @@ context("Function \"fit_mvst()\"")
 
 
 load("X_mvst.RData")
+# recall:
+# scatter_true <- diag(5)
+# nu_true <- 6
+# cov_true <- nu_true/(nu_true-2) * scatter_true
 
 
 test_that("error control works", {
@@ -69,14 +73,13 @@ test_that("Gaussian case fits", {
   # expect_equal(mvt_model$mu, colMeans(X))
   # expect_equal(mvt_model$cov, (nrow(X)-1)/nrow(X) * cov(X))
 
-  mvt_model  <- fit_mvt(X,  nu = 1e5, ftol = 1e-3)
+  mvt_model  <- fit_mvt(X,  nu = 1e5, ftol = 1e-3, scale_covmat = FALSE)
   mvst_model <- fit_mvst(X, nu = 1e5, gamma = rep(0, ncol(X)), ftol = 1e-3)
   expect_equal(mvt_model$mu,  mvst_model$mu)
   expect_equal(mvt_model$cov, mvst_model$cov)
 
-
   # sanity check for large nu:
-  mvt_model  <- fit_mvt(X,  nu = 10, ftol = 1e-3)
+  mvt_model  <- fit_mvt(X,  nu = 10, ftol = 1e-3, scale_covmat = FALSE)
   mvst_model <- fit_mvst(X, nu = 10, gamma = rep(0, ncol(X)), ftol = 1e-3)
   expect_equal(mvt_model$mu,  mvst_model$mu)
   expect_equal(mvt_model$cov, mvst_model$cov)

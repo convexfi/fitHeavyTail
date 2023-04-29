@@ -3,6 +3,11 @@ context("Function \"fit_Cauchy()\"")
 
 
 load("X_mvt.RData")
+# recall:
+# scatter_true <- diag(5)
+# nu_true <- 6
+# cov_true <- nu_true/(nu_true-2) * scatter_true
+
 
 test_that("error control works", {
   expect_error(fit_Cauchy(X = median),
@@ -21,18 +26,20 @@ test_that("error control works", {
 test_that("cov estimate works", {
   # test against fit_mvt()
   fitted_Cauchy <- fit_Cauchy(X)
-  fitted_mvt <- fit_mvt(X)
+  fitted_mvt    <- fit_mvt(X)
   expect_equal(fitted_Cauchy$cov, fitted_mvt$cov, tolerance = 0.4)
+  # norm(fitted_Cauchy$cov - cov_true, "F")
+  # norm(fitted_mvt$cov - cov_true, "F")
 
   # # plotting convergence
   # fitted_Cauchy <- fit_Cauchy(X, ftol = 1, verbose = TRUE, return_iterates = TRUE)
   # fitHeavyTail:::plotConvergence(fitted_Cauchy)
 
-  # test agains saved results
+
+  # test against saved results
   # fitted_Cauchy_check <- fit_Cauchy(X)
   # save(fitted_Cauchy_check, file = "fitted_Cauchy_check.RData", version = 2, compress = "xz")
   load("fitted_Cauchy_check.RData")
-  # expect_identical(fitted_Cauchy, fitted_Cauchy_check)
   expect_equal(fitted_Cauchy[c("mu", "cov", "scatter","converged")], fitted_Cauchy_check[c("mu", "cov", "scatter","converged")])
 
   # test for xts

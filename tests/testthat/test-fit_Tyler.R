@@ -3,6 +3,11 @@ context("Function \"fit_Tyler()\"")
 
 
 load("X_mvt.RData")
+# recall:
+# scatter_true <- diag(5)
+# nu_true <- 6
+# cov_true <- nu_true/(nu_true-2) * scatter_true
+
 
 test_that("error control works", {
   expect_error(fit_Tyler(X = median),
@@ -21,14 +26,17 @@ test_that("error control works", {
 test_that("cov estimate works", {
   # test against fit_mvt()
   fitted_Tyler <- fit_Tyler(X)
-  fitted_mvt <- fit_mvt(X)
+  fitted_mvt   <- fit_mvt(X)
   expect_equal(fitted_Tyler$cov, fitted_mvt$cov, tolerance = 0.3)
+  # norm(fitted_Tyler$cov - cov_true, "F")
+  # norm(fitted_mvt$cov - cov_true, "F")
 
   # # plotting convergence
   # fitted_Tyler <- fit_Tyler(X, ftol = 1, verbose = TRUE, return_iterates = TRUE)
   # fitHeavyTail:::plotConvergence(fitted_Tyler)
 
-  # test agains saved results
+
+  # test against saved results
   # fitted_Tyler_check <- fit_Tyler(X)
   # save(fitted_Tyler_check, file = "fitted_Tyler_check.RData", version = 2, compress = "xz")
   load("fitted_Tyler_check.RData")
