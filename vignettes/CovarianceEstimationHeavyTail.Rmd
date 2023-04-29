@@ -1,24 +1,18 @@
 ---
 title: "Mean Vector and Covariance Matrix Estimation under Heavy Tails"
 author: |
-  | Daniel P. Palomar and Rui Zhou
+  | Daniel P. Palomar, Rui Zhou, and Xiwen Wang
   | The Hong Kong University of Science and Technology (HKUST)
 date: "`r Sys.Date()`"
 output:
-  prettydoc::html_pretty:
-    theme: tactile
-    highlight: vignette
-    toc: yes
-    toc_depth: 2
   html_document:
-    theme: flatly
-    highlight: pygments  
     toc: yes
-    toc_depth: 2
-toc-title: "Table of Contents"    
-csl: econometrica.csl  # https://www.zotero.org/styles
-#csl: journal-of-econometrics.csl
+    toc_depth: 2   
+csl: apalike.csl
+csl-entry-spacing: 0.5em
 bibliography: refs.bib
+link-citations: yes
+#toc-title: "Table of Contents"    
 vignette: >
   %\VignetteIndexEntry{Mean Vector and Covariance Matrix Estimation under Heavy Tails}
   %\VignetteKeyword{covariance matrix}
@@ -46,38 +40,49 @@ opts_chunk$set(
 )
 knitr_in_progress <- isTRUE(getOption('knitr.in.progress'))
 knit_hooks$set(pngquant = hook_pngquant)
-# rmarkdown::render("vignettes/CovarianceEstimationHeavyTail.Rmd", "prettydoc::html_pretty", params = list(num_realiz = 100))
+# rmarkdown::render("vignettes/CovarianceEstimationHeavyTail.Rmd")
+# rmarkdown::render("vignettes/CovarianceEstimationHeavyTail.Rmd", params = list(num_realiz = 100))
 ```
 
 -----------
 > This vignette illustrates the usage of the package [`fitHeavyTail`](https://CRAN.R-project.org/package=fitHeavyTail) 
 to estimate the mean vector and covariance matrix of heavy-tailed multivariate distributions such as the angular Gaussian, Cauchy, or Student's $t$ distribution. The results are compared against existing benchmark functions from different packages.
 
+\newcommand{\bm}[1]{\boldsymbol{#1}}
+\def\T{{\mkern-1mu\raise-1mu\textsf{T}}}
+
+
 
 # Installation
-The package can be installed from [CRAN](https://CRAN.R-project.org/package=fitHeavyTail) or [GitHub](https://github.com/dppalomar/fitHeavyTail):
+The package can be installed from [CRAN](https://CRAN.R-project.org/package=fitHeavyTail) or [GitHub](https://github.com/convexfi/fitHeavyTail):
 ```{r, eval=FALSE}
 # install stable version from CRAN
 install.packages("fitHeavyTail")
 
 # install development version from GitHub
-devtools::install_github("dppalomar/fitHeavyTail")
+devtools::install_github("convexfi/fitHeavyTail")
+```
 
-# Getting help
+To get help:
+```{r, eval=FALSE}
 library(fitHeavyTail)
 help(package = "fitHeavyTail")
 ?fit_mvt
 ```
 
+To cite [`fitHeavyTail`](https://CRAN.R-project.org/package=fitHeavyTail) in publications:
+```{r, eval=FALSE}
+citation("fitHeavyTail")
+```
 
 
 # Quick Start
-To illustrate the simple usage of the package `fitHeavyTail`, let's start by generating some multivariate data under a Student's $t$ distribution with significant heavy tails ($\nu=4$):
+To illustrate the simple usage of the package [`fitHeavyTail`](https://CRAN.R-project.org/package=fitHeavyTail), let's start by generating some multivariate data under a Student's $t$ distribution with significant heavy tails (degrees of freedom $\nu=4$):
 ```{r}
 library(mvtnorm)  # package for multivariate t distribution
 N <- 10   # number of variables
 T <- 80   # number of observations
-nu <- 4   # degrees of freedom for tail heavyness
+nu <- 4   # degrees of freedom for heavy tails
 
 set.seed(42)
 mu <- rep(0, N)
@@ -93,13 +98,13 @@ mu_sm     <- colMeans(X)
 Sigma_scm <- cov(X)
 ```
 
-Then we can compute the robust estimates via the package `fitHeavyTail`:
+Then we can compute the robust estimates via the package [`fitHeavyTail`](https://CRAN.R-project.org/package=fitHeavyTail):
 ```{r}
 library(fitHeavyTail)
 fitted <- fit_mvt(X)
 ```
 
-We can now compute the estimation errors and see the big improvement:
+We can now compute the estimation errors and see the significant improvement:
 ```{r}
 sum((mu_sm     - mu)^2)
 sum((fitted$mu - mu)^2)
@@ -112,48 +117,45 @@ sum((fitted$cov - Sigma_cov)^2)
 # fitting with factor model
 fitted_3factors <- fit_mvt(X, factors = 3)
 sum((fitted_3factors$mu - mu)^2)
-sum((fitted_3factors$cov - Sigma)^2)
+sum((fitted_3factors$cov - Sigma_cov)^2)
 ```
 
-To get a visual idea of the robustness, we can plot the shapes of the covariance matrices (true and estimated ones) projected on two dimensions. Observe how the heavy-tailed estimation follows the true one more closely than the sample covariance matrix:
-```{r basic-plot, eval=FALSE, echo=FALSE}
+To get a visual idea of the robustness, we can plot the shapes of the covariance matrices (true and estimated ones) on two dimensions. Observe how the heavy-tailed estimation follows the true one more closely than the sample covariance matrix:
+
+```{r scatter-plots, echo=FALSE, fig.width=10, fig.height=6, out.width="100%"}
+# fig.cap="Sample covariance matrix vs robust estimator."
+library(mvtnorm)
 library(ellipse)
-
-i1 <- 7  #7-4, 7-5
-i2 <- 5
-# for (i1 in 1:N)
-#   for (i2 in 1:N) {
-# print(i1); print(i2)
-plot(X[, i1], X[, i2], 
-     main = "Scatter plot of Gaussian returns", xlab = "asset 1", ylab = "asset 2",
-     col = rgb(0, 100, 0, 100, maxColorValue = 255), pch = 16)
-lines(ellipse(Sigma[c(i1, i2), c(i1, i2)]), col = "black", lwd = 2)
-lines(ellipse(Sigma_scm[c(i1, i2), c(i1, i2)], centre = mu_sm[c(i1, i2)]), col = "red", lwd = 2)
-lines(ellipse(fitted$cov[c(i1, i2), c(i1, i2)], centre = fitted$mu[c(i1, i2)]), col = "blue", lwd = 2)
-# readline()
-# }
-```
-
-
-```{r, echo=FALSE, message=FALSE, fig.width = 9, fig.height = 5, out.width = "95%"}
 library(ggplot2)
-library(ellipse)
+my_colors <- c("#2980b9", "#c0392b", "#16a085", "#f39c12", "#a29bfe", "#B33771", "#C4E538", "#273c75", "#95a5a6", "#222f3e")
 
-i1 <- 7; i2 <- 5
-colnames(fitted$cov) <- rownames(fitted$cov) <- NULL
-ggplot(data.frame(x = X[, i1], y = X[, i2]), aes(x, y)) +
-  geom_point(alpha = 0.7, size = 3) +
-  geom_path(data = data.frame(ellipse(Sigma_cov[c(i1, i2), c(i1, i2)])), 
-            aes(x, y, col = "true"), lwd = 1) +
-  geom_path(data = data.frame(ellipse(Sigma_scm[c(i1, i2), c(i1, i2)], centre = mu_sm[c(i1, i2)])), 
-            aes(x, y, col = "SCM estimation"), lwd = 1) +
-  geom_path(data = data.frame(ellipse(fitted$cov[c(i1, i2), c(i1, i2)], centre = fitted$mu[c(i1, i2)])), 
-            aes(x, y, col = "heavy-tailed estimation"), lwd = 1) +
-  scale_colour_manual(name = "ellipses",
-                      values = c("true" = "black", "SCM estimation" = "red", "heavy-tailed estimation" = "blue")) +
-  guides(color = guide_legend(reverse = TRUE)) +
-  labs(title = "Data points and shapes of covariance matrices", x = NULL, y = NULL)
+
+N <- 2
+T <- 50
+nu <- 4
+mu <- rep(0, N)
+Sigma <- matrix(c(0.00125, 0.00112, 0.00112, 0.00125), N, N)
+
+set.seed(42)
+X <- rmvt(n = 200, delta = mu, sigma = (nu-2)/nu * Sigma, df = nu)
+X_ <- X[1:T, ]
+Sigma_scm       <- cov(X_)
+Sigma_heavytail <- fit_mvt(X_, optimize_mu = FALSE, nu = 4, scale_covmat = TRUE)$cov
+colnames(Sigma_heavytail) <- rownames(Sigma_heavytail) <- NULL
+
+# scatter plot
+ggplot(data.frame(x = X[, 1], y = X[, 2]), aes(x, y)) +
+  geom_point(alpha = 1, size = 0.8) +
+  geom_path(data = data.frame(ellipse(Sigma)),           aes(x, y, col = "1"), linewidth = 1) +
+  geom_path(data = data.frame(ellipse(Sigma_scm)),       aes(x, y, col = "2"), linewidth = 1) +
+  geom_path(data = data.frame(ellipse(Sigma_heavytail)), aes(x, y, col = "3"), linewidth = 1) +
+  coord_cartesian(xlim = c(-0.15, 0.15), ylim = c(-0.15, 0.15)) +
+  scale_color_manual(name = "ellipses",
+                     values = c("1" = "black", "2" = "#c0392b", "3" = "#2980b9"),
+                     labels = c("true", "SCM estimation", "heavy-tailed estimation")) +
+  labs(title = "Shape of covariance matrices", x = NULL, y = NULL)
 ```
+
 
 
 
@@ -161,7 +163,7 @@ ggplot(data.frame(x = X[, i1], y = X[, i2]), aes(x, y)) +
 
 
 # Numerical Comparison with Existing Packages
-In the following, we generate multivariate heavy-tailed Student's $t$ distributed data and compare the performance of many different existing packages via `r params$num_realiz` Monte Carlo simulations in terms of estimation accurary, measured by the mean squared error (MSE), and cpu time.
+In the following, we generate multivariate heavy-tailed Student's $t$ distributed data and compare the performance of many different existing packages via `r params$num_realiz` Monte Carlo simulations in terms of estimation accurary, measured by the mean squared error (MSE) and CPU time.
 ```{r load libraries, echo=FALSE, message=FALSE}
 library(mvtnorm)
 library(fitHeavyTail)
@@ -173,7 +175,7 @@ library(ggforce)  # for geom_ellipse()
 library(reshape2)
 library(dplyr)
 # library(RColorBrewer)  # display.brewer.all(colorblindFriendly = TRUE)
-# library(latex2exp)
+library(latex2exp)
 ```
 
 ```{r, echo=FALSE}
@@ -184,7 +186,6 @@ nu <- 4
 mu <- rep(0, N)
 
 set.seed(42)
-set.seed(357)
 U <- t(rmvnorm(n = round(0.3*N), sigma = 0.1*diag(N)))
 Sigma_cov <- U %*% t(U) + diag(N)
 Sigma_scatter <- (nu-2)/nu * Sigma_cov
@@ -259,8 +260,7 @@ eval_single <- function(X) {
   name        <- "fitHeavyTail::fit_mvt"
   time[name]  <- system.time({Sigma_hat <- fitHeavyTail::fit_mvt(X, nu = "kurtosis")$cov})["elapsed"]
   MSE[name]   <- MSE(Sigma_hat)
-  
-  
+
   return(list("MSE" = MSE, "time" = time))
 }
 
@@ -336,57 +336,46 @@ num_methods <- length(unique(res_all_T_molten$method))
 
 ```{r plots-1, warning=FALSE, echo=FALSE, fig.width=9, fig.height=5, out.width="95%"}
 library(ggplot2)
+library(latex2exp)
 
 # MSE plot
-ggplot(res_all_T_molten[res_all_T_molten$measure == "MSE", ], aes(x = T, y = value_mean, col = method, shape = method)) +
-  geom_line() + geom_point(size = 2) + scale_y_log10() +  # coord_cartesian(ylim = c(0, 500)) +
+ggplot(res_all_T_molten[res_all_T_molten$measure == "MSE", ], aes(x = T, y = value_mean, color = method, shape = method)) +
+  geom_line(linewidth = 0.8) + geom_point(size = 2) + scale_y_log10() +  # coord_cartesian(ylim = c(0, 500)) +
+  #scale_color_manual(values = my_colors) 
   scale_shape_manual(values = 1:num_methods) +  # theme(legend.title = element_blank())
-  scale_x_continuous(limits = c(30, 100), breaks = seq(T_sweep[1], tail(T_sweep, 1), by = 10), minor_breaks = NULL) +
-  ggtitle(bquote("Error of covariance matrix estimation for heavy-tailed data (" * N == .(N) * "," ~ nu == .(nu)* ")")) +
-  xlab("T") + ylab("MSE")
-# ggtitle(latex2exp::TeX(sprintf("MSE of covariance matrix estimation for heavy-tailed data (N = %d, $\\nu$ = %.2f)", N, nu))) +
-# check here is TeX problem has been fixed: https://github.com/stefano-meschiari/latex2exp/pull/21
-```
-
-
-```{r, echo=FALSE, eval=FALSE}
-#load("lala.RData")
-
-ggplot(res_all_T_molten[res_all_T_molten$measure == "MSE" & 
-                        res_all_T_molten$method %in% c("fitHeavyTail::fit_mvt (nu=6)", "fitHeavyTail::fit_mvt"), ], 
-       aes(x = T_string, y = value, fill = method)) +
-  geom_boxplot(show.legend = FALSE) +
-  facet_wrap(~ method, dir = "v", scales = "free_y") +
-  labs(title = "Error in estimation of covariance matrix", x = "T", y = "error")
+  scale_x_continuous(limits = c(first(T_sweep), last(T_sweep)), breaks = seq(first(T_sweep), last(T_sweep), by = 10), minor_breaks = NULL) +
+  labs(title = TeX(sprintf("Estimation error of covariance matrix ($\\textit{N}$ = %d, $\\nu$ = %d)", N, nu)), 
+       x = TeX("$\\textit{T}$"), y = "MSE")
 ```
 
 
 ```{r plots-2, warning=FALSE, echo=FALSE, fig.width=9, fig.height=5, out.width="95%"}
 # time plot
-ggplot(res_all_T_molten[res_all_T_molten$measure == "time", ], aes(x = T, y = value_mean, col = method, shape = method)) +
-  geom_line() + geom_point(size = 2) + scale_y_log10() +
+ggplot(res_all_T_molten[res_all_T_molten$measure == "time", ], aes(x = T, y = 1e0*value_mean, color = method, shape = method)) +
+  geom_line(linewidth = 0.8) + geom_point(size = 2) + scale_y_log10() +
   scale_shape_manual(values = 1:num_methods) +
-  scale_x_continuous(limits = c(30, 100), breaks = seq(T_sweep[1], tail(T_sweep, 1), by = 10), minor_breaks = NULL) +
-  ggtitle(bquote("Computational cost for different methods (" * N == .(N) * "," ~ nu == .(nu)* ")")) +
-  xlab("T") + ylab("cpu time")
+  scale_x_continuous(limits = c(first(T_sweep), last(T_sweep)), breaks = seq(first(T_sweep), last(T_sweep), by = 10), minor_breaks = NULL) +
+  labs(title = TeX(sprintf("Computational cost ($\\textit{N}$ = %d, $\\nu$ = %d)", N, nu)), 
+       x = TeX("$\\textit{T}$"), y = "CPU time [sec]")
 ```
 
-The following plot gives a nice overall perspective of the MSE vs. cpu time tradeoff of the different methods (note the ellipse at the bottom left that embraces the best four methods: `fitHeavyTail::fit_Tyler()`, `fitHeavyTail::fit_Cauchy()`, `fitHeavyTail::fit_mvt()`, and `fitHeavyTail::fit_mvt()` with fixed `nu = 6`):
+The following plot gives a nice overall perspective of the MSE vs. CPU time tradeoff of the different methods (note the ellipse at the bottom left that embraces the best four methods: `fitHeavyTail::fit_Tyler()`, `fitHeavyTail::fit_Cauchy()`, `fitHeavyTail::fit_mvt()`, and `fitHeavyTail::fit_mvt()` with fixed `nu = 6`):
 
 ```{r plots-3, warning=FALSE, echo=FALSE, fig.width=9, fig.height=5, out.width="95%"}
 library(ggforce)  # for geom_ellipse()
 
 # joint MSE-time plot
-mse4 <- tail(res_all_T_molten[res_all_T_molten$T == 100 & res_all_T_molten$measure == "MSE", ]$value_mean, 4)    # for the ellipse (last 4 methods)
+mse4  <- tail(res_all_T_molten[res_all_T_molten$T == 100 & res_all_T_molten$measure == "MSE", ]$value_mean, 4)    # for the ellipse (last 4 methods)
 time4 <- tail(res_all_T_molten[res_all_T_molten$T == 100 & res_all_T_molten$measure == "time", ]$value_mean, 4)    # for the ellipse (last 4 methods)
 ggplot(data.frame("MSE" = res_all_T_molten[res_all_T_molten$T == 100 & res_all_T_molten$measure == "MSE", ]$value_mean, 
                   "cpu_time" = res_all_T_molten[res_all_T_molten$T == 100 & res_all_T_molten$measure == "time", ]$value_mean, 
                   "method" = unique(res_all_T_molten$method)), 
        aes(x = cpu_time, y = MSE, col = method)) +
-  geom_point(size = 3) +
-  geom_ellipse(aes(x0 = mean(time4), y0 = mean(mse4), a = 2.2*(max(time4) - min(time4)), b = 1.0*(max(mse4) - min(mse4)), angle = 0), 
+  geom_point(size = 3) + scale_x_log10() +
+  geom_ellipse(aes(x0 = mean(time4), y0 = mean(mse4), a = 50*(max(time4) - min(time4)), b = 1.0*(max(mse4) - min(mse4)), angle = 0), 
                col = "black", size = 0.5) +
-  labs(title = bquote("Performance vs cpu time for different methods (" * N == .(N) * ", T = 100," ~ nu == .(nu)* ")"), x = "cpu time")
+  labs(title = TeX(sprintf("Performance vs CPU time ($\\textit{N}$ = %d, $\\textit{T}$ = %d, $\\nu$ = %d)", N, 100, nu)), 
+       x = "CPU time [sec]", y = "MSE")
 ```
 
 From the numerical results we can draw several observations:
@@ -420,11 +409,9 @@ The overall winner is `fitHeavyTail::fit_mvt()` by a big margin.
 
 
 # Extension to Skewed Distributions
-The empirical distribution of daily returns from financial market variables such as exchange rates, equity prices, and interest rates, is often skewed. There are several different formulations of multivariate skewed $t$ distributions appearing in the literature [@lee2014finite] [@aas2006generalized]. The package now supports the multivariate generalized hyperbolic (GH) skewed $t$ distribution and provides a method to estimate the parameters of such distribution. It is implemented in the function `fitHeavyTail::fit_mvst()`. Below is a simple example to illustrate its usage:
+The empirical distribution of daily returns of some financial variables, such as exchange rates, equity prices, and interest rates, is often skewed. There are several different formulations of multivariate skewed $t$ distributions appearing in the literature [@lee2014finite] [@aas2006generalized]. The package now supports the multivariate generalized hyperbolic (GH) skewed $t$ distribution and provides a method to estimate the parameters of such distribution. It is implemented in the function `fitHeavyTail::fit_mvst()`. Below is a simple example to illustrate its usage:
 
 ```{r, eval=FALSE}
-set.seed(2)
-
 # parameter setting for GH Skewed t distribution
 N <- 5
 T <- 200
@@ -452,76 +439,76 @@ In essence, all the algorithms are based on the maximum likelihood estimation (M
 
 In some cases, the probability distribution function becomes too complicated to manage directly (like the multivariate Student's $t$ distribution) and it is necessary to resort to a hierarchical distribution that involves some latent variables. In order to deal with such hidden variables, one has to resort to the Expectation-Maximization (EM) algorithm, which interestingly is an instance of the MM algorithm.
 
-The following is a description of the algorithms used by the three fitting functions (note that the current version of the R package [`fitHeavyTail`](https://CRAN.R-project.org/package=fitHeavyTail) does not allow yet a regularization term with a target):
+The following is a concise description of the algorithms used by the three fitting functions (note that the current version of the R package [`fitHeavyTail`](https://CRAN.R-project.org/package=fitHeavyTail) does not allow yet a regularization term with a target):
 
-- The function `fitHeavyTail::fit_Tyler()` normalizes the centered samples $\bar{\mathbf{x}}_t = \mathbf{x}_t - \boldsymbol{\mu}$ (where $\boldsymbol{\mu}$ has been previously estimated), which then have an angular Gaussian distribution on the sphere, and performs an MLE based on the MM algorithm [@SunBabPal2014]. The formulation including a regularization term is
+- The function `fitHeavyTail::fit_Tyler()` normalizes the centered samples $\bar{\bm{x}}_t = \bm{x}_t - \bm{\mu}$ (where $\bm{\mu}$ has been previously estimated), which then have an angular Gaussian distribution on the sphere, and performs an MLE based on the MM algorithm [@SunBabPal2014]. The formulation including a regularization term is
 $$
 \begin{array}{ll}
-\underset{\boldsymbol{\Sigma}}{\textsf{minimize}} &
+\underset{\bm{\Sigma}}{\textsf{minimize}} &
   \begin{aligned}[t]
-  \frac{T}{2}\log\det(\boldsymbol{\Sigma}) +
-  \frac{N}{2}\sum\limits_{t=1}^{T}\log{\left(\bar{\mathbf{x}}_t^T\boldsymbol{\Sigma}^{-1}\bar{\mathbf{x}}_t\right)}\hspace{2cm}\\
-  \color{darkred}{+ \;\alpha \left(N\log\left(\textsf{Tr}\left(\boldsymbol{\Sigma}^{-1}\mathbf{T}\right)\right) + \log\det(\boldsymbol{\Sigma})\right)}
+  \frac{T}{2}\log\det(\bm{\Sigma}) +
+  \frac{N}{2}\sum\limits_{t=1}^{T}\log{\left(\bar{\bm{x}}_t^\T\bm{\Sigma}^{-1}\bar{\bm{x}}_t\right)}\hspace{2cm}\\
+  \color{darkred}{+ \;\alpha \left(N\log\left(\textsf{Tr}\left(\bm{\Sigma}^{-1}\bm{T}\right)\right) + \log\det(\bm{\Sigma})\right)}
   \end{aligned}
 \end{array}
 $$
-where $\mathbf{T}$ is the target matrix (e.g., $\mathbf{T} = \mathbf{I}$ or $\mathbf{T} = \frac{1}{N}\textsf{Tr}(\mathbf{S})\times\mathbf{I}$, with $\mathbf{S}$ being the sample covariance matrix).
+where $\bm{T}$ is the target matrix (e.g., $\bm{T} = \bm{I}$ or $\bm{T} = \frac{1}{N}\textsf{Tr}(\bm{S})\times\bm{I}$, with $\bm{S}$ being the sample covariance matrix).
 This leads to the iteration step
 $$
-\boldsymbol{\Sigma}_{k+1} = 
-(1 - \rho)\frac{N}{T}\sum\limits_{t=1}^{T}\frac{\bar{\mathbf{x}}_t\bar{\mathbf{x}}_t^T}{\bar{\mathbf{x}}_t^T\boldsymbol{\Sigma}_k^{-1}\bar{\mathbf{x}}_t} + \rho\frac{N}{\textsf{Tr}\left(\boldsymbol{\Sigma}_k^{-1}\mathbf{T}\right)}\mathbf{T},
+\bm{\Sigma}_{k+1} = 
+(1 - \rho)\frac{N}{T}\sum\limits_{t=1}^{T}\frac{\bar{\bm{x}}_t\bar{\bm{x}}_t^\T}{\bar{\bm{x}}_t^\T\bm{\Sigma}_k^{-1}\bar{\bm{x}}_t} + \rho\frac{N}{\textsf{Tr}\left(\bm{\Sigma}_k^{-1}\bm{T}\right)}\bm{T},
 $$
-where $\rho = \frac{\alpha}{T/2 + \alpha}$ or $\alpha = \frac{T}{2}\frac{\rho}{1 - \rho}$, and initial point $\boldsymbol{\Sigma}_{0} = \mathbf{S}$. For better numerical stability, one can further normalize the estimate at each iteration: $\boldsymbol{\Sigma}_{k+1} \leftarrow \boldsymbol{\Sigma}_{k+1}/\textsf{Tr}\left(\boldsymbol{\Sigma}_{k+1}\right)$. The iterations converge to the solution up to a scaling factor if and only if $1 + \frac{2}{T}\alpha > \frac{N}{T}$ or, equivalently, $\rho > 1 - \frac{T}{N}$ [@SunBabPal2014] (the correct scaling factor is later obtained via a robust fitting method).
-If instead the regularization term $\color{darkred}{\textsf{Tr}\left(\boldsymbol{\Sigma}^{-1}\mathbf{T}\right) + \log\det(\boldsymbol{\Sigma})}$ is used, the iteration step becomes
+where $\rho = \frac{\alpha}{T/2 + \alpha}$ or $\alpha = \frac{T}{2}\frac{\rho}{1 - \rho}$, and initial point $\bm{\Sigma}_{0} = \bm{S}$. For better numerical stability, one can further normalize the estimate at each iteration: $\bm{\Sigma}_{k+1} \leftarrow \bm{\Sigma}_{k+1}/\textsf{Tr}\left(\bm{\Sigma}_{k+1}\right)$. The iterations converge to the solution up to a scaling factor if and only if $1 + \frac{2}{T}\alpha > \frac{N}{T}$ or, equivalently, $\rho > 1 - \frac{T}{N}$ [@SunBabPal2014] (the correct scaling factor is later obtained via a robust fitting method).
+If instead the regularization term $\color{darkred}{\textsf{Tr}\left(\bm{\Sigma}^{-1}\bm{T}\right) + \log\det(\bm{\Sigma})}$ is used, the iteration step becomes
 $$
-\boldsymbol{\Sigma}_{k+1} = 
-(1 - \rho)\frac{N}{T}\sum\limits_{t=1}^{T}\frac{\bar{\mathbf{x}}_t\bar{\mathbf{x}}_t^T}{\bar{\mathbf{x}}_t^T\boldsymbol{\Sigma}_k^{-1}\bar{\mathbf{x}}_t} + \rho\mathbf{T}.
+\bm{\Sigma}_{k+1} = 
+(1 - \rho)\frac{N}{T}\sum\limits_{t=1}^{T}\frac{\bar{\bm{x}}_t\bar{\bm{x}}_t^\T}{\bar{\bm{x}}_t^\T\bm{\Sigma}_k^{-1}\bar{\bm{x}}_t} + \rho\bm{T}.
 $$
 
 
 - The function `fitHeavyTail::fit_Cauchy()` assumes that the data follows a multivariate Cauchy distribution ($t$ distribution with $\nu=1$) and performs an MLE based on the MM algorithm [@SunBabPal2015]. The formulation including a regularization term is
 $$
 \begin{array}{ll}
-\underset{\boldsymbol{\mu},\boldsymbol{\Sigma}}{\textsf{minimize}} &
+\underset{\bm{\mu},\bm{\Sigma}}{\textsf{minimize}} &
   \begin{aligned}[t]
-  & \frac{T}{2}\log\det(\boldsymbol{\Sigma}) + \frac{N+1}{2}\sum\limits_{t=1}^{T}\log{\left(1+(\mathbf{x}_t - \boldsymbol{\mu})^T\boldsymbol{\Sigma}^{-1}(\mathbf{x}_t - \boldsymbol{\mu})\right)}\\
-  & \color{darkred}{+\;\alpha \left(N\log\left(\textsf{Tr}\left(\boldsymbol{\Sigma}^{-1}\mathbf{T}\right)\right) + \log\det(\boldsymbol{\Sigma})\right) + \gamma \log{\left(1 + (\boldsymbol{\mu} - \mathbf{t})^T\boldsymbol{\Sigma}^{-1}(\boldsymbol{\mu} - \mathbf{t})\right)}}
+  & \frac{T}{2}\log\det(\bm{\Sigma}) + \frac{N+1}{2}\sum\limits_{t=1}^{T}\log{\left(1+(\bm{x}_t - \bm{\mu})^\T\bm{\Sigma}^{-1}(\bm{x}_t - \bm{\mu})\right)}\\
+  & \color{darkred}{+\;\alpha \left(N\log\left(\textsf{Tr}\left(\bm{\Sigma}^{-1}\bm{T}\right)\right) + \log\det(\bm{\Sigma})\right) + \gamma \log{\left(1 + (\bm{\mu} - \bm{t})^\T\bm{\Sigma}^{-1}(\bm{\mu} - \bm{t})\right)}}
   \end{aligned}
 \end{array}
 $$
-where $\mathbf{t}$ and $\mathbf{T}$ are the targets for  $\boldsymbol{\mu}$ and $\boldsymbol{\Sigma}$, respectively.
+where $\bm{t}$ and $\bm{T}$ are the targets for  $\bm{\mu}$ and $\bm{\Sigma}$, respectively.
 This leads to the following (accelerated) iteration step (Algorithm 4 in [@SunBabPal2015]):
 $$
-\boldsymbol{\mu}_{k+1} = \frac{(N+1)\sum_{t=1}^Tw_t\left(\boldsymbol{\mu}_k,\boldsymbol{\Sigma}_k\right)\mathbf{x}_t + 2\gamma w_{\textsf{tgt}}\left(\boldsymbol{\mu}_k,\boldsymbol{\Sigma}_k\right)\mathbf{t}}{(N+1)\sum_{t=1}^Tw_t\left(\boldsymbol{\mu}_k,\boldsymbol{\Sigma}_k\right) + 2\gamma w_{\textsf{tgt}}\left(\boldsymbol{\mu}_k,\boldsymbol{\Sigma}_k\right)}
+\bm{\mu}_{k+1} = \frac{(N+1)\sum_{t=1}^{T} w_t\left(\bm{\mu}_k,\bm{\Sigma}_k\right)\bm{x}_t + 2\gamma w_{\textsf{tgt}}\left(\bm{\mu}_k,\bm{\Sigma}_k\right)\bm{t}}{(N+1)\sum_{t=1}^{T} w_t\left(\bm{\mu}_k,\bm{\Sigma}_k\right) + 2\gamma w_{\textsf{tgt}}\left(\bm{\mu}_k,\bm{\Sigma}_k\right)}
 $$
 and
 $$
-\boldsymbol{\Sigma}_{k+1} = \beta_k 
+\bm{\Sigma}_{k+1} = \beta_k 
 \left\{
-(1 - \rho)\frac{N+1}{T}\sum\limits_{t=1}^{T}w_t\left(\boldsymbol{\mu}_k,\boldsymbol{\Sigma}_k\right)\left(\mathbf{x}_t - \boldsymbol{\mu}_{k+1}\right)\left(\mathbf{x}_t - \boldsymbol{\mu}_{k+1}\right)^T\\\hspace{6cm} +
-\rho\left(\frac{N}{\textsf{Tr}\left(\boldsymbol{\Sigma}_k^{-1}\mathbf{T}\right)}\mathbf{T} +
-\frac{\gamma}{\alpha}w_\textsf{tgt}\left(\boldsymbol{\mu}_k,\boldsymbol{\Sigma}_k\right)\left(\mathbf{t} - \boldsymbol{\mu}_{k+1}\right)\left(\mathbf{t} - \boldsymbol{\mu}_{k+1}\right)^T\right)
+(1 - \rho)\frac{N+1}{T}\sum\limits_{t=1}^{T}w_t\left(\bm{\mu}_k,\bm{\Sigma}_k\right)\left(\bm{x}_t - \bm{\mu}_{k+1}\right)\left(\bm{x}_t - \bm{\mu}_{k+1}\right)^\T\\\hspace{6cm} +
+\rho\left(\frac{N}{\textsf{Tr}\left(\bm{\Sigma}_k^{-1}\bm{T}\right)}\bm{T} +
+\frac{\gamma}{\alpha}w_\textsf{tgt}\left(\bm{\mu}_k,\bm{\Sigma}_k\right)\left(\bm{t} - \bm{\mu}_{k+1}\right)\left(\bm{t} - \bm{\mu}_{k+1}\right)^\T\right)
 \right\}
 $$
 where $\rho = \frac{\alpha}{T/2 + \alpha}$,
 $$
 \begin{aligned}
-w_t\left(\boldsymbol{\mu},\boldsymbol{\Sigma}\right) &= \frac{1}{1 + \left(\mathbf{x}_t - \boldsymbol{\mu}\right)^T\boldsymbol{\Sigma}^{-1}\left(\mathbf{x}_t - \boldsymbol{\mu}\right)},\\
-w_\textsf{tgt}\left(\boldsymbol{\mu},\boldsymbol{\Sigma}\right) &= \frac{1}{1 + \left(\mathbf{t} - \boldsymbol{\mu}\right)^T\boldsymbol{\Sigma}^{-1}\left(\mathbf{t} - \boldsymbol{\mu}\right)},\\
-\beta_k &= \frac{T+2\gamma}{(N+1)\sum_{t=1}^{T}w_t\left(\boldsymbol{\mu}_k,\boldsymbol{\Sigma}_k\right) + 2\gamma w_\textsf{tgt}\left(\boldsymbol{\mu}_k,\boldsymbol{\Sigma}_k\right)},
+w_t\left(\bm{\mu},\bm{\Sigma}\right) &= \frac{1}{1 + \left(\bm{x}_t - \bm{\mu}\right)^\T\bm{\Sigma}^{-1}\left(\bm{x}_t - \bm{\mu}\right)},\\
+w_\textsf{tgt}\left(\bm{\mu},\bm{\Sigma}\right) &= \frac{1}{1 + \left(\bm{t} - \bm{\mu}\right)^\T\bm{\Sigma}^{-1}\left(\bm{t} - \bm{\mu}\right)},\\
+\beta_k &= \frac{T+2\gamma}{(N+1)\sum_{t=1}^{T}w_t\left(\bm{\mu}_k,\bm{\Sigma}_k\right) + 2\gamma w_\textsf{tgt}\left(\bm{\mu}_k,\bm{\Sigma}_k\right)},
 \end{aligned}
 $$
-and initial point $\boldsymbol{\mu}_{0} = \frac{1}{T}\sum_{t=1}^{T}\mathbf{x}_t$ and $\boldsymbol{\Sigma}_{0} = \mathbf{S}$ (note that this initial point is not totally correct due to a scaling factor).
+and initial point $\bm{\mu}_{0} = \frac{1}{T}\sum_{t=1}^{T}\bm{x}_t$ and $\bm{\Sigma}_{0} = \bm{S}$ (note that this initial point is not totally correct due to a scaling factor).
 The iterations converge to the solution if and only if the conditions of Corollary 3 in [@SunBabPal2015] are satisfied.
 
 
 - The function `fitHeavyTail::fit_mvt()` assumes the data follows a multivariate Student's $t$ distribution and performs an MLE based on the EM algorithm [@LiuRubin95; @LiuRubinWu98]. The MLE formulation (without missing values) is
 $$
 \begin{array}{ll}
-\underset{\boldsymbol{\mu},\boldsymbol{\Sigma},\nu}{\textsf{minimize}} & 
+\underset{\bm{\mu},\bm{\Sigma},\nu}{\textsf{minimize}} & 
   \begin{aligned}[t]
-  \frac{T}{2}\log\det(\boldsymbol{\Sigma}) +
-  \frac{N+\nu}{2}\sum\limits_{t=1}^{T}\log{\left(1+\frac{1}{\nu}(\mathbf{x}_t - \boldsymbol{\mu})^T\boldsymbol{\Sigma}^{-1}(\mathbf{x}_t - \boldsymbol{\mu})\right)}\\
+  \frac{T}{2}\log\det(\bm{\Sigma}) +
+  \frac{N+\nu}{2}\sum\limits_{t=1}^{T}\log{\left(1+\frac{1}{\nu}(\bm{x}_t - \bm{\mu})^\T\bm{\Sigma}^{-1}(\bm{x}_t - \bm{\mu})\right)}\\
   -\; T\log{\Gamma\left(\frac{N+\nu}{2}\right)} 
   + T\log{\Gamma\left(\frac{\nu}{2}\right)} 
   + \frac{TN}{2}\log{\nu}.
@@ -531,50 +518,58 @@ $$
 Since its direct minimization is complicated, the EM algorithm instead iteratively optimizes the Q function at iteration $k$:
 $$
 \begin{array}{ll}
-\underset{\boldsymbol{\mu},\boldsymbol{\Sigma},\nu}{\textsf{minimize}} & 
+\underset{\bm{\mu},\bm{\Sigma},\nu}{\textsf{minimize}} & 
   \begin{aligned}[t]
-  \frac{T}{2}\log\det(\boldsymbol{\Sigma}) +
-  \sum\limits_{t=1}^{T}\left\{\frac{\textsf{E}_k[\tau_t]}{2}(\mathbf{x}_t - \boldsymbol{\mu})^T\boldsymbol{\Sigma}^{-1}(\mathbf{x}_t - \boldsymbol{\mu}) + \frac{\nu}{2}\textsf{E}_k[\tau_t] - \frac{\nu}{2}\textsf{E}_k[\log{\tau_t]}\right\}\\
+  \frac{T}{2}\log\det(\bm{\Sigma}) +
+  \sum\limits_{t=1}^{T}\left\{\frac{\textsf{E}_k[\tau_t]}{2}(\bm{x}_t - \bm{\mu})^\T\bm{\Sigma}^{-1}(\bm{x}_t - \bm{\mu}) + \frac{\nu}{2}\textsf{E}_k[\tau_t] - \frac{\nu}{2}\textsf{E}_k[\log{\tau_t]}\right\}\\
   -\; \frac{T\nu}{2}\log{\frac{\nu}{2}} + T\log{\Gamma\left(\frac{\nu}{2}\right)}
   \end{aligned}
 \end{array}
 $$
 where
 $$
-\textsf{E}_k[\tau_t] = \frac{\nu_k + N}{\nu_k + \left(\mathbf{x}_t - \boldsymbol{\mu}_k\right)^T\boldsymbol{\Sigma}_k^{-1}\left(\mathbf{x}_t - \boldsymbol{\mu}_k\right)}.
+\textsf{E}_k[\tau_t] = \frac{\nu_k + N}{\nu_k + \left(\bm{x}_t - \bm{\mu}_k\right)^\T\bm{\Sigma}_k^{-1}\left(\bm{x}_t - \bm{\mu}_k\right)}.
 $$
 The (accelerated) solution is given by
 $$
-\boldsymbol{\mu}_{k+1} = \frac{\sum_{t=1}^T\textsf{E}_k[\tau_t]\mathbf{x}_t}{\sum_{t=1}^T\textsf{E}_k[\tau_t]},
+\bm{\mu}_{k+1} = \frac{\sum_{t=1}^\T\textsf{E}_k[\tau_t]\bm{x}_t}{\sum_{t=1}^\T\textsf{E}_k[\tau_t]},
 $$
 $$
-\boldsymbol{\Sigma}_{k+1} = \frac{1}{\alpha_k}\frac{1}{T}\sum_{t=1}^{T}\textsf{E}_k[\tau_t]\left(\mathbf{x}_t - \boldsymbol{\mu}_{k+1}\right)\left(\mathbf{x}_t - \boldsymbol{\mu}_{k+1}\right)^T,
+\bm{\Sigma}_{k+1} = \frac{1}{\alpha_k}\frac{1}{T}\sum_{t=1}^{T}\textsf{E}_k[\tau_t]\left(\bm{x}_t - \bm{\mu}_{k+1}\right)\left(\bm{x}_t - \bm{\mu}_{k+1}\right)^\T,
 $$
-with $\alpha_k = \frac{1}{T}\sum_{t=1}^T\textsf{E}_k[\tau_t]$, and $\nu_{k+1}$ can be found by a one-dimensional search:
+with $\alpha_k = \frac{1}{T}\sum_{t=1}^\T\textsf{E}_k[\tau_t]$, and $\nu_{k+1}$ can be found by:
 
   - method ECM based on the Q function:
   
-  $$\nu_{k+1} = \arg\min_\nu \left\{\frac{\nu}{2}\sum_{t=1}^{T}\left(\textsf{E}_k[\tau_t] - \textsf{E}_k[\log{\tau_t]}\right) - \frac{\nu}{2}T\log{\frac{\nu}{2}} + T\log{\Gamma\left(\frac{\nu}{2}\right)}\right\}$$
+  $$\nu_{k+1} = \arg\min_\nu \left\{\frac{\nu}{2}\sum_{t=1}^{T}\left(\textsf{E}_k[\tau_t] - \textsf{E}_k[\log{\tau_t]}\right) - \frac{\nu}{2}T\log{\frac{\nu}{2}} + T\log{\Gamma\left(\frac{\nu}{2}\right)}\right\};$$
 
   - method ECME based directly on the likelihood:
   
   $$\nu_{k+1} = \arg\min_\nu \left\{
-  \frac{N + \nu}{2}\sum_{t=1}^{T}\log{\left(\nu + \left(\mathbf{x}_t - \boldsymbol{\mu}_{k+1}\right)\boldsymbol{\Sigma}_{k+1}^{-1}\left(\mathbf{x}_t - \boldsymbol{\mu}_{k+1}\right)^T\right)}\\\hspace{6cm} 
+  \frac{N + \nu}{2}\sum_{t=1}^{T}\log{\left(\nu + \left(\bm{x}_t - \bm{\mu}_{k+1}\right)\bm{\Sigma}_{k+1}^{-1}\left(\bm{x}_t - \bm{\mu}_{k+1}\right)^\T\right)}\\\hspace{6cm} 
   - T\log{\Gamma\left(\frac{N + \nu}{2}\right)} + T\log{\Gamma\left(\frac{\nu}{2}\right)} - \frac{\nu}{2}T\log{\nu}
-  \right\}.$$
-The initial point is $\boldsymbol{\mu}_{0} = \frac{1}{T}\sum_{t=1}^{T}\mathbf{x}_t$, $\boldsymbol{\Sigma}_{0} = \frac{\nu_0-2}{\nu_0}\mathbf{S}$, and $\nu_0 = 2/\kappa + 4$, with $\kappa = \left[\frac{1}{3}\frac{1}{N}\sum_{i=1}^N \textsf{kurt}_i\right]^+$ and 
+  \right\};$$
+  
+  - more stable methods OPP [@OllilaPalomarPascal-TSP2021] and POP [@PascalOllilaPalomar-EUSIPCO2021] based on random matrix theory.
+
+  The initial point is $\bm{\mu}_{0} = \frac{1}{T}\sum_{t=1}^{T}\bm{x}_t$, $\bm{\Sigma}_{0} = \frac{\nu_0-2}{\nu_0}\bm{S}$, and $\nu_0 = 2/\kappa + 4$, with $\kappa = \left[\frac{1}{3}\frac{1}{N}\sum_{i=1}^N \textsf{kurt}_i\right]^+$ and 
 <!---$$\textsf{kurt}_i = \frac{(T-1)(T+1)}{(T-2)(T-3)}\left(\frac{m_i^{(4)}}{\big(m_i^{(2)}\big)^2} - 3\frac{T-1}{T+1}\right),$$--->
 $$\textsf{kurt}_i =  \frac{(T-1)}{(T-2)(T-3)}\left((T+1)\left(\frac{m_i^{(4)}}{\big(m_i^{(2)}\big)^2} - 3\right) + 6\right),$$
-where $m_i^{(q)}=\frac{1}{T}\sum_{t=1}^T(x_{it}-\bar{x}_i)^q$ denotes the $q$th order sample moment.
-The algorithm with missing values in $\mathbf{x}_t$ becomes more cumbersome but it is essentially the same idea.
-This function can also incorporate a factor model structure on the covariance matrix $\boldsymbol{\Sigma} = \mathbf{B}\mathbf{B}^T + {\sf Diag}(\boldsymbol{\psi})$, which requires a more sophisticated algorithm [@ZhouLiuKumarPalomar2019] (available in [arXiv](https://arxiv.org/abs/1909.12530)).
+where $m_i^{(q)}=\frac{1}{T}\sum_{t=1}^\T(x_{it}-\bar{x}_i)^q$ denotes the $q$th order sample moment.
+The algorithm with missing values in $\bm{x}_t$ becomes more cumbersome but it is essentially the same idea.
+This function can also incorporate a factor model structure on the covariance matrix $\bm{\Sigma} = \bm{B}\bm{B}^\T + {\sf Diag}(\bm{\psi})$, which requires a more sophisticated algorithm [@ZhouLiuKumarPalomar2019].
 
 
-- The function `fitHeavyTail::fit_mvst()` assumes the data follows a multivariate skew $t$ distribution and performs an MLE based on the EM algorithm [@aas2006generalized]. Suppose $\mathbf{x}_{t}$ is a random vector following the GH Skew t distribution, its probability density function (pdf) is decided by four parameters, namely, location vector $\boldsymbol{\mu}$, scatter matrix $\boldsymbol{\Sigma}$, degrees of freedom $\nu$, and skewness vector $\boldsymbol{\gamma}$. When $\boldsymbol{\gamma} = \boldsymbol{0}$, the GH skew $t$ reduces to the Student's $t$ distribution (considered in `fitHeavyTail::fit_mvt()`). The expression of the GH skew $t$ pdf is rather complicated:
-$$f\left(\mathbf{x}\right)=\frac{2^{1-\frac{\nu+N}{2}}}{\Gamma\left(\frac{\nu}{2}\right)\left(\pi\nu\right)^{\frac{N}{2}}\vert\boldsymbol{\Sigma}\vert^{\frac{1}{2}}}\frac{K_{\frac{\nu+N}{2}}\left(\left[\left(\nu+d\left(\mathbf{x}\right)\right)\boldsymbol{\gamma}^{T}\boldsymbol{\Sigma}^{-1}\boldsymbol{\gamma}\right]^{\frac{1}{2}}\right)\exp\left(\left(\mathbf{x}-\boldsymbol{\mu}\right)^{T}\boldsymbol{\Sigma}^{-1}\boldsymbol{\gamma}\right)}{\left[\left(\nu+d\left(\mathbf{x}\right)\right)\boldsymbol{\gamma}^{T}\boldsymbol{\Sigma}^{-1}\boldsymbol{\gamma}\right]^{-\frac{\nu+N}{4}}\left(1+\frac{d\left(\mathbf{x}\right)}{\nu}\right)^{\frac{\nu+N}{2}}},$$
-where $K_{\alpha}$ is the modified Bessel function and $d\left(\mathbf{x}\right)=\left(\mathbf{x}-\boldsymbol{\mu}\right)^{T}\boldsymbol{\Sigma}^{-1}\left(\mathbf{x}-\boldsymbol{\mu}\right)$. Fortunately, $\mathbf{x}_{t}$ can be represented in a hierarchical structure:
-$$\begin{aligned}
-\mathbf{x}_{t}\lvert\tau & \sim\mathcal{N}\left(\boldsymbol{\mu}+\frac{1}{\tau_{t}}\boldsymbol{\gamma},\frac{1}{\tau_{t}}\boldsymbol{\Sigma}\right),\\
+
+
+- The function `fitHeavyTail::fit_mvst()` assumes the data follows a multivariate skew $t$ distribution and performs an MLE based on the EM algorithm [@aas2006generalized]. Suppose $\bm{x}_{t}$ is a random vector following the GH Skew t distribution, its probability density function (pdf) is decided by four parameters, namely, location vector $\bm{\mu}$, scatter matrix $\bm{\Sigma}$, degrees of freedom $\nu$, and skewness vector $\bm{\gamma}$. When $\bm{\gamma} = \bm{0}$, the GH skew $t$ reduces to the Student's $t$ distribution (considered in `fitHeavyTail::fit_mvt()`). The expression of the GH skew $t$ pdf is rather complicated:
+$$
+f\left(\bm{x}\right)=\frac{2^{1-\frac{\nu+N}{2}}}{\Gamma\left(\frac{\nu}{2}\right)\left(\pi\nu\right)^{\frac{N}{2}}\vert\bm{\Sigma}\vert^{\frac{1}{2}}}\frac{K_{\frac{\nu+N}{2}}\left(\left[\left(\nu+d\left(\bm{x}\right)\right)\bm{\gamma}^\T\bm{\Sigma}^{-1}\bm{\gamma}\right]^{\frac{1}{2}}\right)\exp\left(\left(\bm{x}-\bm{\mu}\right)^\T\bm{\Sigma}^{-1}\bm{\gamma}\right)}{\left[\left(\nu+d\left(\bm{x}\right)\right)\bm{\gamma}^{T}\bm{\Sigma}^{-1}\bm{\gamma}\right]^{-\frac{\nu+N}{4}}\left(1+\frac{d\left(\bm{x}\right)}{\nu}\right)^{\frac{\nu+N}{2}}},
+$$
+where $K_{\alpha}$ is the modified Bessel function and $d\left(\bm{x}\right)=\left(\bm{x}-\bm{\mu}\right)^\T\bm{\Sigma}^{-1}\left(\bm{x}-\bm{\mu}\right)$. Fortunately, $\bm{x}_{t}$ can be represented in a hierarchical structure:
+$$
+\begin{aligned}
+\bm{x}_{t}\lvert\tau & \sim\mathcal{N}\left(\bm{\mu}+\frac{1}{\tau_{t}}\bm{\gamma},\frac{1}{\tau_{t}}\bm{\Sigma}\right),\\
 \tau_{t} & \sim\text{Gamma}\left(\frac{\nu}{2},\frac{\nu}{2}\right).
 \end{aligned}
 $$
@@ -583,6 +578,3 @@ Making use of such structure, an EM based algorithm has been proposed in [@aas20
 
 
 # References {-}
-\setlength{\parskip}{40pt}
-\setlength{\itemsep}{20mm}
-
