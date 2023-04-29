@@ -9,14 +9,11 @@
 ^R_buildignore$
 ^data-raw$
 ^papers$
+^vignettes$
 ^vignettes/CovarianceEstimationHeavyTail_cache$
 ^vignettes/CovarianceEstimationHeavyTail_files$
 ^vignettes/CovarianceEstimationHeavyTail\.Rmd$
 ^vignettes/CovarianceEstimationHeavyTail_v.*\.html$
-^vignettes/econometrica\.csl$
-^vignettes/journal-of-econometrics\.csl$
+^vignettes/apalike\.csl$
 ^vignettes/refs\.bib$
-^vignettes/nu_estimation.*\.Rmd$
-^vignettes/nu_estimation.*\.html$
-^vignettes/nu_estimation_cache$
-^vignettes/nu_estimation_files$
+^vignettes/preamble\.tex$

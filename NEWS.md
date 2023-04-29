@@ -1,11 +1,26 @@
+## Changes in fitHeavyTail version 0.2.0 (2023-4-28)
+
+* New methods OPP and POP for the estimation of nu: nu_OPP_estimator() and nu_POP_estimator()
+
+* Function fit_mvt() updated using POP as default method for nu.
+
+* Vignette updated.
+
+* Functions fit_Tyler() and fit_Cauchy() now recover the missing scaling factor with the improved OPP harmonic method.
+
+* New contributors added for OPP and POP methods: Frederic Pascal and Esa Ollila.
+
+
 ## Changes in fitHeavyTail version 0.1.4 (2022-5-11)
 
-No changes. Just that CRAN required to resubmit due to some issue with package ghyp.
+* No changes. Just that CRAN required to resubmit due to some issue with package ghyp.
 
 
 ## Changes in fitHeavyTail version 0.1.3 (2022-4-14)
 
 * New method for skewed t distributions: fit_mvst()
+
+* New contributor added for fit_mvst(): Xiwen Wang.
 
 * fit_mvt() and fit_mvst(): Now the bounds for nu estimation can be set as a global option, e.g.: options(nu_min = 4.2).
 
