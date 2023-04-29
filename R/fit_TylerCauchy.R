@@ -15,8 +15,12 @@
 #'                \itemize{\item{\code{mu}: default is the data sample mean,}
 #'                         \item{\code{cov}: default is the data sample covariance matrix.}}
 #'
+#' @param estimate_mu Boolean indicating whether to estimate \code{mu} (default is \code{TRUE}).
+#'
 #' @return A list containing possibly the following elements:
 #'         \item{\code{mu}}{Mean vector estimate.}
+#'         \item{\code{scatter}}{Scatter matrix estimate.}
+#'         \item{\code{nu}}{Degrees of freedom estimate (assuming an underlying Student's t distribution).}
 #'         \item{\code{cov}}{Covariance matrix estimate.}
 #'         \item{\code{converged}}{Boolean denoting whether the algorithm has converged (\code{TRUE}) or the maximum number
 #'                                 of iterations \code{max_iter} has reached (\code{FALSE}).}
@@ -45,7 +49,7 @@
 #' @importFrom stats cov var
 #' @importFrom utils tail
 #' @export
-fit_Tyler <- function(X, initial = NULL, max_iter = 100, ptol = 1e-3, ftol = Inf, return_iterates = FALSE, verbose = FALSE) {
+fit_Tyler <- function(X, initial = NULL, estimate_mu = TRUE, max_iter = 200, ptol = 1e-3, ftol = Inf, return_iterates = FALSE, verbose = FALSE) {
   ####### error control ########
   X <- try(as.matrix(X), silent = TRUE)
   if (!is.matrix(X)) stop("\"X\" must be a matrix or coercible to a matrix.")
@@ -64,15 +68,22 @@ fit_Tyler <- function(X, initial = NULL, max_iter = 100, ptol = 1e-3, ftol = Inf
   T <- nrow(X)
   N <- ncol(X)
 
-  # initialize all parameters
+  ############################################
+  #           initialize parameters          #
+  ############################################
   start_time <- proc.time()[3]
-  mu <- if (is.null(initial$mu)) gmean(X, "Gmedian", k = 10) else initial$mu
+  # initialize mu
+  if (estimate_mu) {
+    mu <- if (is.null(initial$mu)) gmean(X, "Gmedian", k = 10)
+    else initial$mu
+  } else mu <- rep(0, N)
+  # initialize scatter matrix
   if (is.null(initial$cov)) {
     Sigma <- cov(X)
     Sigma <- Sigma/sum(diag(Sigma))
   } else Sigma <- initial$cov
-  X_ <- X - matrix(mu, T, N, byrow = TRUE)  # demean data
-  weights <- 1/rowSums(X_ * (X_ %*% inv(Sigma)))   # 1/diag( X_ %*% inv(Sigma) %*% t(X_) )
+  Xc <- X - matrix(mu, T, N, byrow = TRUE)  # demean data
+  weights <- 1/rowSums(Xc * (Xc %*% inv(Sigma)))   # 1/diag( Xc %*% inv(Sigma) %*% t(Xc) )
   if (ftol < Inf)
     log_likelihood <- (N/2)*sum(log(weights)) - (T/2)*log(det(Sigma))
 
@@ -90,9 +101,9 @@ fit_Tyler <- function(X, initial = NULL, max_iter = 100, ptol = 1e-3, ftol = Inf
     if (ftol < Inf) log_likelihood_prev <- log_likelihood
 
     # Tyler update (no need for acceleration due to the trace normalization)
-    Sigma <- (N/T) * crossprod(sqrt(weights)*X_)  # (N/T) * t(X_) %*% diag(weights) %*% X_
+    Sigma <- (N/T) * crossprod(sqrt(weights)*Xc)  # (N/T) * t(Xc) %*% diag(weights) %*% Xc
     Sigma <- Sigma/sum(diag(Sigma))
-    weights <- 1/rowSums(X_ * (X_ %*% inv(Sigma)))   # 1/diag( X_ %*% inv(Sigma) %*% t(X_) )
+    weights <- 1/rowSums(Xc * (Xc %*% inv(Sigma)))   # 1/diag( Xc %*% inv(Sigma) %*% t(Xc) )
 
     # stopping criterion
     has_param_converged <- all(abs(Sigma - Sigma_prev) <= .5 * ptol * (abs(Sigma) + abs(Sigma_prev)))
@@ -107,16 +118,28 @@ fit_Tyler <- function(X, initial = NULL, max_iter = 100, ptol = 1e-3, ftol = Inf
   if (verbose) message(sprintf("Number of iterations for Tyler estimator = %d\n", iter))
 
   # finally, recover missing scaling factor
-  kappa <- scaling_fitting_ka_with_b(a = diag(Sigma), b = apply(X^2, 2, mean, trim = max(1/T, 0.03)))
+  #kappa <- scaling_fitting_ka_with_b(a = diag(Sigma), b = apply(X^2, 2, mean, trim = max(1/T, 0.03)))
   #kappa <- sum(apply(X, 2, var))/sum(diag(Sigma))  <-- this is worse
+  recovered <- recover_scaled_scatter_and_nu(Sigma, Xc)
+  Sigma <- recovered$Sigma
+  nu    <- recovered$nu
+  # cov matrix
+  if (nu > 2)
+    Sigma_cov <- nu/(nu-2) * Sigma
+  else
+    Sigma_cov <- NA
 
-  # return variables
+
+  ## -------- return variables --------
   #Sigma <- T/(T-1) * Sigma  # unbiased estimator
   vars_to_be_returned <- list("mu"             = mu,
-                              "cov"            = kappa * Sigma,
+                              "scatter"        = Sigma,
+                              "nu"             = nu,
+                              "cov"            = Sigma_cov,
                               "converged"      = (iter < max_iter),
                               "num_iterations" = iter,
                               "cpu_time"       = elapsed_time)
+
   if (ftol < Inf)
     vars_to_be_returned$log_likelihood <- log_likelihood
   if (return_iterates) {
@@ -126,6 +149,30 @@ fit_Tyler <- function(X, initial = NULL, max_iter = 100, ptol = 1e-3, ftol = Inf
   vars_to_be_returned$converged <- (iter < max_iter)
   return(vars_to_be_returned)
 }
+
+
+
+# this function could perhaps be merged with nu_OPP_estimator()
+recover_scaled_scatter_and_nu <- function(Sigma, Xc) {
+  N <- ncol(Xc)
+  T <- nrow(Xc)
+
+  # recover scaling factor in Sigma
+  Sigma <- Sigma * N/sum(diag(Sigma))
+  r2 <- rowSums(Xc * (Xc %*% solve(Sigma)))
+  inv_w <- r2/N
+  tau <- 1/mean(1/inv_w)
+  Sigma <- tau * Sigma
+
+  # recover nu (pretending it is a Student t distribution)
+  var_X <- 1/(T-1)*colSums(Xc^2)
+  eta <- mean(var_X)/tau
+  nu <- 2*eta/(eta - 1)
+  nu <- min(getOption("nu_max"), max(getOption("nu_min"), nu))
+
+  return(list(Sigma = Sigma, nu = nu))
+}
+
 
 
 
@@ -178,7 +225,7 @@ fit_Tyler <- function(X, initial = NULL, max_iter = 100, ptol = 1e-3, ftol = Inf
 #' @importFrom stats cov var
 #' @importFrom utils tail
 #' @export
-fit_Cauchy <- function(X, initial = NULL, max_iter = 100, ptol = 1e-3, ftol = Inf, return_iterates = FALSE, verbose = FALSE) {
+fit_Cauchy <- function(X, initial = NULL, max_iter = 200, ptol = 1e-3, ftol = Inf, return_iterates = FALSE, verbose = FALSE) {
   ####### error control ########
   X <- try(as.matrix(X), silent = TRUE)
   if (!is.matrix(X)) stop("\"X\" must be a matrix or coercible to a matrix.")
@@ -201,8 +248,8 @@ fit_Cauchy <- function(X, initial = NULL, max_iter = 100, ptol = 1e-3, ftol = In
   start_time <- proc.time()[3]
   mu <- if (is.null(initial$mu)) colMeans(X) else initial$mu
   Sigma <- if (is.null(initial$cov)) cov(X) else initial$cov
-  X_ <- X_ <- X - matrix(mu, T, N, byrow = TRUE)  # demean data
-  weights <- 1/(1 + rowSums(X_ * (X_ %*% inv(Sigma))))   # 1/( 1 + diag( X_ %*% inv(Sigma) %*% t(X_) ) )
+  Xc <- Xc <- X - matrix(mu, T, N, byrow = TRUE)  # demean data
+  weights <- 1/(1 + rowSums(Xc * (Xc %*% inv(Sigma))))   # 1/( 1 + diag( Xc %*% inv(Sigma) %*% t(Xc) ) )
   if (ftol < Inf)
     log_likelihood <- ((N+1)/2)*sum(log(weights)) - (T/2)*log(det(Sigma))
 
@@ -222,10 +269,10 @@ fit_Cauchy <- function(X, initial = NULL, max_iter = 100, ptol = 1e-3, ftol = In
 
     # update
     mu <- as.vector(weights %*% X)/sum(weights)
-    X_ <- X - matrix(mu, T, N, byrow = TRUE)
+    Xc <- X - matrix(mu, T, N, byrow = TRUE)
     beta <- T/(N+1)/sum(weights)  # acceleration (otherwise set beta=1)
-    Sigma <- beta * (N+1)/T * crossprod(sqrt(weights)*X_)  # (N+1)/T * t(X_) %*% diag(weights) %*% X_
-    weights <- 1/(1 + rowSums(X_ * (X_ %*% inv(Sigma))))   # 1/( 1 + diag( X_ %*% inv(Sigma) %*% t(X_) ) )
+    Sigma <- beta * (N+1)/T * crossprod(sqrt(weights)*Xc)  # (N+1)/T * t(Xc) %*% diag(weights) %*% Xc
+    weights <- 1/(1 + rowSums(Xc * (Xc %*% inv(Sigma))))   # 1/( 1 + diag( Xc %*% inv(Sigma) %*% t(Xc) ) )
 
     # stopping criterion
     have_params_converged <-
@@ -241,16 +288,28 @@ fit_Cauchy <- function(X, initial = NULL, max_iter = 100, ptol = 1e-3, ftol = In
   elapsed_time <- proc.time()[3] - start_time
   if (verbose) message(sprintf("Number of iterations for Cauchy estimator = %d\n", iter))
 
-  # finally, recover missing scaling factor for covmat
-  kappa <- scaling_fitting_ka_with_b(a = diag(Sigma), b = apply(X^2, 2, mean, trim = max(1/T, 0.03)))
+  # finally, recover missing scaling factor
+  #kappa <- scaling_fitting_ka_with_b(a = diag(Sigma), b = apply(Xc^2, 2, mean, trim = max(1/T, 0.03)))
+  recovered <- recover_scaled_scatter_and_nu(Sigma, Xc)
+  nu    <- recovered$nu
+  Sigma <- recovered$Sigma
 
-  # return variables
+  # cov matrix
+  if (nu > 2)
+    Sigma_cov <- nu/(nu-2) * Sigma
+  else
+    Sigma_cov <- NA
+
+
+  ## -------- return variables --------
   vars_to_be_returned <- list("mu"             = mu,
-                              "cov"            = kappa * Sigma,
                               "scatter"        = Sigma,
+                              "nu"             = nu,
+                              "cov"            = Sigma_cov,
                               "converged"      = (iter < max_iter),
                               "num_iterations" = iter,
                               "cpu_time"       = elapsed_time)
+
   if (ftol < Inf)
     vars_to_be_returned$log_likelihood <- log_likelihood
   if (return_iterates) {
@@ -277,7 +336,7 @@ Gmedian_of_means <- function(X, k = min(10, ceiling(T/2))) {
   mu <- matrix(NA, k, N)
   for (i in 1:k)
     mu[i, ] <- colMeans(X[i1[i]:i2[i], ])
-  mu <- ICSNP::spatial.median(X)
+  mu <- spatial.median(X)
   return(mu)
 }
 
@@ -287,7 +346,7 @@ gmean <- function(X, method = "mean", k = NULL) {
   switch(method,
          "mean"             = colMeans(X),
          "median"           = apply(X, 2, median),
-         "Gmedian"          = ICSNP::spatial.median(X),
+         "Gmedian"          = spatial.median(X),
          "Gmedian of means" = Gmedian_of_means(X, k),
          stop("Method unknown"))
 }
