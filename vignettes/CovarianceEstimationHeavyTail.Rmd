@@ -8,6 +8,9 @@ output:
   html_document:
     toc: yes
     toc_depth: 2
+  rmarkdown::html_vignette:
+    toc: yes
+    toc_depth: 2
 csl: apalike.csl
 csl-entry-spacing: 0.5em
 bibliography: refs.bib
@@ -40,9 +43,7 @@ opts_chunk$set(
 )
 knitr_in_progress <- isTRUE(getOption('knitr.in.progress'))
 knit_hooks$set(pngquant = hook_pngquant)
-# rmarkdown::render("vignettes/CovarianceEstimationHeavyTail.Rmd")
-# rmarkdown::render("vignettes/CovarianceEstimationHeavyTail.Rmd", output_format = "pdf_document", params = list(num_realiz = 100))
-# rmarkdown::render("vignettes/CovarianceEstimationHeavyTail.Rmd", params = list(num_realiz = 100))
+# rmarkdown::render("vignettes/CovarianceEstimationHeavyTail.Rmd", output_format = "rmarkdown::html_vignette", params = list(num_realiz = 100))
 ```
 
 -----------

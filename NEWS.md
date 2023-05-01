@@ -1,12 +1,12 @@
-## Changes in fitHeavyTail version 0.2.0 (2023-4-28)
+## Changes in fitHeavyTail version 0.2.0 (2023-5-1)
 
-* New methods OPP and POP for the estimation of nu: nu_OPP_estimator() and nu_POP_estimator()
+* New methods OPP and POP for the estimation of nu: `nu_OPP_estimator()` and `nu_POP_estimator()`.
 
-* Function fit_mvt() updated using POP as default method for nu.
+* Function `fit_mvt()` updated using POP as default method for nu.
 
 * Vignette updated.
 
-* Functions fit_Tyler() and fit_Cauchy() now recover the missing scaling factor with the improved OPP harmonic method.
+* Functions `fit_Tyler()` and `fit_Cauchy()` now recover the missing scaling factor with the improved OPP-harmonic method.
 
 * New contributors added for OPP and POP methods: Frederic Pascal and Esa Ollila.
 

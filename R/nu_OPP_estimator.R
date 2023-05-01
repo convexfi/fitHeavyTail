@@ -45,7 +45,8 @@
 #'
 #' # usage #2
 #' r2 <- rowSums(Xc * (Xc %*% solve(Sigma_true)))
-#' nu_OPP_estimator(var_X = 1/(T-1)*colSums(Xc^2), trace_scatter = sum(diag(Sigma_true)), method = "OPP-harmonic", r2 = r2)
+#' nu_OPP_estimator(var_X = 1/(T-1)*colSums(Xc^2), trace_scatter = sum(diag(Sigma_true)),
+#'                  method = "OPP-harmonic", r2 = r2)
 #'
 #' @export
 nu_OPP_estimator <- function(var_X, trace_scatter, r2,

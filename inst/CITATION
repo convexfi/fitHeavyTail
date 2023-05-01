@@ -3,15 +3,17 @@ citHeader("To cite 'fitHeavyTail' in publications, please use:")
 citEntry(entry = "Manual",
          title        = "{fitHeavyTail: Mean and Covariance Matrix Estimation under Heavy Tails}",
          author       = personList(as.person("D. P. Palomar"),
-                                   as.person("Rui Zhou"),
-                                   as.person("Xiwen Wang")),
-         note         = "R package version 0.1.4",
-         year         = "2022",
+                                   as.person("R. Zhou"),
+                                   as.person("X. Wang"),
+                                   as.person("F. Pascal"),
+                                   as.person("E. Ollila")),
+         note         = "R package version 0.2.0",
+         year         = "2023",
          url          = "https://CRAN.R-project.org/package=fitHeavyTail",
          textVersion  =
-           paste("D. P. Palomar, Rui Zhou, and Xiwen Wang (2022).",
+           paste("D. P. Palomar, R. Zhou, X. Wang, F. Pascal, and E. Ollila (2023).",
                  "fitHeavyTail: Mean and Covariance Matrix Estimation under Heavy Tails.",
-                 "R package version 0.1.4.",
+                 "R package version 0.2.0.",
                  "https://CRAN.R-project.org/package=fitHeavyTail")
 )
 

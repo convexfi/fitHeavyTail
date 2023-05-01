@@ -12,8 +12,9 @@
 ^vignettes$
 ^vignettes/CovarianceEstimationHeavyTail_cache$
 ^vignettes/CovarianceEstimationHeavyTail_files$
+^vignettes/old-versions$
 ^vignettes/CovarianceEstimationHeavyTail\.Rmd$
-^vignettes/CovarianceEstimationHeavyTail_v.*\.html$
+^vignettes/CovarianceEstimationHeavyTail-html_vignette\.html$
 ^vignettes/apalike\.csl$
 ^vignettes/refs\.bib$
 ^vignettes/preamble\.tex$

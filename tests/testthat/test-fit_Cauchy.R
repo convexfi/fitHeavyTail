@@ -1,7 +1,6 @@
 context("Function \"fit_Cauchy()\"")
 #library(testthat)
 
-
 load("X_mvt.RData")
 # recall:
 # scatter_true <- diag(5)
