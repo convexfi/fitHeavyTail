@@ -9,12 +9,12 @@
 ^R_buildignore$
 ^data-raw$
 ^papers$
-^vignettes$
 ^vignettes/CovarianceEstimationHeavyTail_cache$
 ^vignettes/CovarianceEstimationHeavyTail_files$
 ^vignettes/old-versions$
 ^vignettes/CovarianceEstimationHeavyTail\.Rmd$
 ^vignettes/CovarianceEstimationHeavyTail-html_vignette\.html$
+^vignettes/lala\.RData$
 ^vignettes/apalike\.csl$
 ^vignettes/refs\.bib$
 ^vignettes/preamble\.tex$

@@ -12,4 +12,4 @@ There were no ERRORs or WARNINGs.
 
 ## Reverse dependencies
 
-There are currently no reverse dependencies for this package.
+Package highOrderPortfolios: works fine.
