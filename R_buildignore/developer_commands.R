@@ -4,7 +4,7 @@
 # Local installation
 install.packages(file.choose(), repos = NULL, type = "source")
 # Installation from GitHub
-devtools::install_github("dppalomar/fitHeavyTail")
+devtools::install_github("convexfi/fitHeavyTail")
 # Installation from CRAN
 install.packages("fitHeavyTail")
 # Getting help
