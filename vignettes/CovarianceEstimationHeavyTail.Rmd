@@ -7,7 +7,7 @@ date: "`r Sys.Date()`"
 output:
   html_document:
     toc: yes
-    toc_depth: 2   
+    toc_depth: 2
 csl: apalike.csl
 csl-entry-spacing: 0.5em
 bibliography: refs.bib
@@ -41,6 +41,7 @@ opts_chunk$set(
 knitr_in_progress <- isTRUE(getOption('knitr.in.progress'))
 knit_hooks$set(pngquant = hook_pngquant)
 # rmarkdown::render("vignettes/CovarianceEstimationHeavyTail.Rmd")
+# rmarkdown::render("vignettes/CovarianceEstimationHeavyTail.Rmd", output_format = "pdf_document", params = list(num_realiz = 100))
 # rmarkdown::render("vignettes/CovarianceEstimationHeavyTail.Rmd", params = list(num_realiz = 100))
 ```
 
@@ -49,8 +50,8 @@ knit_hooks$set(pngquant = hook_pngquant)
 to estimate the mean vector and covariance matrix of heavy-tailed multivariate distributions such as the angular Gaussian, Cauchy, or Student's $t$ distribution. The results are compared against existing benchmark functions from different packages.
 
 \newcommand{\bm}[1]{\boldsymbol{#1}}
-\def\T{{\mkern-1mu\raise-1mu\textsf{T}}}
-
+\newcommand{\textm}[1]{\textsf{#1}}
+\def\T{{\mkern-1mu\mathsf{T}}}
 
 
 # Installation
@@ -372,7 +373,7 @@ ggplot(data.frame("MSE" = res_all_T_molten[res_all_T_molten$T == 100 & res_all_T
                   "method" = unique(res_all_T_molten$method)), 
        aes(x = cpu_time, y = MSE, col = method)) +
   geom_point(size = 3) + scale_x_log10() +
-  geom_ellipse(aes(x0 = mean(time4), y0 = mean(mse4), a = 50*(max(time4) - min(time4)), b = 1.0*(max(mse4) - min(mse4)), angle = 0), 
+  geom_ellipse(aes(x0 = mean(time4), y0 = mean(mse4), a = 70*(max(time4) - min(time4)), b = 1.0*(max(mse4) - min(mse4)), angle = 0), 
                col = "black", size = 0.5) +
   labs(title = TeX(sprintf("Performance vs CPU time ($\\textit{N}$ = %d, $\\textit{T}$ = %d, $\\nu$ = %d)", N, 100, nu)), 
        x = "CPU time [sec]", y = "MSE")
