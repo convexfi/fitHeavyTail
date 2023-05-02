@@ -1,6 +1,6 @@
 citHeader("To cite 'fitHeavyTail' in publications, please use:")
 
-bibentry(entry = "Manual",
+bibentry(bibtype      = "Manual",
          title        = "{fitHeavyTail: Mean and Covariance Matrix Estimation under Heavy Tails}",
          author       = c(as.person("D. P. Palomar"),
                           as.person("R. Zhou"),
@@ -17,7 +17,7 @@ bibentry(entry = "Manual",
                  "https://CRAN.R-project.org/package=fitHeavyTail")
 )
 
-bibentry(entry = "Article",
+bibentry(bibtype      = "Article",
          title        = "Regularized Tyler’s scatter estimator: Existence, uniqueness, and algorithms",
          author       = c(as.person("Y. Sun"),
                           as.person("P. Babu"),
@@ -36,7 +36,7 @@ bibentry(entry = "Article",
                  "https://doi.org/10.1109/TSP.2014.2348944")
 )
 
-bibentry(entry = "Article",
+bibentry(bibtype      = "Article",
          title        = "Regularized robust estimation of mean and covariance matrix under heavy-tailed distributions",
          author       = c(as.person("Y. Sun"),
                           as.person("P. Babu"),
@@ -55,7 +55,7 @@ bibentry(entry = "Article",
                  "https://doi.org/10.1109/TSP.2015.2417513")
 )
 
-bibentry(entry = "Article",
+bibentry(bibtype      = "Article",
          title        = "Shrinking the Eigenvalues of M-estimators of Covariance Matrix",
          author       = c(as.person("E. Ollila"),
                           as.person("D. P. Palomar"),

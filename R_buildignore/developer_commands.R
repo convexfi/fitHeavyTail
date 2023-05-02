@@ -37,8 +37,12 @@ devtools::check()  # run_dont_test = TRUE
 rcmdcheck::rcmdcheck()  # build_args = "--run-donttest"
 devtools::build()
 #devtools::revdep(pkg = "fitHeavyTail")  # to check reverse dependencies
-#devtools::check_win_release()  #to check under windows
+#devtools::check_win_release()   # to check under Windows
+#devtools::check_mac_release()   # to check under Mac OS
+#rhub::check_for_cran(platform = "macos-highsierra-release-cran")
 #R CMD build .  # this is to generate tarball
 #R CMD check fitHeavyTail_0.2.0.tar.gz --as-cran --run-donttest  # this is before submission to CRAN
 #R CMD install fitHeavyTail_0.2.0.tar.gz
 #submit the tarball directly via the webform: https://cran.r-project.org/submit.html
+
+

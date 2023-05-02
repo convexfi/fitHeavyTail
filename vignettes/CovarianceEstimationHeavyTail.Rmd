@@ -124,7 +124,7 @@ sum((fitted_3factors$cov - Sigma_cov)^2)
 
 To get a visual idea of the robustness, we can plot the shapes of the covariance matrices (true and estimated ones) on two dimensions. Observe how the heavy-tailed estimation follows the true one more closely than the sample covariance matrix:
 
-```{r scatter-plots, echo=FALSE, fig.width=10, fig.height=6, out.width="100%"}
+```{r scatter-plots, echo=FALSE, fig.width=10, fig.height=6, out.width="90%"}
 # fig.cap="Sample covariance matrix vs robust estimator."
 library(mvtnorm)
 library(ellipse)
