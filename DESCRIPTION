@@ -1,6 +1,6 @@
 Package: fitHeavyTail
 Title: Mean and Covariance Matrix Estimation under Heavy Tails
-Version: 0.2.0
+Version: 0.2.0.9000
 Date: 2023-5-1
 Description: Robust estimation methods for the mean vector, scatter matrix,
     and covariance matrix (if it exists) from data (possibly containing NAs) 
@@ -22,7 +22,7 @@ Maintainer: Daniel P. Palomar <daniel.p.palomar@gmail.com>
 URL: https://CRAN.R-project.org/package=fitHeavyTail,
      https://github.com/convexfi/fitHeavyTail,
      https://www.danielppalomar.com,
-     https://doi.org/10.1109/TSP.2014.2348944,
+     https://doi.org/10.1 109/TSP.2014.2348944,
      https://doi.org/10.1109/TSP.2015.2417513,
      https://doi.org/10.23919/EUSIPCO54536.2021.9616162
 BugReports: https://github.com/convexfi/fitHeavyTail/issues
