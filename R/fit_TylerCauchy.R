@@ -39,6 +39,9 @@
 #' Ying Sun, Prabhu Babu, and Daniel P. Palomar, "Regularized Tyler's Scatter Estimator: Existence, Uniqueness, and Algorithms,"
 #' IEEE Trans. on Signal Processing, vol. 62, no. 19, pp. 5143-5156, Oct. 2014.
 #'
+#' Esa Ollila, Daniel P. Palomar, and Frédéric Pascal, "Affine equivariant Tyler's M-estimator applied to tail parameter learning
+#' of elliptical distributions," May 2023. <https://doi.org/10.48550/arXiv.2305.04330>
+#'
 #' @examples
 #' library(mvtnorm)       # to generate heavy-tailed data
 #' library(fitHeavyTail)
@@ -157,17 +160,18 @@ recover_scaled_scatter_and_nu <- function(Sigma, Xc) {
   N <- ncol(Xc)
   T <- nrow(Xc)
 
-  # recover scaling factor in Sigma
+  # recover scaling factor in scatter matrix Sigma
   Sigma <- Sigma * N/sum(diag(Sigma))
   r2 <- rowSums(Xc * (Xc %*% solve(Sigma)))
   inv_w <- r2/N
-  tau <- 1/mean(1/inv_w)
-  Sigma <- tau * Sigma
+  eta_scatter <- 1/mean(1/inv_w)
+  Sigma <- eta_scatter * Sigma
 
   # recover nu (pretending it is a Student t distribution)
   var_X <- 1/(T-1)*colSums(Xc^2)
-  eta <- mean(var_X)/tau
-  nu <- 2*eta/(eta - 1)
+  eta_cov <- mean(var_X)
+  theta <- eta_cov/eta_scatter
+  nu <- 2*theta/(theta - 1)
   nu <- min(getOption("nu_max"), max(getOption("nu_min"), nu))
 
   return(list(Sigma = Sigma, nu = nu))
